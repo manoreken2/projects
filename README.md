@@ -12,3 +12,5 @@ And I omitted low-pass prefilter that should be applied before applying Bayer pa
 
 Dng image can be opened by RAW image development software such as RawTherapee.
 
+Bugs: 
+  * Thumbnail image is wrong.
