@@ -26,36 +26,9 @@ Dng image can be opened by RAW image development software such as RawTherapee.
 
 following Bayer patterns are available:
   * RG/GB
-  
-| R | G | R | G | … |
-| G | B | G | B | … |
-| R | G | R | G | … |
-| G | B | G | B | … |
-| … | … | … | … | … |
-
   * BG/GR
-  
-| B | G | B | G | … |
-| G | R | G | R | … |
-| B | G | B | G | … |
-| G | R | G | R | … |
-| … | … | … | … | … |
-
   * GR/BG
-  
-| G | R | G | R | … |
-| B | G | B | G | … |
-| G | R | G | R | … |
-| B | G | B | G | … |
-| … | … | … | … | … |
-
   * GB/RG
-  
-| G | B | G | B | … |
-| R | G | R | G | … |
-| G | B | G | B | … |
-| R | G | R | G | … |
-| … | … | … | … | … |
 
 Bugs: 
   * Thumbnail image is wrong.
