@@ -4,5 +4,6 @@ project("Projects" CSharp)
 add_subdirectory(BMRawYuv420p10ToDng)
 add_subdirectory(DngRW)
 add_subdirectory(ImageToDng)
+add_subdirectory(DngHeaderDump)
 
 

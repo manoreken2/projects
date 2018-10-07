@@ -418,7 +418,7 @@ namespace DngRW {
             return true;
         }
 
-        public bool Parse(string path) {
+        public bool ReadHeader(string path) {
             using (var br = new BinaryReader(new FileStream(path, FileMode.Open, FileAccess.Read))) {
                 if (!ReadHeader(br)) {
                     return false;
