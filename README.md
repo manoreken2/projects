@@ -34,7 +34,7 @@ Bugs:
   * Thumbnail image is wrong.
 
 
-BMRawYuv420p10ToDngImageToDng
+BMRawYuv420p10ToDng
 --------------
 
 Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv420p10le file and writes it as 12bit Raw DNG file. yuv420p10le file can be created using ffmpeg.
