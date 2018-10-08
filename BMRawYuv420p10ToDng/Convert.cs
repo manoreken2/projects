@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Diagnostics;
 
 namespace BMRawYuv420p10ToDng {
     public class Convert {
@@ -37,15 +38,23 @@ namespace BMRawYuv420p10ToDng {
             cbImg = new ushort[WH2];
             crImg = new ushort[WH2];
 
-            using (var br = new BinaryReader(new FileStream(fromPath, FileMode.Open, FileAccess.Read))) {
-                for (int i=0; i<WH; ++i) {
-                    yImg[i] = br.ReadUInt16();
+            using (var br = new BinaryReader(new FileStream(fromPath, FileMode.Open, FileAccess.Read)))
+            {
+                byte [] b;
+                b = br.ReadBytes(WH * 2);
+                for (int i = 0; i < WH; ++i)
+                {
+                    yImg[i] = BitConverter.ToUInt16(b, i*2);
                 }
-                for (int i=0; i<WH2; ++i) {
-                    cbImg[i] = br.ReadUInt16();
+                b = br.ReadBytes(WH2 * 2);
+                for (int i = 0; i < WH2; ++i)
+                {
+                    cbImg[i] = BitConverter.ToUInt16(b, i * 2);
                 }
-                for (int i=0; i<WH2; ++i) {
-                    crImg[i] = br.ReadUInt16();
+                b = br.ReadBytes(WH2 * 2);
+                for (int i = 0; i < WH2; ++i)
+                {
+                    crImg[i] = BitConverter.ToUInt16(b, i * 2);
                 }
             }
         }
@@ -53,14 +62,12 @@ namespace BMRawYuv420p10ToDng {
         private void Write(string toPath) {
             int WH = IMAGE_W*IMAGE_H;
             
-            var sensorRaw = new byte[DNG_W * DNG_H];
-
             using (var bw = new BinaryWriter(new FileStream(toPath, FileMode.Create, FileAccess.Write))) {
                 DngRW.DngWriter.WriteDngHeader(bw, DNG_W, DNG_H, 16, DngRW.DngWriter.CFAPatternType.GRBG);
 
-                var writeBuff = new byte[16];
+                var sensorRaw = new byte[DNG_W * DNG_H * 2];
+                int bytes = 0;
 
-                int outPx = 0;
                 for (int i = 0; i < WH; i += 6) {
                     int yPos = i;
                     int cPos = i / 2;
@@ -102,38 +109,36 @@ namespace BMRawYuv420p10ToDng {
                     ushort p6_16 = (ushort)(p6_12 << 4);
                     ushort p7_16 = (ushort)(p7_12 << 4);
 
-                    writeBuff[0] = (byte)(p0_16 & 0xff);
-                    writeBuff[1] = (byte)(p0_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p0_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p0_16 >> 8);
 
-                    writeBuff[2] = (byte)(p1_16 & 0xff);
-                    writeBuff[3] = (byte)(p1_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p1_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p1_16 >> 8);
 
-                    writeBuff[4] = (byte)(p2_16 & 0xff);
-                    writeBuff[5] = (byte)(p2_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p2_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p2_16 >> 8);
 
-                    writeBuff[6] = (byte)(p3_16 & 0xff);
-                    writeBuff[7] = (byte)(p3_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p3_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p3_16 >> 8);
 
-                    writeBuff[8] = (byte)(p4_16 & 0xff);
-                    writeBuff[9] = (byte)(p4_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p4_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p4_16 >> 8);
 
-                    writeBuff[10] = (byte)(p5_16 & 0xff);
-                    writeBuff[11] = (byte)(p5_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p5_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p5_16 >> 8);
 
-                    writeBuff[12] = (byte)(p6_16 & 0xff);
-                    writeBuff[13] = (byte)(p6_16 >> 8);
+                    sensorRaw[bytes++] = (byte)(p6_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p6_16 >> 8);
 
-                    writeBuff[14] = (byte)(p7_16 & 0xff);
-                    writeBuff[15] = (byte)(p7_16 >> 8);
-                    
-                    // Write little endian 16bit data
-                    bw.Write(writeBuff);
+                    sensorRaw[bytes++] = (byte)(p7_16 & 0xff);
+                    sensorRaw[bytes++] = (byte)(p7_16 >> 8);
 
-                    outPx += 8;
-                    if (DNG_W * DNG_H < outPx) {
+                    if (sensorRaw.Length <= bytes) {
                         break;
                     }
                 }
+
+                bw.Write(sensorRaw);
             }
         }
 
