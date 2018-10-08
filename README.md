@@ -1,8 +1,14 @@
 Manoretimedia Kenkyuujyo project files
 ==============
 
+How to build
+--------------
 
-DngHeaderDump
+Use cmake-gui to create Visual studio solution and projects.
+Open solution file using Visual studio and build. right click project and select set as startup projects and run.
+
+
+DngHeaderDump project
 --------------
 
 DngHeaderDump is a console app to read and show all IFD header info of the specified DNG file.
@@ -12,7 +18,7 @@ It shows your camera name, camera serial number, image number, lens name, exposu
 DNG (Digital Negative) file can be created from digital camera Raw files (CR2, NEF, ARW ...), by converting to DNG file using free Adobe DNG Converter.
 
 
-ImageToDng
+ImageToDng project
 --------------
 
 Windows program to convert image to 8bit RAW CFA(Color Filter Array) DNG format.
@@ -34,7 +40,7 @@ Bugs:
   * Thumbnail image is wrong.
 
 
-BMRawYuv420p10ToDng
+BMRawYuv420p10ToDng project
 --------------
 
 Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv420p10le file and writes it as 12bit Raw DNG file. yuv420p10le file can be created using ffmpeg.
