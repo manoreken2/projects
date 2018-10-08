@@ -58,6 +58,8 @@ namespace BMRawYuv420p10ToDng {
             using (var bw = new BinaryWriter(new FileStream(toPath, FileMode.Create, FileAccess.Write))) {
                 DngRW.DngWriter.WriteDngHeader(bw, DNG_W, DNG_H, 16, DngRW.DngWriter.CFAPatternType.GRBG);
 
+                var writeBuff = new byte[16];
+
                 int outPx = 0;
                 for (int i = 0; i < WH; i += 6) {
                     int yPos = i;
@@ -79,36 +81,53 @@ namespace BMRawYuv420p10ToDng {
                     byte cr2 = (byte)(crImg[cPos + 2] & 0xff);
 
                     // 12bit RAW sensor data
-                    ushort p0 = (ushort)(cb0 | ((y0 & 0xf) << 8));
-                    ushort p1 = (ushort)((cr0 << 4) | (y0 >> 4));
-                    ushort p2 = (ushort)(y1 | ((cb1 & 0xf) << 8));
-                    ushort p3 = (ushort)((cb1 >> 4) | (y2 << 4));
+                    ushort p0_12 = (ushort)(cb0 | ((y0 & 0xf) << 8));
+                    ushort p1_12 = (ushort)((cr0 << 4) | (y0 >> 4));
+                    ushort p2_12 = (ushort)(y1 | ((cb1 & 0xf) << 8));
+                    ushort p3_12 = (ushort)((cb1 >> 4) | (y2 << 4));
 
-                    ushort p4 = (ushort)(cr1 | ((y3 & 0xf) << 8));
-                    ushort p5 = (ushort)((cb2 << 4) | (y3 >> 4));
-                    ushort p6 = (ushort)(y4 | ((cr2 & 0xf) << 8));
-                    ushort p7 = (ushort)((cr2 >> 4) | (y5 << 4));
+                    ushort p4_12 = (ushort)(cr1 | ((y3 & 0xf) << 8));
+                    ushort p5_12 = (ushort)((cb2 << 4) | (y3 >> 4));
+                    ushort p6_12 = (ushort)(y4 | ((cr2 & 0xf) << 8));
+                    ushort p7_12 = (ushort)((cr2 >> 4) | (y5 << 4));
 
                     // 16bit RAW sensor data (zero-padded lower 4bit)
-                    ushort p0_16 = (ushort)(p0 << 4);
-                    ushort p1_16 = (ushort)(p1 << 4);
-                    ushort p2_16 = (ushort)(p2 << 4);
-                    ushort p3_16 = (ushort)(p3 << 4);
-                    ushort p4_16 = (ushort)(p4 << 4);
-                    ushort p5_16 = (ushort)(p5 << 4);
-                    ushort p6_16 = (ushort)(p6 << 4);
-                    ushort p7_16 = (ushort)(p7 << 4);
+                    ushort p0_16 = (ushort)(p0_12 << 4);
+                    ushort p1_16 = (ushort)(p1_12 << 4);
+                    ushort p2_16 = (ushort)(p2_12 << 4);
+                    ushort p3_16 = (ushort)(p3_12 << 4);
 
+                    ushort p4_16 = (ushort)(p4_12 << 4);
+                    ushort p5_16 = (ushort)(p5_12 << 4);
+                    ushort p6_16 = (ushort)(p6_12 << 4);
+                    ushort p7_16 = (ushort)(p7_12 << 4);
+
+                    writeBuff[0] = (byte)(p0_16 & 0xff);
+                    writeBuff[1] = (byte)(p0_16 >> 8);
+
+                    writeBuff[2] = (byte)(p1_16 & 0xff);
+                    writeBuff[3] = (byte)(p1_16 >> 8);
+
+                    writeBuff[4] = (byte)(p2_16 & 0xff);
+                    writeBuff[5] = (byte)(p2_16 >> 8);
+
+                    writeBuff[6] = (byte)(p3_16 & 0xff);
+                    writeBuff[7] = (byte)(p3_16 >> 8);
+
+                    writeBuff[8] = (byte)(p4_16 & 0xff);
+                    writeBuff[9] = (byte)(p4_16 >> 8);
+
+                    writeBuff[10] = (byte)(p5_16 & 0xff);
+                    writeBuff[11] = (byte)(p5_16 >> 8);
+
+                    writeBuff[12] = (byte)(p6_16 & 0xff);
+                    writeBuff[13] = (byte)(p6_16 >> 8);
+
+                    writeBuff[14] = (byte)(p7_16 & 0xff);
+                    writeBuff[15] = (byte)(p7_16 >> 8);
+                    
                     // Write little endian 16bit data
-                    bw.Write(p0_16);
-                    bw.Write(p1_16);
-                    bw.Write(p2_16);
-                    bw.Write(p3_16);
-
-                    bw.Write(p4_16);
-                    bw.Write(p5_16);
-                    bw.Write(p6_16);
-                    bw.Write(p7_16);
+                    bw.Write(writeBuff);
 
                     outPx += 8;
                     if (DNG_W * DNG_H < outPx) {

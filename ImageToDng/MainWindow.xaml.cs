@@ -8,12 +8,31 @@ using DngRW;
 using Microsoft.Win32;
 
 namespace ImageToDng {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : Window {
+    public partial class MainWindow : Window, IDisposable {
+        private BackgroundWorker mBackWorker;
+        private static int READ_START = 10;
+        private static int READ_END = 20;
+        private static int WRITE_START = 25;
+        private Stopwatch mSW = new Stopwatch();
+
         public MainWindow() {
             InitializeComponent();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing) {
+                if (mBackWorker != null) {
+                    mBackWorker.Dispose();
+                    mBackWorker = null;
+                }
+            }
         }
 
         private void buttonBrowseInput_Click(object sender, RoutedEventArgs e) {
@@ -151,8 +170,6 @@ namespace ImageToDng {
             }
         }
 
-        BackgroundWorker mBackWorker;
-
         private void buttonConvert_Click(object sender, RoutedEventArgs e) {
             mSW.Start();
 
@@ -167,11 +184,6 @@ namespace ImageToDng {
 
             mButtonConvert.IsEnabled = false;
         }
-
-        private static int READ_START = 10;
-        private static int READ_END = 20;
-        private static int WRITE_START = 25;
-        private Stopwatch mSW = new Stopwatch();
 
         private void ReportProgress(int percentage, bool important, ConvertProgressArgs args) {
             if (important) {
@@ -280,7 +292,5 @@ namespace ImageToDng {
                 mTextBoxOutputFile.Text = files[0];
             }
         }
-
-
     }
 }
