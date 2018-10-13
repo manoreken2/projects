@@ -394,6 +394,31 @@ namespace DngRW {
             White = 6,
         };
 
+        public enum LightSourceType {
+            Unknown = 0,
+            Daylight = 1,
+            Fluorescent = 2,
+            Tungsten = 3,
+            Flash = 4,
+            FineWeather = 9,
+            CloudyWeather = 10,
+            Shade = 11,
+            DaylightFluorescent = 12,
+            DayWhiteFlurescent = 13,
+            CoolWhiteFluorescent = 14,
+            WhiteFluorescent = 15,
+            WarmWhiteFluorescent = 16,
+            StandardLightA = 17,
+            StandardLightB = 18,
+            StandardLightC = 19,
+            D55 = 20,
+            D65 = 21,
+            D75 = 22,
+            D50 = 23,
+            IsoStudioTungsten = 24,
+            OtherLightSource = 255,
+        };
+
         // IFDEntry.tag (0バイト目から2バイト)
         public Tag tag;
         // IFDEntry.fieldType (2バイト目から2バイト)
@@ -595,6 +620,42 @@ namespace DngRW {
             count = c;
 
             System.Diagnostics.Debug.Assert(c == d.Length);
+
+            if (4 < d.Length) {
+                dataOffset = 0; //< 後でWriteData()で決まる。
+                data = new byte[d.Length];
+                Array.Copy(d, data, d.Length);
+            } else {
+                data = d;
+                dataOffset = d[0];
+                if (2 <= count) {
+                    uint d1 = d[1];
+                    dataOffset += d1 << 8;
+                }
+                if (3 <= count) {
+                    uint d2 = d[2];
+                    dataOffset += d2 << 16;
+                }
+                if (4 <= count) {
+                    uint d3 = d[3];
+                    dataOffset += d3 << 24;
+                }
+            }
+        }
+
+        public IFDEntry(Tag t, FieldType ft, string s) {
+            if (ft != FieldType.ASCII) {
+                throw new ArgumentException("ft");
+            }
+
+            tag = t;
+            fieldType = ft;
+            count = s.Length + 1;
+
+            var d = new byte[count];
+            for (int i = 0; i < s.Length; ++i) {
+                d[i] = (byte)s[i];
+            }
 
             if (4 < d.Length) {
                 dataOffset = 0; //< 後でWriteData()で決まる。

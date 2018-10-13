@@ -1,4 +1,4 @@
-﻿// Read Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in YUV420p10 file
+﻿// Read Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in YUV422p10 file
 // Write 12bit Raw DNG file
 
 using System;
@@ -16,15 +16,15 @@ namespace BMRawYuv420p10ToDng {
         private ushort[] cbImg;
         private ushort[] crImg;
 
-        public bool Run(string fromYuv420p10Path, string toDngPath) {
+        public bool Run(string fromYuv422p10Path, string toDngPath) {
             bool result = true;
-            try {
-                Read(fromYuv420p10Path);
+            //try {
+                Read(fromYuv422p10Path);
                 Write(toDngPath);
-            } catch (Exception ex) {
-                Console.WriteLine(ex);
-                result = false;
-            }
+            //} catch (Exception ex) {
+            //    Console.WriteLine(ex);
+            //    result = false;
+            //}
 
             return result;
         }
@@ -65,7 +65,10 @@ namespace BMRawYuv420p10ToDng {
             using (var bw = new BinaryWriter(new FileStream(toPath, FileMode.Create, FileAccess.Write))) {
                 DngRW.DngWriter.WriteDngHeader(bw, DNG_W, DNG_H, 16, DngRW.DngWriter.CFAPatternType.GRBG);
 
-                var sensorRaw = new byte[DNG_W * DNG_H * 2];
+                ushort[] p16 = new ushort[8];
+                var sensorBytes = new byte[DNG_W * DNG_H * 2];
+                var sensorRaw = new ushort[DNG_W * DNG_H];
+                int count = 0;
                 int bytes = 0;
 
                 for (int i = 0; i < WH; i += 6) {
@@ -99,46 +102,28 @@ namespace BMRawYuv420p10ToDng {
                     ushort p7_12 = (ushort)((cr2 >> 4) | (y5 << 4));
 
                     // 16bit RAW sensor data (zero-padded lower 4bit)
-                    ushort p0_16 = (ushort)(p0_12 << 4);
-                    ushort p1_16 = (ushort)(p1_12 << 4);
-                    ushort p2_16 = (ushort)(p2_12 << 4);
-                    ushort p3_16 = (ushort)(p3_12 << 4);
+                    p16[0] = (ushort)(p0_12 << 4);
+                    p16[1] = (ushort)(p1_12 << 4);
+                    p16[2] = (ushort)(p2_12 << 4);
+                    p16[3] = (ushort)(p3_12 << 4);
 
-                    ushort p4_16 = (ushort)(p4_12 << 4);
-                    ushort p5_16 = (ushort)(p5_12 << 4);
-                    ushort p6_16 = (ushort)(p6_12 << 4);
-                    ushort p7_16 = (ushort)(p7_12 << 4);
+                    p16[4] = (ushort)(p4_12 << 4);
+                    p16[5] = (ushort)(p5_12 << 4);
+                    p16[6] = (ushort)(p6_12 << 4);
+                    p16[7] = (ushort)(p7_12 << 4);
 
-                    sensorRaw[bytes++] = (byte)(p0_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p0_16 >> 8);
+                    for (int j = 0; j < 8; ++j) {
+                        sensorBytes[bytes++] = (byte)(p16[j] & 0xff);
+                        sensorBytes[bytes++] = (byte)(p16[j] >> 8);
+                        sensorRaw[count++] = p16[j];
+                    }
 
-                    sensorRaw[bytes++] = (byte)(p1_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p1_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p2_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p2_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p3_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p3_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p4_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p4_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p5_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p5_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p6_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p6_16 >> 8);
-
-                    sensorRaw[bytes++] = (byte)(p7_16 & 0xff);
-                    sensorRaw[bytes++] = (byte)(p7_16 >> 8);
-
-                    if (sensorRaw.Length <= bytes) {
+                    if (sensorRaw.Length <= count) {
                         break;
                     }
                 }
 
-                bw.Write(sensorRaw);
+                bw.Write(sensorBytes);
             }
         }
 

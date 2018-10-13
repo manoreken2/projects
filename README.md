@@ -40,12 +40,12 @@ Bugs:
   * Thumbnail image is wrong.
 
 
-BMRawYuv420p10ToDng project
+BMRawYuv422p10ToDng project
 --------------
 
-Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv420p10le file and writes it as 12bit Raw DNG file.
+Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv422p10le file and writes it as 12bit Raw DNG file.
 
-yuv420p10le file can be created using ffmpeg.
+yuv422p10le file can be created using ffmpeg.
 
   
   

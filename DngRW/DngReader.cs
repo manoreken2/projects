@@ -216,10 +216,10 @@ namespace DngRW {
             }
             break;
             case IFDEntry.FieldType.DOUBLE:
-            if (4 < count) {
+            /*if (4 < count) {
                 count = 4;
                 truncated = true;
-            }
+            }*/
             for (int i = 0; i < count; ++i) {
                 var b = BitConverter.ToDouble(ifde.data, i * 8);
                 Console.Write("{0:G4} ", b);
@@ -227,10 +227,10 @@ namespace DngRW {
             break;
             case IFDEntry.FieldType.RATIONAL:
             case IFDEntry.FieldType.SRATIONAL:
-            if (3 < count) {
+            /*if (3 < count) {
                 count = 3;
                 truncated = true;
-            }
+            }*/
             for (int i = 0; i < count; ++i) {
                 var n = BitConverter.ToInt32(ifde.data, i * 8 + 0);
                 var d = BitConverter.ToInt32(ifde.data, i * 8 + 4);
@@ -338,6 +338,16 @@ namespace DngRW {
                             Console.Write("{0} ", v);
                         }
                     }
+                }
+                break;
+            case IFDEntry.Tag.LightSource:
+            case IFDEntry.Tag.CalibrationIlluminant1:
+            case IFDEntry.Tag.CalibrationIlluminant2:
+                if (Enum.IsDefined(typeof(IFDEntry.LightSourceType), (int)ifde.dataOffset)) {
+                    var v = (IFDEntry.LightSourceType)ifde.dataOffset;
+                    Console.Write("{0} ", v);
+                } else {
+                    Console.Write("reserved ");
                 }
                 break;
             default:
