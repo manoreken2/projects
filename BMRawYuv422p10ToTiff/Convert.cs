@@ -5,22 +5,22 @@ using System;
 using System.IO;
 using System.Diagnostics;
 
-namespace BMRawYuv422p10ToDng {
+namespace BMRawYuv422p10ToTiff {
     public class Convert {
         private const int IMAGE_W = 3840;
         private const int IMAGE_H = 2160;
-        private const int DNG_W = IMAGE_W + 32;
-        private const int DNG_H = IMAGE_H + 32;
+        private const int OUT_W = IMAGE_W + 32;
+        private const int OUT_H = IMAGE_H + 32;
 
         private ushort[] yImg;
         private ushort[] cbImg;
         private ushort[] crImg;
 
-        public bool Run(string fromYuv422p10Path, string toDngPathTemplate) {
+        public bool Run(string fromYuv422p10Path, string toPathTemplate) {
             bool result = true;
 
-            string toDirPath = Path.GetDirectoryName(toDngPathTemplate);
-            string toFilename = Path.GetFileNameWithoutExtension(toDngPathTemplate);
+            string toDirPath = Path.GetDirectoryName(toPathTemplate);
+            string toFilename = Path.GetFileNameWithoutExtension(toPathTemplate);
 
             try {
                 for (int i = 0; ; ++i) {
@@ -28,7 +28,7 @@ namespace BMRawYuv422p10ToDng {
                         break;
                     }
 
-                    string toPath = string.Format("{0}\\{1}_{2:d5}.dng", toDirPath, toFilename, i);
+                    string toPath = string.Format("{0}\\{1}_{2:d5}.tif", toDirPath, toFilename, i);
                     Write(toPath);
                 }
             } catch (Exception ex) {
@@ -49,15 +49,14 @@ namespace BMRawYuv422p10ToDng {
             cbImg = new ushort[WH2];
             crImg = new ushort[WH2];
 
-            using (var br = new BinaryReader(new FileStream(fromPath, FileMode.Open, FileAccess.Read)))
-            {
+            using (var br = new BinaryReader(new FileStream(fromPath, FileMode.Open, FileAccess.Read))) {
                 long skipOffset = imageIdx * (WH + WH2 + WH2) * 2 /* sizeof short */;
                 br.BaseStream.Seek(skipOffset, SeekOrigin.Begin);
 
                 byte[] b;
                 b = br.ReadBytes(WH * 2);
                 if (b.Length < WH * 2) {
-                    //Console.WriteLine("Reach EOF.");
+                    Console.WriteLine("Reach EOF.");
                     return false;
                 }
                 for (int i = 0; i < WH; ++i)
@@ -79,15 +78,20 @@ namespace BMRawYuv422p10ToDng {
             return true;
         }
 
+        private void SetRGB(ref ushort[] buf, int x, int y, ushort r, ushort g, ushort b) {
+            buf[(y * OUT_W + x) * 3 + 0] = r;
+            buf[(y * OUT_W + x) * 3 + 1] = g;
+            buf[(y * OUT_W + x) * 3 + 2] = b;
+        }
+
         private void Write(string toPath) {
             int WH = IMAGE_W*IMAGE_H;
             
             using (var bw = new BinaryWriter(new FileStream(toPath, FileMode.Create, FileAccess.Write))) {
-                DngRW.DngWriter.WriteDngHeader(bw, DNG_W, DNG_H, 16, DngRW.DngWriter.CFAPatternType.GRBG);
+                DngRW.DngWriter.WriteTiffHeader(bw, OUT_W, OUT_H, 16);
 
                 ushort[] p16 = new ushort[8];
-                var sensorBytes = new byte[DNG_W * DNG_H * 2];
-                var sensorRaw = new ushort[DNG_W * DNG_H];
+                var sensorRaw = new ushort[OUT_W * OUT_H];
                 int count = 0;
                 int bytes = 0;
 
@@ -133,8 +137,6 @@ namespace BMRawYuv422p10ToDng {
                     p16[7] = (ushort)(p7_12 << 4);
 
                     for (int j = 0; j < 8; ++j) {
-                        sensorBytes[bytes++] = (byte)(p16[j] & 0xff);
-                        sensorBytes[bytes++] = (byte)(p16[j] >> 8);
                         sensorRaw[count++] = p16[j];
                     }
 
@@ -143,7 +145,26 @@ namespace BMRawYuv422p10ToDng {
                     }
                 }
 
-                bw.Write(sensorBytes);
+                var buff = new ushort[OUT_W * OUT_H * 3];
+                for (int y = 0; y < OUT_H; y+=2) {
+                    for (int x = 0; x < OUT_W; x+=2) {
+                        // G R
+                        // B G
+                        ushort g0 = sensorRaw[(y + 0) * OUT_W + x + 0];
+                        ushort r = sensorRaw[(y + 0) * OUT_W + x + 1];
+                        ushort b = sensorRaw[(y + 1) * OUT_W + x + 0];
+                        ushort g1 = sensorRaw[(y + 1) * OUT_W + x + 1];
+
+                        SetRGB(ref buff, x, y, r, g0, b);
+                        SetRGB(ref buff, x+1, y, r, g0, b);
+                        SetRGB(ref buff, x, y+1, r, g1, b);
+                        SetRGB(ref buff, x+1, y+1, r, g1, b);
+                    }
+                }
+
+                for (int i = 0; i < OUT_W * OUT_H * 3; ++i) {
+                    bw.Write(buff[i]);
+                }
             }
         }
 

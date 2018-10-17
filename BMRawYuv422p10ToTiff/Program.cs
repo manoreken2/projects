@@ -1,10 +1,10 @@
 ﻿using System;
 
-namespace BMRawYuv422p10ToDng {
+namespace BMRawYuv422p10ToTiff {
     class Program {
         static void Main(string[] args) {
             if (args.Length != 2) {
-                Console.WriteLine("Usage: BMRawYuv420p10ToDng fromYuv420p10ImageFilePath toDngFilePathTemplate");
+                Console.WriteLine("Usage: BMRawYuv422p10ToTiff fromYuv420p10ImageFilePath toTiffFilePathTemplate");
                 return;
             }
 

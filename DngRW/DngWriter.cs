@@ -87,18 +87,18 @@ namespace DngRW {
                 es.Add(new IFDEntry(IFDEntry.Tag.DNGVersion, IFDEntry.FieldType.BYTE, 4, new byte[] { 1, 1, 0, 0 }));
                 es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant1, IFDEntry.FieldType.SHORT, 1, (int)IFDEntry.LightSourceType.StandardLightA));
                 es.Add(new IFDEntry(IFDEntry.Tag.ColorMatrix1, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] { 
-                    new IFDRational(8437, 10000), new IFDRational(-3046, 10000), new IFDRational(228, 10000),
-                    new IFDRational(-3970, 10000), new IFDRational(10927, 10000), new IFDRational(3516, 10000),
-                    new IFDRational(-444, 10000), new IFDRational(1049, 10000), new IFDRational(8250, 10000)}));
+                    new IFDRational(7960, 10000), new IFDRational(-3736, 10000), new IFDRational(3350, 10000),
+                    new IFDRational(-1422, 10000), new IFDRational(6513, 10000), new IFDRational(5888, 10000),
+                    new IFDRational(1203, 10000), new IFDRational(-42, 10000), new IFDRational(8799, 10000)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.CameraCalibration1, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] { 
                     new IFDRational(1, 1), new IFDRational(0, 1), new IFDRational(0, 1),
                     new IFDRational(0, 1), new IFDRational(1, 1), new IFDRational(0, 1),
                     new IFDRational(0, 1), new IFDRational(0, 1), new IFDRational(1, 1)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant2, IFDEntry.FieldType.SHORT, 1, (int)IFDEntry.LightSourceType.D65));
+                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant2, IFDEntry.FieldType.SHORT, 1, (int)IFDEntry.LightSourceType.D55));
                 es.Add(new IFDEntry(IFDEntry.Tag.ColorMatrix2, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] { 
-                    new IFDRational(7866, 10000), new IFDRational(-2100, 10000), new IFDRational(-555, 10000),
-                    new IFDRational(-4869, 10000), new IFDRational(12483, 10000), new IFDRational(2681, 10000),
-                    new IFDRational(-1176, 10000), new IFDRational(2069, 10000), new IFDRational(7501, 10000)}));
+                    new IFDRational(8716, 10000), new IFDRational(-3218, 10000), new IFDRational(1392, 10000),
+                    new IFDRational(-984, 10000), new IFDRational(7487, 10000), new IFDRational(4196, 10000),
+                    new IFDRational(1919, 10000), new IFDRational(-72, 10000), new IFDRational(8243, 10000)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.CameraCalibration2, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] { 
                     new IFDRational(1, 1), new IFDRational(0, 1), new IFDRational(0, 1),
                     new IFDRational(0, 1), new IFDRational(1, 1), new IFDRational(0, 1),
@@ -238,6 +238,93 @@ namespace DngRW {
                 // この後ろにCFA RAW画像データを書き込む。
             }
         }
+
+        public static void WriteTiffHeader(BinaryWriter bw, int W, int H, int bitsPerSample) {
+            WriteImageFileHeader(bw);
+
+            // TBD number of directory entry 
+            long numIFDEntryOffs = bw.BaseStream.Position;
+            bw.Write((short)0);
+
+            /*
+            TIFF RGB image required fields:
+            ImageWidth                SHORT or LONG
+            ImageLength               SHORT or LONG
+            BitsPerSample             SHORT 8,8,8
+            Compression               SHORT 1 or 32773
+            PhotometricInterpretation SHORT 2
+            StripOffsets              SHORT or LONG
+            SamplesPerPixel           SHORT 3 or more
+            RowsPerStrip              SHORT or LONG
+            StripByteCounts           LONG or SHORT
+            XResolution               RATIONAL
+            YResolution               RATIONAL
+            ResolutionUnit            SHORT 1, 2 or 3
+            */
+
+            long startOfIFDEntry = bw.BaseStream.Position;
+
+            int bytesPerSample = 1;
+            switch (bitsPerSample) {
+            case 8:
+                bytesPerSample = 1;
+                break;
+            case 16:
+                bytesPerSample = 2;
+                break;
+            default:
+                throw new NotImplementedException();
+            }
+
+            var es = new List<IFDEntry>();
+            es.Add(new IFDEntry(IFDEntry.Tag.NewSubfileType, IFDEntry.FieldType.LONG, 1, 0));
+            es.Add(new IFDEntry(IFDEntry.Tag.ImageWidth, IFDEntry.FieldType.LONG, 1, W));
+            es.Add(new IFDEntry(IFDEntry.Tag.ImageLength, IFDEntry.FieldType.LONG, 1, H));
+            es.Add(new IFDEntry(IFDEntry.Tag.Orientation, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.OrientationType.TopLeft));
+            es.Add(new IFDEntry(IFDEntry.Tag.BitsPerSample, IFDEntry.FieldType.SHORT, 3, new short[] { (short)bitsPerSample, (short)bitsPerSample, (short)bitsPerSample }));
+            es.Add(new IFDEntry(IFDEntry.Tag.SampleFormat, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.SampleFormatType.Uint));
+            es.Add(new IFDEntry(IFDEntry.Tag.Compression, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.CompressionType.Uncompressed));
+            es.Add(new IFDEntry(IFDEntry.Tag.PhotometricInterpretation, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.PhotometricInterpretationType.RGB));
+
+            long stripOffsetsPos = startOfIFDEntry + es.Count * 12 + 8;
+            es.Add(new IFDEntry(IFDEntry.Tag.StripOffsets, IFDEntry.FieldType.LONG, 1, 0));
+
+            es.Add(new IFDEntry(IFDEntry.Tag.SamplesPerPixel, IFDEntry.FieldType.SHORT, 1, 3));
+            es.Add(new IFDEntry(IFDEntry.Tag.RowsPerStrip, IFDEntry.FieldType.LONG, 1, H));
+            es.Add(new IFDEntry(IFDEntry.Tag.StripByteCounts, IFDEntry.FieldType.LONG, 1, W * H * 3 * bytesPerSample));
+            es.Add(new IFDEntry(IFDEntry.Tag.PlanarConfiguration, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.PlanarConfigurationType.Chunky));
+            es.Add(new IFDEntry(IFDEntry.Tag.XResolution, IFDEntry.FieldType.RATIONAL, 1, new IFDRational(300, 1)));
+            es.Add(new IFDEntry(IFDEntry.Tag.YResolution, IFDEntry.FieldType.RATIONAL, 1, new IFDRational(300, 1)));
+            es.Add(new IFDEntry(IFDEntry.Tag.ResolutionUnit, IFDEntry.FieldType.SHORT, 1, (short)IFDEntry.ResolutionUnitType.Inch));
+
+            // IFDEntryの数が決まったので書き込む。
+            long cur = bw.BaseStream.Position;
+            bw.BaseStream.Seek(numIFDEntryOffs, SeekOrigin.Begin);
+            bw.Write((short)es.Count);
+            bw.BaseStream.Seek(cur, SeekOrigin.Begin);
+
+            // IFDEntryを書き込み。
+            foreach (var e in es) {
+                e.WriteEntry(bw);
+            }
+
+            // Next IFD offset == 0
+            bw.Write((int)0);
+
+            // 4バイトを超えるデータを書き出す。
+            foreach (var e in es) {
+                e.WriteData(bw);
+            }
+
+            // 画像の先頭位置が決まったので書き込み。
+            cur = bw.BaseStream.Position;
+            bw.BaseStream.Seek(stripOffsetsPos, SeekOrigin.Begin);
+            bw.Write((int)cur);
+            bw.BaseStream.Seek(cur, SeekOrigin.Begin);
+
+            // あとは画像データを書き込む。
+        }
+
 
         public static void TestCreateDng(int W, int H, string path) {
             int thumbnailW = 256;
