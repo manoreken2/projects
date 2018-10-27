@@ -105,8 +105,6 @@ namespace DngRW {
                     new IFDRational(0, 1), new IFDRational(0, 1), new IFDRational(1, 1)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.AnalogBalance, IFDEntry.FieldType.RATIONAL, 3, new IFDRational[] { 
                     new IFDRational(1, 1), new IFDRational(1, 1), new IFDRational(1, 1)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.AsShotNeutral, IFDEntry.FieldType.RATIONAL, 3, new IFDRational[] { 
-                    new IFDRational(475836, 1000000), new IFDRational(1000000, 1000000), new IFDRational(797508, 1000000)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.BaselineExposure, IFDEntry.FieldType.SRATIONAL, 1, new IFDRational[] {new IFDRational(0, 100)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.BaselineNoise, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(100, 100) }));
                 es.Add(new IFDEntry(IFDEntry.Tag.BaselineSharpness, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(100, 100) }));
