@@ -47,5 +47,11 @@ Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv422p1
 
 yuv422p10le file can be created using ffmpeg.
 
+
+MLDX12VideoCapture project
+--------------
+
+Video capture program using DirectX12, Decklink Mini recorder 4K and Decklink SDK 10.11.4 
+
   
   
