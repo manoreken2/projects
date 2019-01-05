@@ -16,6 +16,7 @@
 #include "IMLVideoCaptureCallback.h"
 #include "MLDX12Imgui.h"
 #include <mutex>
+#include <list>
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -109,12 +110,14 @@ private:
         int bytes;
         int width;
         int height;
-        volatile bool available;
+        DrawMode drawMode;
         std::string imgFormat;
     };
 
-    CapturedImage m_capturedImage;
+    std::list<CapturedImage> m_capturedImages;
     std::mutex m_mutex;
+
+    int64_t m_frameSkipCount;
 
     void LoadPipeline(void);
     void LoadAssets(void);

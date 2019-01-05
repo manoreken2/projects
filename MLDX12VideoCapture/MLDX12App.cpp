@@ -33,16 +33,9 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     m_fenceValues{},
     m_rtvDescriptorSize(0),
-    m_windowedMode(true)
+    m_windowedMode(true),
+    m_frameSkipCount(0)
 {
-    m_capturedImage.width  = 3840;
-    m_capturedImage.height = 2160;
-    m_capturedImage.bytes  = 3840 * 2160 * 4;
-    m_capturedImage.available = false;
-    m_capturedImage.data = new uint8_t[m_capturedImage.bytes];
-
-    // 全ての領域にtouchします。
-    memset(m_capturedImage.data, 0x80, m_capturedImage.bytes);
 }
 
 void MLDX12App::OnInit()
@@ -73,8 +66,12 @@ void MLDX12App::OnDestroy()
 
     m_videoCaptureDeviceList.Term();
 
-    delete[] m_capturedImage.data;
-    m_capturedImage.data = nullptr;
+    for (auto ite = m_capturedImages.begin(); ite != m_capturedImages.end(); ++ite) {
+        auto & item = *ite;
+        delete[] item.data;
+        item.data = nullptr;
+    }
+    m_capturedImages.clear();
 
     m_dx12Imgui.Term();
 }
@@ -725,6 +722,8 @@ MLDX12App::ImGuiCommands(void)
             ImGui::Text("No video capture device found.");
         }
         if (ImGui::Button("Start Capture")) {
+            m_frameSkipCount = 0;
+
             IDeckLink *p = m_videoCaptureDeviceList.Device(selectedDeviceIdx);
             m_videoCapture.Init(p);
             m_videoCapture.SetCallback(this);
@@ -735,22 +734,32 @@ MLDX12App::ImGuiCommands(void)
         }
         break;
     case S_Capturing:
-        ImGui::Text("Now Capturing...");
-        ImGui::Text(m_capturedImage.imgFormat.c_str());
+        {
+            int queueSize = 0;
 
-        if (ImGui::Button("Stop Capture")) {
+            ImGui::Text("Now Capturing...");
+
             m_mutex.lock();
-            
-            m_videoCapture.StopCapture();
-            m_videoCapture.Term();
-            
+            if (!m_capturedImages.empty()) {
+                queueSize = (int)m_capturedImages.size();
+                auto & front = m_capturedImages.front();
+                ImGui::Text(front.imgFormat.c_str());
+            }
             m_mutex.unlock();
 
-            m_videoCaptureDeviceList.Term();
-            m_videoCaptureDeviceList.Init();
+            ImGui::Text("Queue size : %d", queueSize);
+            ImGui::Text("Frame skip count : %lld", m_frameSkipCount);
 
-            m_state = S_Init;
-            m_capturedImage.imgFormat = "";
+            if (ImGui::Button("Stop Capture")) {
+            
+                m_videoCapture.StopCapture();
+                m_videoCapture.Term();
+            
+                m_videoCaptureDeviceList.Term();
+                m_videoCaptureDeviceList.Init();
+
+                m_state = S_Init;
+            }
         }
         break;
     default:
@@ -787,11 +796,12 @@ void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
 {
     m_mutex.lock();
-
-    if (m_capturedImage.available) {
+    if (2 <= m_capturedImages.size()) {
+        ++m_frameSkipCount;
         m_mutex.unlock();
         return;
     }
+    m_mutex.unlock();
 
     void *buffer = nullptr;
     videoFrame->GetBytes(&buffer);
@@ -802,22 +812,21 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     int rowBytes = videoFrame->GetRowBytes();
     char s[256];
     sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
-    m_capturedImage.imgFormat = s;
-    m_capturedImage.width = width;
-    m_capturedImage.height = height;
+    int bytes = width * height * 4;
 
-    int bytes = videoFrame->GetRowBytes() * videoFrame->GetHeight();
-    
-    if (m_capturedImage.bytes < bytes) {
-        MessageBoxA(WinApp::GetHwnd(), "Error: Too large image comes in", "Error", 0);
-        exit(0);
-    }
-    
+    CapturedImage ci;
+    ci.imgFormat = s;
+    ci.bytes = bytes;
+    ci.width = width;
+    ci.height = height;
+    ci.drawMode = DM_RGB;
+    ci.data = new uint8_t[bytes];
+        
     switch (fmt) {
     case bmdFormat10BitRGB:
         {
             uint32_t *pFrom = (uint32_t *)buffer;
-            uint32_t *pTo = (uint32_t *)m_capturedImage.data;
+            uint32_t *pTo = (uint32_t *)ci.data;
             int pos = 0;
             for (int y = 0; y < height; ++y) {
                 for (int x = 0; x < width; ++x) {
@@ -831,14 +840,13 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
                     ++pos;
                 }
             }
-            m_capturedImage.available = true;
-            m_drawMode = DM_RGB;
+            ci.drawMode = DM_RGB;
         }
         break;
     case bmdFormat10BitYUV:
         {
             uint32_t *pFrom = (uint32_t *)buffer;
-            uint32_t *pTo = (uint32_t *)m_capturedImage.data;
+            uint32_t *pTo = (uint32_t *)ci.data;
             int posF = 0;
             int posT = 0;
             for (int y = 0; y < height; ++y) {
@@ -876,32 +884,36 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
                     posT += 6;
                 }
             }
-            m_capturedImage.available = true;
-            m_drawMode = DM_YUV;
-    }
+            ci.drawMode = DM_YUV;
+        }
         break;
     default:
         break;
     }
 
+    m_mutex.lock();
+    m_capturedImages.push_back(ci);
     m_mutex.unlock();
 }
 
 void
 MLDX12App::UpdateVideoTexture(void)
 {
-    CapturedImage &ci = m_capturedImage;
-
     m_mutex.lock();
-    if (!ci.available) {
+    if (m_capturedImages.empty()) {
         m_mutex.unlock();
-        OutputDebugString(L"Not Available\n");
+        //OutputDebugString(L"Not Available\n");
         return;
     }
+
+    //char s[256];
+    //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
+    //OutputDebugStringA(s);
+
+    CapturedImage ci = m_capturedImages.front();
+    m_capturedImages.pop_front();
+
     m_mutex.unlock();
-
-    OutputDebugString(L"Available\n");
-
 
     DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     int         pixelBytes  = 4;
@@ -981,5 +993,8 @@ MLDX12App::UpdateVideoTexture(void)
     WaitForGpu();
 
     m_textureVideoIdToShow = !m_textureVideoIdToShow;
-    ci.available = false;
+
+    m_drawMode = ci.drawMode;
+    delete[] ci.data;
+    ci.data = nullptr;
 }
