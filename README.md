@@ -1,21 +1,26 @@
 Manoretimedia Kenkyuujyo project files
 ==============
 
-How to build
+MLDX12VideoCapture project
+--------------
+
+Video capture program using DirectX12 and Decklink Mini recorder 4K.
+
+Decklink SDK 10.11.4 is necessary to build.
+
+Copy Blackmagic DeckLink SDK 10.11.4\Win\include\* to MLDecklinkCapture\Decklink directory.
+Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and build.
+
+YUV to RGB conversion is not optimal.
+
+  ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
+  
+  
+How to build following projects
 --------------
 
 Use cmake-gui to create Visual Studio solution and projects.
 Open solution file using Visual Studio and build. right click project and select set as startup projects and run.
-
-
-DngHeaderDump project
---------------
-
-DngHeaderDump is a console app to read and show all IFD header info of the specified DNG file.
-
-It shows your camera name, camera serial number, image number, lens name, exposure settings, battery level, GPS location, GPS time and so on.
-
-DNG (Digital Negative) file can be created from digital camera Raw files (CR2, NEF, ARW ...), by converting to DNG file using free Adobe DNG Converter.
 
 
 ImageToDng project
@@ -40,6 +45,16 @@ Bugs:
   * Thumbnail image is wrong.
 
 
+DngHeaderDump project
+--------------
+
+DngHeaderDump is a console app to read and show all IFD header info of the specified DNG file.
+
+It shows your camera name, camera serial number, image number, lens name, exposure settings, battery level, GPS location, GPS time and so on.
+
+DNG (Digital Negative) file can be created from digital camera Raw files (CR2, NEF, ARW ...), by converting to DNG file using free Adobe DNG Converter.
+
+
 BMRawYuv422p10ToDng project
 --------------
 
@@ -48,15 +63,3 @@ Reads Blackmagic Micro Studio Camera 4k 12bit raw image data encoded in yuv422p1
 yuv422p10le file can be created using ffmpeg.
 
 
-MLDX12VideoCapture project
---------------
-
-Video capture program using DirectX12 and Decklink Mini recorder 4K.
-
-Decklink SDK 10.11.4 is necessary to build.
-
-Copy Blackmagic DeckLink SDK 10.11.4\Win\include\* to MLDecklinkCapture\Decklink directory.
-Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and build.
-
-  ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
-  
