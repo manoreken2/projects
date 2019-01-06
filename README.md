@@ -58,5 +58,5 @@ Decklink SDK 10.11.4 is necessary to build.
 Copy Blackmagic DeckLink SDK 10.11.4\Win\include\* to MLDecklinkCapture\Decklink directory.
 Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and build.
 
-  
+  ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
   
