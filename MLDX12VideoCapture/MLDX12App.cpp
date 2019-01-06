@@ -744,6 +744,8 @@ MLDX12App::ImGuiCommands(void)
                 queueSize = (int)m_capturedImages.size();
                 auto & front = m_capturedImages.front();
                 ImGui::Text(front.imgFormat.c_str());
+            } else {
+                ImGui::Text("");
             }
             m_mutex.unlock();
 
