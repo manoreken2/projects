@@ -798,7 +798,7 @@ void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
 {
     m_mutex.lock();
-    if (2 <= m_capturedImages.size()) {
+    if (CapturedImageQueueSize <= m_capturedImages.size()) {
         ++m_frameSkipCount;
         m_mutex.unlock();
         return;
@@ -875,12 +875,12 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
                     uint8_t y4 = (w3 >> 2) & 0xff;
 
                     uint8_t a = 0xff;
-                    pTo[posT+0] = (a << 24) + (y0 << 16) + (cr0 << 8) + cb0;
-                    pTo[posT+1] = (a << 24) + (y1 << 16) + (cr0 << 8) + cb0;
-                    pTo[posT+2] = (a << 24) + (y2 << 16) + (cr2 << 8) + cb2;
-                    pTo[posT+3] = (a << 24) + (y3 << 16) + (cr2 << 8) + cb2;
-                    pTo[posT+4] = (a << 24) + (y4 << 16) + (cr4 << 8) + cb4;
-                    pTo[posT+5] = (a << 24) + (y5 << 16) + (cr4 << 8) + cb4;
+                    pTo[posT+0] = (a << 24) + (y0 << 16) + (cb0 << 8) + cr0;
+                    pTo[posT+1] = (a << 24) + (y1 << 16) + (cb0 << 8) + cr0;
+                    pTo[posT+2] = (a << 24) + (y2 << 16) + (cb2 << 8) + cr2;
+                    pTo[posT+3] = (a << 24) + (y3 << 16) + (cb2 << 8) + cr2;
+                    pTo[posT+4] = (a << 24) + (y4 << 16) + (cb4 << 8) + cr4;
+                    pTo[posT+5] = (a << 24) + (y5 << 16) + (cb4 << 8) + cr4;
 
                     posF += 4;
                     posT += 6;

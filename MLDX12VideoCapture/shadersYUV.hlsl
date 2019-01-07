@@ -34,16 +34,32 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     float4 r;
 
+#if 1
     float3 yuv = float3(vuya.z, vuya.y - 0.5f, vuya.x - 0.5f);
-
     float3 rgb = mul(yuv, float3x3(
-        +1.0f,   +1.0f,    +1.0f,
-        +0.0f,   -0.3441f, +1.772f,
-        +1.402f, -0.7141f, +0.0f));
+        1.0f,   1.0f,       1.0f,
+        0.0f,   -0.344136f, 1.772f,
+        1.402f, -0.714136f, 0));
+#else
+    /*
+    float3 yuv = float3(vuya.z-0.0625f, vuya.y - 0.5f, vuya.x - 0.5f);
+    float3 rgb = mul(yuv, float3x3(
+        255.0f / 219.0f,         255.0f / 219.0f,                        255.0f / 219.0f,
+        0.0f,                   -255.0f*1.772f*0.114f / 224.0f / 0.587f, 255.0f*1.772f / 224.0f,
+        255.0f*1.402f / 224.0f, -255.0f*1.402f*0.299f / 224.0f / 0.587f, 0));
+    */
+    /*
+    float3 yuv = float3(vuya.z, vuya.y - 0.5f, vuya.x - 0.5f);
+    float3 rgb = mul(yuv, float3x3(
+        +0.9684f, +0.9588f, +0.9695f,
+        -0.0993f, -0.3249f, +2.0013f,
+        +1.7177f, -0.6062f, -0.0721f));
+    */
+#endif
 
-    r.b = rgb.x;
+    r.r = rgb.x;
     r.g = rgb.y;
-    r.r = rgb.z;
+    r.b = rgb.z;
     r.a = 1.0f;
 
     return r;

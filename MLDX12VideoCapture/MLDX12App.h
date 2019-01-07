@@ -40,6 +40,8 @@ public:
 private:
     static const UINT FrameCount = 2;
 
+    static const int CapturedImageQueueSize = 30;
+
     enum State {
         S_Init,
         S_Capturing,
