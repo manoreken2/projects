@@ -65,8 +65,15 @@ private:
         DM_YUV
     };
 
+    enum GuideType {
+        GT_None,
+        GT_CenterGauge,
+        GT_4Gauges,
+    };
+
     State m_state;
     DrawMode m_drawMode;
+    GuideType m_guideType;
 
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -138,4 +145,6 @@ private:
     void ImGuiCommands(void);
 
     void DrawFullscreenTexture(void);
+
+    void AddGuide(CapturedImage &ci);
 };

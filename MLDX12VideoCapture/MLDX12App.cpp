@@ -27,6 +27,7 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
     m_state(S_Init),
     m_drawMode(DM_RGB),
+    m_guideType(GT_None),
     m_frameIndex(0),
     m_textureVideoIdToShow(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
@@ -762,6 +763,18 @@ MLDX12App::ImGuiCommands(void)
 
                 m_state = S_Init;
             }
+
+            ImGui::BeginGroup();
+            if (ImGui::RadioButton("None", m_guideType == GT_None)) {
+                m_guideType = GT_None;
+            }
+            if (ImGui::RadioButton("Center Gauge", m_guideType == GT_CenterGauge)) {
+                m_guideType = GT_CenterGauge;
+            }
+            if (ImGui::RadioButton("4 Gauges", m_guideType == GT_4Gauges)) {
+                m_guideType = GT_4Gauges;
+            }
+            ImGui::EndGroup();
         }
         break;
     default:
@@ -893,9 +906,83 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
         break;
     }
 
+    AddGuide(ci);
+
     m_mutex.lock();
     m_capturedImages.push_back(ci);
     m_mutex.unlock();
+}
+
+void
+MLDX12App::AddGuide(CapturedImage &ci)
+{
+    uint32_t *pTo = (uint32_t*)ci.data;
+
+    int GAUGE_HALF_SIZE = 40;
+    int GAUGE_HALF_THICKNESS = 3;
+    if (ci.width <= 1920) {
+        GAUGE_HALF_SIZE /= 2;
+        GAUGE_HALF_THICKNESS /= 2;
+    }
+
+    const int width = ci.width;
+    const int height = ci.height;
+
+    //                 a             y              cb         cr
+    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+    switch (ci.drawMode) {
+    case DM_RGB:
+        //        A B G R
+        color = 0xffffffff;
+        break;
+    default:
+        break;
+    }
+
+    switch (m_guideType) {
+    case GT_CenterGauge:
+        // 横線
+        for (int y = height / 2 - GAUGE_HALF_THICKNESS; y < height / 2 + GAUGE_HALF_THICKNESS; ++y) {
+            for (int x = width / 2 - GAUGE_HALF_SIZE; x < width / 2 + GAUGE_HALF_SIZE; ++x) {
+                int pos = x + y * width;
+                pTo[pos] = color;
+            }
+        }
+        // 縦線
+        for (int y = height / 2 - GAUGE_HALF_SIZE; y <= height / 2 + GAUGE_HALF_SIZE; ++y) {
+            for (int x = width / 2 - GAUGE_HALF_THICKNESS; x < width / 2 + GAUGE_HALF_THICKNESS; ++x) {
+                int pos = x + y * width;
+                //           a             y              cb         cr
+                pTo[pos] = color;
+            }
+        }
+        break;
+    case GT_4Gauges:
+        for (int yi = 0; yi <= 1; ++yi) {
+            for (int xi = 0; xi <= 1; ++xi) {
+                // 横線
+                for (int y = height / 4 - GAUGE_HALF_THICKNESS + yi * height / 2; y < height / 4 + GAUGE_HALF_THICKNESS + yi * height / 2; ++y) {
+                    for (int x = width / 4 - GAUGE_HALF_SIZE + xi * width / 2; x < width / 4 + GAUGE_HALF_SIZE + xi * width / 2; ++x) {
+                        int pos = x + y * width;
+                        //           a             y              cb         cr
+                        pTo[pos] = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+                    }
+                }
+                // 縦線
+                for (int y = height / 4 - GAUGE_HALF_SIZE + yi * height / 2; y <= height / 4 + GAUGE_HALF_SIZE + yi * height / 2; ++y) {
+                    for (int x = width / 4 - GAUGE_HALF_THICKNESS + xi * width / 2; x < width / 4 + GAUGE_HALF_THICKNESS + xi * width / 2; ++x) {
+                        int pos = x + y * width;
+                        //           a             y              cb         cr
+                        pTo[pos] = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+                    }
+                }
+            }
+        }
+        break;
+    default:
+        break;
+    }
+
 }
 
 void
