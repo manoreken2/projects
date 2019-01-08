@@ -952,7 +952,6 @@ MLDX12App::AddGuide(CapturedImage &ci)
         for (int y = height / 2 - GAUGE_HALF_SIZE; y <= height / 2 + GAUGE_HALF_SIZE; ++y) {
             for (int x = width / 2 - GAUGE_HALF_THICKNESS; x < width / 2 + GAUGE_HALF_THICKNESS; ++x) {
                 int pos = x + y * width;
-                //           a             y              cb         cr
                 pTo[pos] = color;
             }
         }
@@ -964,16 +963,14 @@ MLDX12App::AddGuide(CapturedImage &ci)
                 for (int y = height / 4 - GAUGE_HALF_THICKNESS + yi * height / 2; y < height / 4 + GAUGE_HALF_THICKNESS + yi * height / 2; ++y) {
                     for (int x = width / 4 - GAUGE_HALF_SIZE + xi * width / 2; x < width / 4 + GAUGE_HALF_SIZE + xi * width / 2; ++x) {
                         int pos = x + y * width;
-                        //           a             y              cb         cr
-                        pTo[pos] = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+                        pTo[pos] = color;
                     }
                 }
                 // 縦線
                 for (int y = height / 4 - GAUGE_HALF_SIZE + yi * height / 2; y <= height / 4 + GAUGE_HALF_SIZE + yi * height / 2; ++y) {
                     for (int x = width / 4 - GAUGE_HALF_THICKNESS + xi * width / 2; x < width / 4 + GAUGE_HALF_THICKNESS + xi * width / 2; ++x) {
                         int pos = x + y * width;
-                        //           a             y              cb         cr
-                        pTo[pos] = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+                        pTo[pos] = color;
                     }
                 }
             }
