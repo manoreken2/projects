@@ -27,7 +27,8 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
     m_state(S_Init),
     m_drawMode(DM_RGB),
-    m_guideType(GT_None),
+    m_crosshairType(CH_None),
+    m_titleSafeArea(false),
     m_frameIndex(0),
     m_textureVideoIdToShow(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
@@ -765,14 +766,32 @@ MLDX12App::ImGuiCommands(void)
             }
 
             ImGui::BeginGroup();
-            if (ImGui::RadioButton("None", m_guideType == GT_None)) {
-                m_guideType = GT_None;
+            if (ImGui::RadioButton("Center Crosshair", m_crosshairType == CH_CenterCrosshair)) {
+                m_crosshairType = CH_CenterCrosshair;
             }
-            if (ImGui::RadioButton("Center Gauge", m_guideType == GT_CenterGauge)) {
-                m_guideType = GT_CenterGauge;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("4 Crosshairs", m_crosshairType == CH_4Crosshairs)) {
+                m_crosshairType = CH_4Crosshairs;
             }
-            if (ImGui::RadioButton("4 Gauges", m_guideType == GT_4Gauges)) {
-                m_guideType = GT_4Gauges;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("None", m_crosshairType == CH_None)) {
+                m_crosshairType = CH_None;
+            }
+            ImGui::EndGroup();
+
+            ImGui::Checkbox("Title safe area", &m_titleSafeArea);
+
+            ImGui::BeginGroup();
+            if (ImGui::RadioButton("3x3 Grid", m_gridType == GR_3x3)) {
+                m_gridType = GR_3x3;
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("6x6 Grid", m_gridType == GR_6x6)) {
+                m_gridType = GR_6x6;
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("None", m_gridType == GR_None)) {
+                m_gridType = GR_None;
             }
             ImGui::EndGroup();
         }
@@ -906,7 +925,9 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
         break;
     }
 
-    AddGuide(ci);
+    AddCrosshair(ci);
+    AddTitleSafeArea(ci);
+    AddGrid(ci);
 
     m_mutex.lock();
     m_capturedImages.push_back(ci);
@@ -914,77 +935,7 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
 }
 
 void
-MLDX12App::AddGuide(CapturedImage &ci)
-{
-    uint32_t *pTo = (uint32_t*)ci.data;
-
-    int GAUGE_HALF_SIZE = 40;
-    int GAUGE_HALF_THICKNESS = 3;
-    if (ci.width <= 1920) {
-        GAUGE_HALF_SIZE /= 2;
-        GAUGE_HALF_THICKNESS /= 2;
-    }
-
-    const int width = ci.width;
-    const int height = ci.height;
-
-    //                 a             y              cb         cr
-    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
-    switch (ci.drawMode) {
-    case DM_RGB:
-        //        A B G R
-        color = 0xffffffff;
-        break;
-    default:
-        break;
-    }
-
-    switch (m_guideType) {
-    case GT_CenterGauge:
-        // 横線
-        for (int y = height / 2 - GAUGE_HALF_THICKNESS; y < height / 2 + GAUGE_HALF_THICKNESS; ++y) {
-            for (int x = width / 2 - GAUGE_HALF_SIZE; x < width / 2 + GAUGE_HALF_SIZE; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-        // 縦線
-        for (int y = height / 2 - GAUGE_HALF_SIZE; y <= height / 2 + GAUGE_HALF_SIZE; ++y) {
-            for (int x = width / 2 - GAUGE_HALF_THICKNESS; x < width / 2 + GAUGE_HALF_THICKNESS; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-        break;
-    case GT_4Gauges:
-        for (int yi = 0; yi <= 1; ++yi) {
-            for (int xi = 0; xi <= 1; ++xi) {
-                // 横線
-                for (int y = height / 4 - GAUGE_HALF_THICKNESS + yi * height / 2; y < height / 4 + GAUGE_HALF_THICKNESS + yi * height / 2; ++y) {
-                    for (int x = width / 4 - GAUGE_HALF_SIZE + xi * width / 2; x < width / 4 + GAUGE_HALF_SIZE + xi * width / 2; ++x) {
-                        int pos = x + y * width;
-                        pTo[pos] = color;
-                    }
-                }
-                // 縦線
-                for (int y = height / 4 - GAUGE_HALF_SIZE + yi * height / 2; y <= height / 4 + GAUGE_HALF_SIZE + yi * height / 2; ++y) {
-                    for (int x = width / 4 - GAUGE_HALF_THICKNESS + xi * width / 2; x < width / 4 + GAUGE_HALF_THICKNESS + xi * width / 2; ++x) {
-                        int pos = x + y * width;
-                        pTo[pos] = color;
-                    }
-                }
-            }
-        }
-        break;
-    default:
-        break;
-    }
-
-}
-
-void
-MLDX12App::UpdateVideoTexture(void)
-{
+MLDX12App::UpdateVideoTexture(void) {
     m_mutex.lock();
     if (m_capturedImages.empty()) {
         m_mutex.unlock();
@@ -1002,7 +953,7 @@ MLDX12App::UpdateVideoTexture(void)
     m_mutex.unlock();
 
     DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    int         pixelBytes  = 4;
+    int         pixelBytes = 4;
 
     ThrowIfFailed(m_commandAllocatorTextureUpload->Reset());
     ThrowIfFailed(m_commandListTextureUpload->Reset(m_commandAllocatorTextureUpload.Get(), m_pipelineStateRGB.Get()));
@@ -1010,7 +961,7 @@ MLDX12App::UpdateVideoTexture(void)
     ID3D12Resource *tex = m_textureVideo[!m_textureVideoIdToShow].Get();
 
     if (ci.width != tex->GetDesc().Width
-            || ci.height != tex->GetDesc().Height) {
+        || ci.height != tex->GetDesc().Height) {
         // 中でInternalRelease()される。
         m_textureVideo[!m_textureVideoIdToShow] = nullptr;
 
@@ -1074,7 +1025,7 @@ MLDX12App::UpdateVideoTexture(void)
     }
 
     ThrowIfFailed(m_commandListTextureUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = { m_commandListTextureUpload.Get() };
+    ID3D12CommandList* ppCommandLists[] = {m_commandListTextureUpload.Get()};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
@@ -1084,3 +1035,180 @@ MLDX12App::UpdateVideoTexture(void)
     delete[] ci.data;
     ci.data = nullptr;
 }
+
+void
+MLDX12App::AddCrosshair(CapturedImage &ci)
+{
+    uint32_t *pTo = (uint32_t*)ci.data;
+
+    int HALF_LENGTH = 40;
+    int HALF_THICKNESS = 3;
+    if (ci.width <= 1920) {
+        HALF_LENGTH /= 2;
+        HALF_THICKNESS /= 2;
+    }
+
+    const int width = ci.width;
+    const int height = ci.height;
+
+    //                 a             y              cb         cr
+    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+    switch (ci.drawMode) {
+    case DM_RGB:
+        //        A B G R
+        color = 0xffffffff;
+        break;
+    default:
+        break;
+    }
+
+    switch (m_crosshairType) {
+    case CH_CenterCrosshair:
+        // 横線
+        for (int y = height / 2 - HALF_THICKNESS; y < height / 2 + HALF_THICKNESS; ++y) {
+            for (int x = width / 2 - HALF_LENGTH; x < width / 2 + HALF_LENGTH; ++x) {
+                int pos = x + y * width;
+                pTo[pos] = color;
+            }
+        }
+        // 縦線
+        for (int y = height / 2 - HALF_LENGTH; y < height / 2 + HALF_LENGTH; ++y) {
+            for (int x = width / 2 - HALF_THICKNESS; x < width / 2 + HALF_THICKNESS; ++x) {
+                int pos = x + y * width;
+                pTo[pos] = color;
+            }
+        }
+        break;
+    case CH_4Crosshairs:
+        for (int yi = 0; yi <= 1; ++yi) {
+            for (int xi = 0; xi <= 1; ++xi) {
+                // 横線
+                for (int y = height / 4 - HALF_THICKNESS + yi * height / 2; y < height / 4 + HALF_THICKNESS + yi * height / 2; ++y) {
+                    for (int x = width / 4 - HALF_LENGTH + xi * width / 2; x < width / 4 + HALF_LENGTH + xi * width / 2; ++x) {
+                        int pos = x + y * width;
+                        pTo[pos] = color;
+                    }
+                }
+                // 縦線
+                for (int y = height / 4 - HALF_LENGTH + yi * height / 2; y < height / 4 + HALF_LENGTH + yi * height / 2; ++y) {
+                    for (int x = width / 4 - HALF_THICKNESS + xi * width / 2; x < width / 4 + HALF_THICKNESS + xi * width / 2; ++x) {
+                        int pos = x + y * width;
+                        pTo[pos] = color;
+                    }
+                }
+            }
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void
+MLDX12App::AddTitleSafeArea(CapturedImage &ci) {
+    if (!m_titleSafeArea) {
+        return;
+    }
+
+    uint32_t *pTo = (uint32_t*)ci.data;
+
+    int HALF_THICKNESS = 3;
+    if (ci.width <= 1920) {
+        HALF_THICKNESS /= 2;
+    }
+
+    const int width = ci.width;
+    const int height = ci.height;
+
+    //                 a             y              cb         cr
+    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+    switch (ci.drawMode) {
+    case DM_RGB:
+        //        A B G R
+        color = 0xffffffff;
+        break;
+    default:
+        break;
+    }
+
+    // 横線
+    for (int y = height / 10 - HALF_THICKNESS; y < height / 10 + HALF_THICKNESS; ++y) {
+        for (int x = width / 10; x < width - width / 10; ++x) {
+            int pos = x + y * width;
+            pTo[pos] = color;
+        }
+    }
+    for (int y = height - height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
+        for (int x = width / 10; x < width - width / 10; ++x) {
+            int pos = x + y * width;
+            pTo[pos] = color;
+        }
+    }
+    // 縦線
+    for (int y = height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
+        for (int x = width / 10 - HALF_THICKNESS; x < width / 10 + HALF_THICKNESS; ++x) {
+            int pos = x + y * width;
+            pTo[pos] = color;
+        }
+    }
+    for (int y = height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
+        for (int x = width - width / 10 - HALF_THICKNESS; x < width - width / 10 + HALF_THICKNESS; ++x) {
+            int pos = x + y * width;
+            pTo[pos] = color;
+        }
+    }
+}
+
+void
+MLDX12App::AddGrid(CapturedImage &ci) {
+    if (m_gridType == GR_None) {
+        return;
+    }
+
+    uint32_t *pTo = (uint32_t*)ci.data;
+
+    int HALF_THICKNESS = 3;
+    if (ci.width <= 1920) {
+        HALF_THICKNESS /= 2;
+    }
+
+    const int width = ci.width;
+    const int height = ci.height;
+
+    //                 a             y              cb         cr
+    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
+    switch (ci.drawMode) {
+    case DM_RGB:
+        //        A B G R
+        color = 0xffffffff;
+        break;
+    default:
+        break;
+    }
+
+    int nBlocks = 3;
+    if (m_gridType == GR_6x6) {
+        nBlocks = 6;
+    }
+
+    // 横線
+    for (int i = 1; i < nBlocks; ++i) {
+        for (int y = i * height / nBlocks - HALF_THICKNESS; y < i * height / nBlocks + HALF_THICKNESS; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int pos = x + y * width;
+                pTo[pos] = color;
+            }
+        }
+    }
+    // 縦線
+    for (int i = 1; i < nBlocks; ++i) {
+        for (int y = 0; y<height; ++y) {
+            for (int x = i * width / nBlocks - HALF_THICKNESS; x < i * width / nBlocks + HALF_THICKNESS; ++x) {
+                int pos = x + y * width;
+                pTo[pos] = color;
+            }
+        }
+    }
+}
+
+

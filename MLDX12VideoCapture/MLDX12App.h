@@ -65,15 +65,23 @@ private:
         DM_YUV
     };
 
-    enum GuideType {
-        GT_None,
-        GT_CenterGauge,
-        GT_4Gauges,
+    enum CrosshairType {
+        CH_None,
+        CH_CenterCrosshair,
+        CH_4Crosshairs,
+    };
+
+    enum GridType {
+        GR_None,
+        GR_3x3,
+        GR_6x6,
     };
 
     State m_state;
     DrawMode m_drawMode;
-    GuideType m_guideType;
+    CrosshairType m_crosshairType;
+    bool m_titleSafeArea;
+    GridType m_gridType;
 
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -146,5 +154,7 @@ private:
 
     void DrawFullscreenTexture(void);
 
-    void AddGuide(CapturedImage &ci);
+    void AddCrosshair(CapturedImage &ci);
+    void AddTitleSafeArea(CapturedImage &ci);
+    void AddGrid(CapturedImage &ci);
 };
