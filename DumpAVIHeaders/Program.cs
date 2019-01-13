@@ -10,6 +10,21 @@ namespace DumpAVIHeaders {
         static long mVideoCount = 0;
         static long mAudioCount = 0;
 
+        struct IndxChunk {
+            public uint cb;
+            public ushort wLongsPerEntry;
+            public byte bIndexSubType;
+            public byte bIndexType;
+            public uint nEntriesInUse;
+
+            public uint dwChunkId;
+            public uint dwReserved0;
+            public uint dwReserved1;
+            public uint dwReserved2;
+        };
+
+        static IndxChunk mIndx;
+
         static string FourCCToString(uint fourCC) {
             var s = new char[4];
             s[0] = (char)(fourCC & 0xff);
@@ -232,6 +247,27 @@ namespace DumpAVIHeaders {
                 br.BaseStream.Position - 8, spc, bytes);
             br.BaseStream.Seek(bytes, SeekOrigin.Current);
         }
+        static void ReadIndx(string spc, BinaryReader br) {
+            mIndx.cb = br.ReadUInt32();
+            long start = br.BaseStream.Position;
+
+            mIndx.wLongsPerEntry = br.ReadUInt16();
+            mIndx.bIndexSubType = br.ReadByte();
+            mIndx.bIndexType = br.ReadByte();
+            mIndx.nEntriesInUse = br.ReadUInt32();
+
+            mIndx.dwChunkId = br.ReadUInt32();
+            mIndx.dwReserved0 = br.ReadUInt32();
+            mIndx.dwReserved1 = br.ReadUInt32();
+            mIndx.dwReserved2 = br.ReadUInt32();
+
+            Console.WriteLine("{0:x12} {1} AviIndex {2}x{3} entries {4}",
+                br.BaseStream.Position - 8, spc, mIndx.wLongsPerEntry,
+                mIndx.nEntriesInUse, FourCCToString(mIndx.dwChunkId));
+
+            br.BaseStream.Seek(start + mIndx.cb, SeekOrigin.Begin);
+        }
+
 
         static void ReadStreamData(string spc, uint cBytes, BinaryReader br) {
             long startPos = br.BaseStream.Position;
@@ -319,6 +355,9 @@ namespace DumpAVIHeaders {
                         break;
                     case "idx1":
                         ReadAviOldIndex(spc, br);
+                        break;
+                    case "indx":
+                        ReadIndx(spc, br);
                         break;
                     case "JUNK":
                         ReadJunk(spc, br);
