@@ -50,7 +50,7 @@ namespace DumpAVIHeaders {
             uint fileType = br.ReadUInt32();
 
             Console.WriteLine("{0:x12} RIFF size={1} {2}",
-                br.BaseStream.Position-8, fSize, FourCCToString(fileType));
+                br.BaseStream.Position-12, fSize, FourCCToString(fileType));
 
             return fSize;
         }
@@ -97,7 +97,7 @@ namespace DumpAVIHeaders {
             br.BaseStream.Seek(16, SeekOrigin.Current);
 
             Console.WriteLine("{0:x12} {1} AviMainHeader {2}x{3} {4:F1}fps, {5}frames, {6}streams",
-                br.BaseStream.Position - 56, spc,
+                br.BaseStream.Position - 64, spc,
                 mAviMH.dwWidth, mAviMH.dwHeight, 1.0 / (0.001 * 0.001 * mAviMH.dwMicroSecPerFrame),
                 mAviMH.dwTotalFrames, mAviMH.dwStreams);
         }
@@ -156,7 +156,7 @@ namespace DumpAVIHeaders {
             mAviSH.bottom = br.ReadInt16();
 
             Console.WriteLine("{0:x12} {1} AviStreamHeader {2} {3}",
-                br.BaseStream.Position-56, spc,
+                br.BaseStream.Position-64, spc,
                 FourCCToString(mAviSH.fccType), FourCCToString(mAviSH.fccHandler));
         }
 
@@ -229,7 +229,7 @@ namespace DumpAVIHeaders {
             mWavFmt.cbSize = br.ReadUInt16();
 
             Console.WriteLine("{0:x12} {1} WaveFormatEx {2}Hz {3}bit {4}ch",
-                br.BaseStream.Position-18, spc,
+                br.BaseStream.Position-22, spc,
                 mWavFmt.nSamplesPerSec,
                 mWavFmt.wBitsPerSample, mWavFmt.nChannels);
 
@@ -262,7 +262,7 @@ namespace DumpAVIHeaders {
             mIndx.dwReserved2 = br.ReadUInt32();
 
             Console.WriteLine("{0:x12} {1} AviIndex {2}x{3} entries {4}",
-                br.BaseStream.Position - 8, spc, mIndx.wLongsPerEntry,
+                br.BaseStream.Position - 32, spc, mIndx.wLongsPerEntry,
                 mIndx.nEntriesInUse, FourCCToString(mIndx.dwChunkId));
 
             br.BaseStream.Seek(start + mIndx.cb, SeekOrigin.Begin);
@@ -315,13 +315,13 @@ namespace DumpAVIHeaders {
 
         static void ReadHeaders(BinaryReader br, int layer, uint hSize) {
             long currentPos = br.BaseStream.Position;
-            long endPos = currentPos + hSize-4;
+            long endPos = currentPos + hSize;
 
             string spc = "";
             for (int i=0; i<layer; ++i) {
                 spc = spc + "  ";
             }
-            //Console.WriteLine("              {0} EndPos={1:x12}", spc, endPos);
+            Console.WriteLine("              {0} EndPos={1:x12}", spc, endPos);
 
             do {
                 uint fcc = br.ReadUInt32();
@@ -389,7 +389,7 @@ namespace DumpAVIHeaders {
                     }
 
                     uint fSize = ReadRiff(br);
-                    ReadHeaders(br, 0, fSize);
+                    ReadHeaders(br, 0, fSize-4);
                 } while (br.BaseStream.Position < br.BaseStream.Length);
             }
 
