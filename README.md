@@ -13,6 +13,16 @@ Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and buil
 
 YUV to RGB conversion is not optimal.
 
+### About output AVI file of MLDX12VideoCapture 
+
+Currently only YUV 10bit format can be recorded.
+
+Output AVI file does not contain audio data.
+
+Output AVI file does not have index chunk and not completed. Converting using ffmpeg to fix. Example:
+
+> ffmpeg -i output.avi output.mjpeg
+
   ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
   
   
