@@ -1,5 +1,6 @@
 #include "MLAviWriter.h"
 #include <assert.h>
+#include "WinApp.h"
 
 namespace {
     struct AviMainHeader {
@@ -104,10 +105,26 @@ namespace {
 
 MLAviWriter::MLAviWriter(void)
     : mFp(nullptr), mLastRiffIdx(-1), mLastMoviIdx(-1)
-{}
+{
+    mState = AVIS_Init;
+    m_thread = nullptr;
+    m_shutdownEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+    m_readyEvent    = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+}
 
 
-MLAviWriter::~MLAviWriter(void) {}
+MLAviWriter::~MLAviWriter(void)
+{
+    if (nullptr != m_readyEvent) {
+        CloseHandle(m_readyEvent);
+        m_readyEvent = nullptr;
+    }
+
+    if (nullptr != m_shutdownEvent) {
+        CloseHandle(m_shutdownEvent);
+        m_shutdownEvent = nullptr;
+    }
+}
 
 void MLAviWriter::WriteFccHeader(const char *fccS, int bytes) {
     uint32_t fcc = StringToFourCC(fccS);
@@ -164,6 +181,7 @@ bool MLAviWriter::Init(std::wstring path, int width, int height, int fps, ImageF
 
     mTotalFrames = 0;
 
+    StartThread();
     return true;
 }
 
@@ -171,19 +189,28 @@ static const uint32_t  FCC_00db = 0x62643030;
 
 void MLAviWriter::AddImage(const uint32_t * img, int bytes) {
     assert(mFp != nullptr);
+    assert(m_readyEvent != nullptr);
 
-    if ((mTotalFrames % 30) == 29) {
-        RestartRiff();
+    if (mState != AVIS_Writing) {
+        return;
     }
 
-    WriteStreamDataHeader(FCC_00db, bytes);
-    fwrite(img, 1, bytes, mFp);
+    ImageItem ii;
+    ii.buf = new uint32_t[bytes / 4];
+    ii.bytes = bytes;
+    memcpy(ii.buf, img, bytes);
 
-    ++mTotalFrames;
+    m_mutex.lock();
+    mImageList.push_back(ii);
+    m_mutex.unlock();
+
+    SetEvent(m_readyEvent);
 }
 
 void MLAviWriter::Term(void) {
     assert(mFp != nullptr);
+
+    StopThread();
 
     FinishList(mLastMoviIdx);
     FinishRiff(mLastRiffIdx);
@@ -198,6 +225,14 @@ void MLAviWriter::Term(void) {
     mFp = nullptr;
 }
 
+int MLAviWriter::RecQueueSize(void) {
+    int count;
+    m_mutex.lock();
+    count = (int)mImageList.size();
+    m_mutex.unlock();
+    return count;
+
+}
 
 int MLAviWriter::WriteRiff(const char *fccS) {
     uint32_t fcc = StringToFourCC(fccS);
@@ -365,3 +400,100 @@ void MLAviWriter::RestartRiff(void) {
     mLastRiffIdx = WriteRiff("AVIX");
     mLastMoviIdx = WriteList("movi");
 }
+
+// ============================================================
+// thread
+
+void MLAviWriter::StartThread(void)
+{
+    if (m_thread != nullptr) {
+        return;
+    }
+
+    mState = AVIS_Writing;
+    m_thread = CreateThread(nullptr, 0, AviWriterEntry, this, 0, nullptr);
+}
+
+void MLAviWriter::StopThread(void) {
+    if (m_thread == nullptr) {
+        return;
+    }
+
+    mState = AVIS_Init;
+
+    assert(m_shutdownEvent != nullptr);
+    SetEvent(m_shutdownEvent);
+    WaitForSingleObject(m_thread, INFINITE);
+    CloseHandle(m_thread);
+    m_thread = nullptr;
+}
+
+
+DWORD WINAPI
+MLAviWriter::AviWriterEntry(LPVOID param) {
+    MLAviWriter *self = (MLAviWriter *)param;
+
+    return self->ThreadMain();
+}
+
+DWORD
+MLAviWriter::ThreadMain(void) {
+    DWORD rv = 0;
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    HANDLE waitAry[2] = {m_shutdownEvent, m_readyEvent};
+    DWORD waitRv;
+
+    while (true) {
+        waitRv = WaitForMultipleObjects(2, waitAry, FALSE, INFINITE);
+        if (waitRv == WAIT_OBJECT_0) {
+            // flush remaining items.
+            WriteAll();
+            OutputDebugStringA("MLAviWriter::ThreadMain() exit\n");
+            break;
+        }
+
+        // ready event
+        WriteAll();
+    }
+
+    CoUninitialize();
+    return rv;
+}
+
+void
+MLAviWriter::WriteAll(void) {
+    ImageItem ii;
+
+    m_mutex.lock();
+    int count = (int)mImageList.size();
+    m_mutex.unlock();
+
+    while (0 < count) {
+        m_mutex.lock();
+        ii = mImageList.front();
+        mImageList.pop_front();
+        m_mutex.unlock();
+
+        WriteOne(ii);
+        delete[] ii.buf;
+        ii.buf = nullptr;
+
+        m_mutex.lock();
+        count = (int)mImageList.size();
+        m_mutex.unlock();
+    }
+}
+
+void
+MLAviWriter::WriteOne(ImageItem& ii)
+{
+    if ((mTotalFrames % 30) == 29) {
+        RestartRiff();
+    }
+
+    WriteStreamDataHeader(FCC_00db, ii.bytes);
+    fwrite(ii.buf, 1, ii.bytes, mFp);
+
+    ++mTotalFrames;
+}
+

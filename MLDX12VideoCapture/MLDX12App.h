@@ -142,6 +142,8 @@ private:
 
     char m_writePath[512];
 
+    char m_msg[512];
+
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);

@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <vector>
 #include <stdio.h>
+#include "Common.h"
+#include <list>
+#include <mutex>
 
 class MLAviWriter {
 public:
@@ -22,12 +25,21 @@ public:
 
     bool IsOpen(void) const { return mFp != nullptr; }
 
+    int RecQueueSize(void);
+
 private:
 
     int mWidth;
     int mHeight;
     int mFps;
     int mImgFmt;
+
+    enum AVIState {
+        AVIS_Init,
+        AVIS_Writing,
+    };
+
+    AVIState mState;
 
     struct RiffChunk {
         uint64_t pos;
@@ -43,6 +55,13 @@ private:
 
     std::vector<RiffChunk> mRiffChunks;
     std::vector<ListChunk> mListChunks;
+
+    struct ImageItem {
+        uint32_t *buf;
+        int bytes;
+    };
+
+    std::list<ImageItem> mImageList;
 
     int mLastRiffIdx;
     int mLastMoviIdx;
@@ -71,5 +90,17 @@ private:
     void RestartRiff(void);
 
     FILE *mFp;
+
+    std::mutex m_mutex;
+    HANDLE       m_thread;
+    HANDLE       m_shutdownEvent;
+    HANDLE       m_readyEvent;
+    static DWORD WINAPI AviWriterEntry(LPVOID param);
+    DWORD ThreadMain(void);
+    void WriteAll(void);
+    void WriteOne(ImageItem& ii);
+    void StartThread(void);
+    void StopThread(void);
+
 };
 

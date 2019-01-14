@@ -39,6 +39,7 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     m_frameSkipCount(0)
 {
     strcpy_s(m_writePath, "c:/data/output.avi");
+    m_msg[0] = 0;
 }
 
 void MLDX12App::OnInit()
@@ -750,6 +751,7 @@ MLDX12App::ImGuiCommands(void)
                 BMDPixelFormat pixFmt = m_videoCapture.PixelFormat();
                 if (bmdFormat10BitYUV == pixFmt) {
                     ImGui::InputText("Record filename", m_writePath, sizeof m_writePath - 1);
+                    ImGui::Text(m_msg);
                     if (ImGui::Button("Record")) {
                         wchar_t path[512];
                         memset(path, 0, sizeof path);
@@ -760,6 +762,9 @@ MLDX12App::ImGuiCommands(void)
                             MLAviWriter::IF_YUV422v210);
                         if (bRv) {
                             m_state = S_Recording;
+                            m_msg[0] = 0;
+                        } else {
+                            sprintf_s(m_msg, "File open error : %s", m_writePath);
                         }
                     }
                 }
@@ -775,11 +780,12 @@ MLDX12App::ImGuiCommands(void)
             }
             m_mutex.unlock();
 
-            ImGui::Text("Queue size : %d", queueSize);
+            ImGui::Text("Draw Queue size : %d", queueSize);
             ImGui::Text("Frame skip count : %lld", m_frameSkipCount);
 
             if (m_state == S_Recording) {
                 ImGui::Text("Now Recording...");
+                ImGui::Text("Rec Queue size : %d", m_aviWriter.RecQueueSize());
                 if (ImGui::Button("Stop Recording")) {
                     m_state = S_Capturing;
 
