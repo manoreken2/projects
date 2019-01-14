@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="MLAviWriter.h" />
     <ClInclude Include="MLDX12.h" />
     <ClInclude Include="MLDX12App.h" />
     <ClInclude Include="MLDX12Imgui.h" />
@@ -27,6 +28,7 @@
     <ClInclude Include="WinApp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MLAviWriter.cpp" />
     <ClCompile Include="MLDX12.cpp" />
     <ClCompile Include="MLDX12App.cpp" />
     <ClCompile Include="MLDX12Imgui.cpp" />

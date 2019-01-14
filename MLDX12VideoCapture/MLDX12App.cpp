@@ -38,6 +38,7 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     m_windowedMode(true),
     m_frameSkipCount(0)
 {
+    strcpy_s(m_writePath, "c:/data/output.avi");
 }
 
 void MLDX12App::OnInit()
@@ -735,11 +736,34 @@ MLDX12App::ImGuiCommands(void)
             }
         }
         break;
+    case S_Recording:
     case S_Capturing:
         {
             int queueSize = 0;
 
-            ImGui::Text("Now Capturing...");
+            if (m_state == S_Capturing) {
+                ImGui::Text("Now Capturing...");
+                BMDTimeScale ts = m_videoCapture.FrameRateTS();
+                BMDTimeValue tv = m_videoCapture.FrameRateTV();
+                ImGui::Text("Frame rate : %llu %llu", (uint64_t)ts, (uint64_t)tv);
+
+                BMDPixelFormat pixFmt = m_videoCapture.PixelFormat();
+                if (bmdFormat10BitYUV == pixFmt) {
+                    ImGui::InputText("Record filename", m_writePath, sizeof m_writePath - 1);
+                    if (ImGui::Button("Record")) {
+                        wchar_t path[512];
+                        memset(path, 0, sizeof path);
+                        MultiByteToWideChar(CP_UTF8, 0, m_writePath, sizeof m_writePath, path, 511);
+
+                        bool bRv = m_aviWriter.Init(path, m_videoCapture.Width(),
+                            m_videoCapture.Height(), (int)(ts / 1000),
+                            MLAviWriter::IF_YUV422v210);
+                        if (bRv) {
+                            m_state = S_Recording;
+                        }
+                    }
+                }
+            }
 
             m_mutex.lock();
             if (!m_capturedImages.empty()) {
@@ -754,15 +778,26 @@ MLDX12App::ImGuiCommands(void)
             ImGui::Text("Queue size : %d", queueSize);
             ImGui::Text("Frame skip count : %lld", m_frameSkipCount);
 
-            if (ImGui::Button("Stop Capture")) {
-            
-                m_videoCapture.StopCapture();
-                m_videoCapture.Term();
-            
-                m_videoCaptureDeviceList.Term();
-                m_videoCaptureDeviceList.Init();
+            if (m_state == S_Recording) {
+                ImGui::Text("Now Recording...");
+                if (ImGui::Button("Stop Recording")) {
+                    m_state = S_Capturing;
 
-                m_state = S_Init;
+                    m_mutex.lock();
+                    m_aviWriter.Term();
+                    m_mutex.unlock();
+                }
+            } else {
+                if (ImGui::Button("Stop Capture")) {
+            
+                    m_videoCapture.StopCapture();
+                    m_videoCapture.Term();
+            
+                    m_videoCaptureDeviceList.Term();
+                    m_videoCaptureDeviceList.Init();
+
+                    m_state = S_Init;
+                }
             }
 
             ImGui::BeginGroup();
@@ -844,6 +879,13 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     int height = videoFrame->GetHeight();
     int fmt = videoFrame->GetPixelFormat();
     int rowBytes = videoFrame->GetRowBytes();
+
+    m_mutex.lock();
+    if (m_state == S_Recording) {
+        m_aviWriter.AddImage((const uint32_t*)buffer, rowBytes*height);
+    }
+    m_mutex.unlock();
+
     char s[256];
     sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
     int bytes = width * height * 4;

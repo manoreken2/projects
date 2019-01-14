@@ -17,6 +17,7 @@
 #include "MLDX12Imgui.h"
 #include <mutex>
 #include <list>
+#include "MLAviWriter.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -45,6 +46,7 @@ private:
     enum State {
         S_Init,
         S_Capturing,
+        S_Recording,
     };
 
     struct Vertex
@@ -135,6 +137,10 @@ private:
     std::mutex m_mutex;
 
     int64_t m_frameSkipCount;
+
+    MLAviWriter m_aviWriter;
+
+    char m_writePath[512];
 
     void LoadPipeline(void);
     void LoadAssets(void);

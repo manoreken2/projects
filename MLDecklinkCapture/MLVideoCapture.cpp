@@ -167,8 +167,12 @@ MLVideoCapture::StopCapture(void)
 
 
 HRESULT
-MLVideoCapture::VideoInputFormatChanged(/* in */ BMDVideoInputFormatChangedEvents notificationEvents, /* in */ IDeckLinkDisplayMode *newMode, /* in */ BMDDetectedVideoInputFormatFlags detectedSignalFlags)
+MLVideoCapture::VideoInputFormatChanged(
+        /* in */ BMDVideoInputFormatChangedEvents notificationEvents,
+        /* in */ IDeckLinkDisplayMode *newMode, 
+        /* in */ BMDDetectedVideoInputFormatFlags detectedSignalFlags)
 {
+    newMode->GetFrameRate(&m_timeValue, &m_timeScale);
     int width = newMode->GetWidth();
     int height = newMode->GetHeight();
     char s[256];
@@ -180,6 +184,10 @@ MLVideoCapture::VideoInputFormatChanged(/* in */ BMDVideoInputFormatChangedEvent
 
     if (detectedSignalFlags & bmdDetectedVideoInputRGB444)
         pixelFormat = bmdFormat10BitRGB;
+
+    m_width = width;
+    m_height = height;
+    m_pixelFormat = pixelFormat;
 
     m_deckLinkInput->StopStreams();
 

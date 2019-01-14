@@ -10,6 +10,80 @@ namespace DumpAVIHeaders {
         static long mVideoCount = 0;
         static long mAudioCount = 0;
 
+        struct AviMainHeader {
+            public uint cb;
+            public uint dwMicroSecPerFrame;
+            public uint dwMaxBytesPersec;
+            public uint dwPaddingGranularity;
+            public uint dwFlags;
+
+            public uint dwTotalFrames;
+            public uint dwInitialFrames;
+            public uint dwStreams;
+            public uint dwSuggestedBufferSize;
+            public uint dwWidth;
+
+            public uint dwHeight;
+        };
+
+        static AviMainHeader mAviMH;
+
+        struct AviStreamHeader {
+            public uint fccType;
+            public uint fccHandler;
+            public uint dwFlags;
+            public ushort wPriority;
+            public ushort wLanguage;
+
+            public uint dwInitialFrames;
+            public uint dwScale;
+            public uint dwRate;
+            public uint dwStart;
+            public uint dwLength;
+
+            public uint dwSuggestedBufferSize;
+            public uint dwQuality;
+            public uint dwSampleSize;
+            public short left;
+            public short top;
+
+            public short right;
+            public short bottom;
+        };
+
+        static AviStreamHeader mAviSH;
+
+        struct BitmapInfoHeader {
+            public uint biSize;
+            public int biWidth;
+            public int biHeight;
+            public short biPlanes;
+            public short biBitCount;
+
+            public uint biCompression;
+            public uint biSizeImage;
+            public int biXPelsPerMeter;
+            public int biYPelsPerMeter;
+            public uint biClrUsed;
+
+            public uint biClrImportant;
+        };
+
+        static BitmapInfoHeader mBmpih;
+
+        struct WaveFormatEx {
+            public ushort wFormatTag;
+            public ushort nChannels;
+            public uint nSamplesPerSec;
+            public uint nAvgBytesPerSec;
+            public ushort nBlockAlign;
+
+            public ushort wBitsPerSample;
+            public ushort cbSize;
+        };
+
+        static WaveFormatEx mWavFmt;
+
         struct IndxChunk {
             public uint cb;
             public ushort wLongsPerEntry;
@@ -49,29 +123,11 @@ namespace DumpAVIHeaders {
             uint fSize = br.ReadUInt32();
             uint fileType = br.ReadUInt32();
 
-            Console.WriteLine("{0:x12} RIFF size={1} {2}",
+            Console.WriteLine("{0:x12} RIFF size={1:x} {2}",
                 br.BaseStream.Position-12, fSize, FourCCToString(fileType));
 
             return fSize;
         }
-
-        struct AviMainHeader {
-            public uint cb;
-            public uint dwMicroSecPerFrame;
-            public uint dwMaxBytesPersec;
-            public uint dwPaddingGranularity;
-            public uint dwFlags;
-
-            public uint dwTotalFrames;
-            public uint dwInitialFrames;
-            public uint dwStreams;
-            public uint dwSuggestedBufferSize;
-            public uint dwWidth;
-
-            public uint dwHeight;
-        };
-
-        static AviMainHeader mAviMH;
 
         static void ReadAviMainHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
@@ -101,31 +157,6 @@ namespace DumpAVIHeaders {
                 mAviMH.dwWidth, mAviMH.dwHeight, 1.0 / (0.001 * 0.001 * mAviMH.dwMicroSecPerFrame),
                 mAviMH.dwTotalFrames, mAviMH.dwStreams);
         }
-
-        struct AviStreamHeader {
-            public uint fccType;
-            public uint fccHandler;
-            public uint dwFlags;
-            public ushort wPriority;
-            public ushort wLanguage;
-
-            public uint dwInitialFrames;
-            public uint dwScale;
-            public uint dwRate;
-            public uint dwStart;
-            public uint dwLength;
-
-            public uint dwSuggestedBufferSize;
-            public uint dwQuality;
-            public uint dwSampleSize;
-            public short left;
-            public short top;
-
-            public short right;
-            public short bottom;
-        };
-
-        static AviStreamHeader mAviSH;
 
         static void ReadAviStreamHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
@@ -160,23 +191,6 @@ namespace DumpAVIHeaders {
                 FourCCToString(mAviSH.fccType), FourCCToString(mAviSH.fccHandler));
         }
 
-        struct BitmapInfoHeader {
-            public uint biSize;
-            public int biWidth;
-            public int biHeight;
-            public short biPlanes;
-            public short biBitCount;
-
-            public uint biCompression;
-            public uint biSizeImage;
-            public int biXPelsPerMeter;
-            public int biYPelsPerMeter;
-            public uint biClrUsed;
-
-            public uint biClrImportant;
-        };
-
-        static BitmapInfoHeader mBmpih;
         static void ReadBitmapInfoHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
             if (cb != 40) {
@@ -203,18 +217,6 @@ namespace DumpAVIHeaders {
                 mBmpih.biWidth, mBmpih.biHeight, mBmpih.biBitCount, FourCCToString(mBmpih.biCompression));
         }
 
-        struct WaveFormatEx {
-            public ushort wFormatTag;
-            public ushort nChannels;
-            public uint nSamplesPerSec;
-            public uint nAvgBytesPerSec;
-            public ushort nBlockAlign;
-
-            public ushort wBitsPerSample;
-            public ushort cbSize;
-        };
-
-        static WaveFormatEx mWavFmt;
         static void ReadWaveFormatEx(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
 
@@ -261,9 +263,17 @@ namespace DumpAVIHeaders {
             mIndx.dwReserved1 = br.ReadUInt32();
             mIndx.dwReserved2 = br.ReadUInt32();
 
-            Console.WriteLine("{0:x12} {1} AviIndex {2}x{3} entries {4}",
+            Console.WriteLine("{0:x12} {1} AviIndex {2}x{3} entries {4} {5}",
                 br.BaseStream.Position - 32, spc, mIndx.wLongsPerEntry,
-                mIndx.nEntriesInUse, FourCCToString(mIndx.dwChunkId));
+                mIndx.nEntriesInUse, FourCCToString(mIndx.dwChunkId),
+                mIndx.bIndexType==0 ? "IndexOfIndexes" : "IndexOfChunks");
+
+            for (int i=0; i<mIndx.nEntriesInUse; ++i) {
+                for (int j = 0; j < mIndx.wLongsPerEntry; ++j) {
+                    Console.Write("{0:x} ", br.ReadUInt32());
+                }
+                Console.WriteLine("");
+            }
 
             br.BaseStream.Seek(start + mIndx.cb, SeekOrigin.Begin);
         }
@@ -287,14 +297,14 @@ namespace DumpAVIHeaders {
                 }
 
                 if (((fcc>>16) & 0xffff) == UncompressedVideo) {
-                    Console.Write("v");
+                    Console.Write("{0} ", FourCCToString(fcc));
                     ++mVideoCount;
                 } else if (((fcc>>16) & 0xffff) == CompressedVideo) {
                     Console.WriteLine("{0:x12} CompressedVideo {1}bytes", br.BaseStream.Position, bBytes);
                 } else if (((fcc>>16) & 0xffff) == PaletteChange) {
                     Console.WriteLine("{0:x12} PaletteChange {1}bytes", br.BaseStream.Position, bBytes);
                 } else if (((fcc>>16) & 0xffff) == AudioData) {
-                    Console.Write("a");
+                    Console.Write("{0} ", FourCCToString(fcc));
                     ++mAudioCount;
                 }
 
@@ -330,7 +340,7 @@ namespace DumpAVIHeaders {
                     case "LIST":
                         uint bytes = br.ReadUInt32();
                         uint type = br.ReadUInt32();
-                        Console.WriteLine("{0:x12} {1} LIST size={2} {3}",
+                        Console.WriteLine("{0:x12} {1} LIST size={2:x} {3}",
                             br.BaseStream.Position-12, spc, bytes, FourCCToString(type));
                         if (type == StringToFourCC("movi")) {
                             ReadStreamData(spc, bytes, br);

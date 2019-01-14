@@ -27,6 +27,12 @@ public:
     bool StartCapture(int videoModeIdx);
     void StopCapture(void);
 
+    int Width(void) const { return m_width; }
+    int Height(void) const { return m_height; }
+    BMDPixelFormat	PixelFormat(void) const { return m_pixelFormat; }
+    BMDTimeValue FrameRateTV(void) const { return m_timeValue; }
+    BMDTimeScale FrameRateTS(void) const { return m_timeScale; }
+
     // IUnknown interface
     virtual HRESULT STDMETHODCALLTYPE   QueryInterface(REFIID iid, LPVOID *ppv);
     virtual ULONG   STDMETHODCALLTYPE   AddRef();
@@ -50,5 +56,11 @@ private:
     int m_frameCounter;
 
     IMLVideoCaptureCallback *m_callback;
+
+    int m_width;
+    int m_height;
+    BMDPixelFormat m_pixelFormat;
+    BMDTimeValue   m_timeValue;
+    BMDTimeScale   m_timeScale;
 };
 
