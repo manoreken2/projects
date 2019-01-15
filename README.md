@@ -19,9 +19,9 @@ Currently only YUV 10bit format can be recorded.
 
 Output AVI file does not contain audio data.
 
-Output AVI file does not have index chunk and not completed. Converting using ffmpeg to fix. Example:
+Output AVI file does not have index chunk and not completed. Mencoder can fix the index. Example:
 
-> ffmpeg -i output.avi output.mjpeg
+> mencoder -idx output.avi -ovc copy -oac copy -o fixed.avi
 
   ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
   
