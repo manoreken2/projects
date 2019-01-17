@@ -45,8 +45,9 @@ private:
 
     enum State {
         S_Init,
-        S_Capturing,
+        S_Previewing,
         S_Recording,
+        S_WaitRecordEnd,
     };
 
     struct Vertex
@@ -151,6 +152,8 @@ private:
     void WaitForGpu(void);
     void LoadSizeDependentResources(void);
     void UpdateViewAndScissor(void);
+
+    void ClearDrawQueue(void);
 
     void CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
     void UpdateVideoTexture(void);

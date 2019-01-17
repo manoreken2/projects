@@ -709,8 +709,25 @@ MLDX12App::ImGuiCommands(void)
 {
     ImGui::Begin("Settings");
 
-    ImGui::Text("Average redraw frames per second : %.1f", ImGui::GetIO().Framerate);
+    if (ImGui::BeginPopupModal("ErrorPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(m_msg);
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+            m_msg[0] = 0;
+        }
+        ImGui::EndPopup();
+    }
 
+    if (ImGui::BeginPopupModal("WriteFlushPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(m_msg);
+
+        if (m_state != S_WaitRecordEnd) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::Text("Average redraw frames per second : %.1f", ImGui::GetIO().Framerate);
     ImGui::Text("ALT+Enter to toggle fullscreen.");
 
     static int selectedDeviceIdx = 0;
@@ -733,43 +750,25 @@ MLDX12App::ImGuiCommands(void)
             m_videoCapture.SetCallback(this);
             bool brv = m_videoCapture.StartCapture(0);
             if (brv) {
-                m_state = S_Capturing;
+                m_state = S_Previewing;
+            }
+        }
+        break;
+    case S_WaitRecordEnd:
+        {
+            sprintf_s(m_msg, "Now Writing AVI...\nRemaining %d frames.", m_aviWriter.RecQueueSize());
+            m_mutex.lock();
+            bool bEnd = m_aviWriter.PollThreadEnd();
+            m_mutex.unlock();
+            if (bEnd) {
+                m_state = S_Previewing;
             }
         }
         break;
     case S_Recording:
-    case S_Capturing:
+    case S_Previewing:
         {
             int queueSize = 0;
-
-            if (m_state == S_Capturing) {
-                ImGui::Text("Now Capturing...");
-                BMDTimeScale ts = m_videoCapture.FrameRateTS();
-                BMDTimeValue tv = m_videoCapture.FrameRateTV();
-                ImGui::Text("Frame rate : %llu %llu", (uint64_t)ts, (uint64_t)tv);
-
-                BMDPixelFormat pixFmt = m_videoCapture.PixelFormat();
-                if (bmdFormat10BitYUV == pixFmt) {
-                    ImGui::InputText("Record filename", m_writePath, sizeof m_writePath - 1);
-                    ImGui::Text(m_msg);
-                    if (ImGui::Button("Record")) {
-                        wchar_t path[512];
-                        memset(path, 0, sizeof path);
-                        MultiByteToWideChar(CP_UTF8, 0, m_writePath, sizeof m_writePath, path, 511);
-
-                        bool bRv = m_aviWriter.Init(path, m_videoCapture.Width(),
-                            m_videoCapture.Height(), (int)(ts / 1000),
-                            MLAviWriter::IF_YUV422v210);
-                        if (bRv) {
-                            m_state = S_Recording;
-                            m_msg[0] = 0;
-                        } else {
-                            sprintf_s(m_msg, "File open error : %s", m_writePath);
-                        }
-                    }
-                }
-            }
-
             m_mutex.lock();
             if (!m_capturedImages.empty()) {
                 queueSize = (int)m_capturedImages.size();
@@ -780,31 +779,66 @@ MLDX12App::ImGuiCommands(void)
             }
             m_mutex.unlock();
 
-            ImGui::Text("Draw Queue size : %d", queueSize);
-            ImGui::Text("Frame skip count : %lld", m_frameSkipCount);
+            BMDTimeScale ts = m_videoCapture.FrameRateTS();
+            BMDTimeValue tv = m_videoCapture.FrameRateTV();
+            ImGui::Text("Frame rate : %.1f", (double)ts / tv);
 
-            if (m_state == S_Recording) {
-                ImGui::Text("Now Recording...");
-                ImGui::Text("Rec Queue size : %d", m_aviWriter.RecQueueSize());
-                if (ImGui::Button("Stop Recording")) {
-                    m_state = S_Capturing;
+            ImGui::Separator();
 
-                    m_mutex.lock();
-                    m_aviWriter.Term();
-                    m_mutex.unlock();
+            if (m_state == S_Previewing) {
+                ImGui::Text("Now Previewing...");
+                BMDPixelFormat pixFmt = m_videoCapture.PixelFormat();
+                if (bmdFormat10BitYUV == pixFmt) {
+                    ImGui::InputText("Record filename", m_writePath, sizeof m_writePath - 1);
+                    if (ImGui::Button("Record", ImVec2(256, 64))) {
+                        wchar_t path[512];
+                        memset(path, 0, sizeof path);
+                        MultiByteToWideChar(CP_UTF8, 0, m_writePath, sizeof m_writePath, path, 511);
+
+                        bool bRv = m_aviWriter.Start(path, m_videoCapture.Width(),
+                            m_videoCapture.Height(), (int)(ts / 1000),
+                            MLAviWriter::IF_YUV422v210);
+                        if (bRv) {
+                            m_state = S_Recording;
+                            m_msg[0] = 0;
+                        } else {
+                            sprintf_s(m_msg, "Record Failed.\nFile open error : %s", m_writePath);
+                            ImGui::OpenPopup("ErrorPopup");
+                        }
+                    }
                 }
-            } else {
+
                 if (ImGui::Button("Stop Capture")) {
-            
+
                     m_videoCapture.StopCapture();
                     m_videoCapture.Term();
-            
+
                     m_videoCaptureDeviceList.Term();
                     m_videoCaptureDeviceList.Init();
 
                     m_state = S_Init;
                 }
+            } else if (m_state == S_Recording) {
+                ImGui::Text("Now Recording...");
+                ImGui::Text("Record filename : %s", m_writePath);
+                if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
+                    m_state = S_WaitRecordEnd;
+
+                    m_mutex.lock();
+                    m_aviWriter.StopAsync();
+                    m_mutex.unlock();
+
+                    ImGui::OpenPopup("WriteFlushPopup");
+                }
+
+                ImGui::Text("Rec Queue size : %d", m_aviWriter.RecQueueSize());
             }
+
+            ImGui::Text("Draw Queue size : %d", queueSize);
+            if (ImGui::Button("Clear Draw Queue")) {
+                ClearDrawQueue();
+            }
+            ImGui::Text("Frame Draw skip count : %lld", m_frameSkipCount);
 
             ImGui::BeginGroup();
             if (ImGui::RadioButton("Center Crosshair", m_crosshairType == CH_CenterCrosshair)) {
@@ -815,7 +849,7 @@ MLDX12App::ImGuiCommands(void)
                 m_crosshairType = CH_4Crosshairs;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("None", m_crosshairType == CH_None)) {
+            if (ImGui::RadioButton("CHNone", m_crosshairType == CH_None)) {
                 m_crosshairType = CH_None;
             }
             ImGui::EndGroup();
@@ -831,7 +865,7 @@ MLDX12App::ImGuiCommands(void)
                 m_gridType = GR_6x6;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("None", m_gridType == GR_None)) {
+            if (ImGui::RadioButton("GRNone", m_gridType == GR_None)) {
                 m_gridType = GR_None;
             }
             ImGui::EndGroup();
@@ -979,6 +1013,18 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
 
     m_mutex.lock();
     m_capturedImages.push_back(ci);
+    m_mutex.unlock();
+}
+
+void MLDX12App::ClearDrawQueue(void)
+{
+    m_mutex.lock();
+    for (auto ite = m_capturedImages.begin(); ite != m_capturedImages.end(); ++ite) {
+        CapturedImage &ci = *ite;
+        delete [] ci.data;
+        ci.data = nullptr;
+    }
+    m_capturedImages.clear();
     m_mutex.unlock();
 }
 

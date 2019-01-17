@@ -17,11 +17,19 @@ public:
         IF_YUV422v210,
     };
 
-    bool Init(std::wstring path, int width, int height, int fps, ImageFormat imgFmt);
+    bool Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt);
 
     void AddImage(const uint32_t * img, int bytes);
 
-    void Term(void);
+    // send thread to flush remaining data and end.
+    // StopAsync() then call PallThreadEnd() every frame until PollThreadEnd() returns true
+    void StopAsync(void);
+
+    // returns true when writing thread ends
+    bool PollThreadEnd(void);
+
+    // blocking termination
+    void StopBlocking(void);
 
     bool IsOpen(void) const { return mFp != nullptr; }
 
@@ -37,6 +45,7 @@ private:
     enum AVIState {
         AVIS_Init,
         AVIS_Writing,
+        AVIS_WaitThreadEnd,
     };
 
     AVIState mState;
@@ -100,7 +109,9 @@ private:
     void WriteAll(void);
     void WriteOne(ImageItem& ii);
     void StartThread(void);
-    void StopThread(void);
+    void StopThreadBlock(void);
+
+    void StopThreadAsync(void);
 
 };
 

@@ -133,7 +133,7 @@ void MLAviWriter::WriteFccHeader(const char *fccS, int bytes) {
 }
 
 
-bool MLAviWriter::Init(std::wstring path, int width, int height, int fps, ImageFormat imgFmt) {
+bool MLAviWriter::Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt) {
     assert(mFp == nullptr);
 
     mWidth = width;
@@ -207,22 +207,16 @@ void MLAviWriter::AddImage(const uint32_t * img, int bytes) {
     SetEvent(m_readyEvent);
 }
 
-void MLAviWriter::Term(void) {
-    assert(mFp != nullptr);
+void MLAviWriter::StopBlocking(void) {
+    if (mFp == nullptr) {
+        return;
+    }
 
-    StopThread();
+    StopThreadBlock();
+}
 
-    FinishList(mLastMoviIdx);
-    FinishRiff(mLastRiffIdx);
-
-    _fseeki64(mFp, mAviMainHeaderPos, SEEK_SET);
-    WriteAviMainHeader();
-
-    _fseeki64(mFp, mAviStreamHeaderPos, SEEK_SET);
-    WriteAviStreamHeader();
-
-    fclose(mFp);
-    mFp = nullptr;
+void MLAviWriter::StopAsync(void) {
+    StopThreadAsync();
 }
 
 int MLAviWriter::RecQueueSize(void) {
@@ -414,18 +408,42 @@ void MLAviWriter::StartThread(void)
     m_thread = CreateThread(nullptr, 0, AviWriterEntry, this, 0, nullptr);
 }
 
-void MLAviWriter::StopThread(void) {
+void MLAviWriter::StopThreadBlock(void) {
     if (m_thread == nullptr) {
         return;
     }
-
-    mState = AVIS_Init;
 
     assert(m_shutdownEvent != nullptr);
     SetEvent(m_shutdownEvent);
     WaitForSingleObject(m_thread, INFINITE);
     CloseHandle(m_thread);
     m_thread = nullptr;
+    mState = AVIS_Init;
+}
+
+void MLAviWriter::StopThreadAsync(void) {
+    if (m_thread == nullptr) {
+        return;
+    }
+
+    mState = AVIS_WaitThreadEnd;
+
+    assert(m_shutdownEvent != nullptr);
+    SetEvent(m_shutdownEvent);
+}
+
+bool MLAviWriter::PollThreadEnd(void) {
+    if (m_thread == nullptr) {
+        return true;
+    }
+
+    if (mState == AVIS_Init) {
+        CloseHandle(m_thread);
+        m_thread = nullptr;
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -456,7 +474,21 @@ MLAviWriter::ThreadMain(void) {
         WriteAll();
     }
 
+    FinishList(mLastMoviIdx);
+    FinishRiff(mLastRiffIdx);
+
+    _fseeki64(mFp, mAviMainHeaderPos, SEEK_SET);
+    WriteAviMainHeader();
+
+    _fseeki64(mFp, mAviStreamHeaderPos, SEEK_SET);
+    WriteAviStreamHeader();
+
+    fclose(mFp);
+    mFp = nullptr;
+
     CoUninitialize();
+
+    mState = AVIS_Init;
     return rv;
 }
 
