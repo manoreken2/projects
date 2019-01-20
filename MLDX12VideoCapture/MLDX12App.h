@@ -80,6 +80,15 @@ private:
         GR_6x6,
     };
 
+    struct CapturedImage {
+        uint8_t *data;
+        int bytes;
+        int width;
+        int height;
+        DrawMode drawMode;
+        std::string imgFormat;
+    };
+
     State mState;
     DrawMode mDrawMode;
     CrosshairType mCrosshairType;
@@ -125,15 +134,6 @@ private:
     
     MLVideoCaptureEnum mVideoCaptureDeviceList;
     MLVideoCapture mVideoCapture;
-
-    struct CapturedImage {
-        uint8_t *data;
-        int bytes;
-        int width;
-        int height;
-        DrawMode drawMode;
-        std::string imgFormat;
-    };
 
     std::list<CapturedImage> mCapturedImages;
     std::mutex mMutex;

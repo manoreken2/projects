@@ -80,6 +80,13 @@ private:
     uint64_t mAviMainHeaderPos;
     uint64_t mAviStreamHeaderPos;
 
+    FILE *mFp;
+
+    std::mutex m_mutex;
+    HANDLE       m_thread;
+    HANDLE       m_shutdownEvent;
+    HANDLE       m_readyEvent;
+
     int WriteRiff(const char *fccS);
     void FinishRiff(int idx);
 
@@ -98,12 +105,6 @@ private:
 
     void RestartRiff(void);
 
-    FILE *mFp;
-
-    std::mutex m_mutex;
-    HANDLE       m_thread;
-    HANDLE       m_shutdownEvent;
-    HANDLE       m_readyEvent;
     static DWORD WINAPI AviWriterEntry(LPVOID param);
     DWORD ThreadMain(void);
     void WriteAll(void);

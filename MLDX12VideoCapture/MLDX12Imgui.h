@@ -14,19 +14,17 @@ public:
     void Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int frameIdx);
 
 private:
-    ID3D12Device * m_device;
-    ComPtr<ID3D12RootSignature> m_rootSig;
-    ComPtr<ID3D12PipelineState> m_pso;
-
-    struct FrameResources
-    {
+    struct FrameResources {
         ID3D12Resource* IB;
         ID3D12Resource* VB;
         int vbCount;
         int ibCount;
     };
 
-    FrameResources m_frameResources[2];
+    FrameResources mFrameResources[2];
+    ID3D12Device * mDevice;
+    ComPtr<ID3D12RootSignature> mRootSig;
+    ComPtr<ID3D12PipelineState> mPso;
 
     void SetupPso(void);
     void SetupRootSig(void);

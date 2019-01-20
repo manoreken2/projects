@@ -834,7 +834,7 @@ MLDX12App::ImGuiCommands(void)
                 ImGui::Text("Rec Queue size : %d", mAviWriter.RecQueueSize());
             }
 
-            //ImGui::Checkbox("Raw SDI preview", &mRawSDI);
+            ImGui::Checkbox("Raw SDI preview", &mRawSDI);
 
             ImGui::Text("Draw Queue size : %d", queueSize);
             ImGui::SameLine();

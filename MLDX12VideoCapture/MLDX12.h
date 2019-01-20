@@ -24,16 +24,16 @@ public:
     void UpdateForSizeChange(int clientWidth, int clientHeight);
 
 protected:
-    std::wstring GetAssetFullPath(LPCWSTR assetName) {
-        return mAssetsPath + assetName;
-    }
-
-    void GetHardwareAdapter(IDXGIFactory2* pFactory, IDXGIAdapter1** ppAdapter);
-
     int mWidth;
     int mHeight;
     float mAspectRatio;
     RECT mWindowBounds;
     std::wstring mAssetsPath;
+
+    std::wstring GetAssetFullPath(LPCWSTR assetName) {
+        return mAssetsPath + assetName;
+    }
+
+    void GetHardwareAdapter(IDXGIFactory2* pFactory, IDXGIAdapter1** ppAdapter);
 };
 

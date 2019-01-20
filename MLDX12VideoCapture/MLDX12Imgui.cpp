@@ -19,7 +19,7 @@ struct VERTEX_CONSTANT_BUFFER
 
 void MLDX12Imgui::Init(ID3D12Device *device)
 {
-    m_device = device;
+    mDevice = device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -27,10 +27,10 @@ void MLDX12Imgui::Init(ID3D12Device *device)
     ImGui_ImplWin32_Init(WinApp::GetHwnd());
 
     for (int i = 0; i < 2; i++) {
-        m_frameResources[i].IB = nullptr;
-        m_frameResources[i].VB = nullptr;
-        m_frameResources[i].vbCount = 5000;
-        m_frameResources[i].ibCount = 10000;
+        mFrameResources[i].IB = nullptr;
+        mFrameResources[i].VB = nullptr;
+        mFrameResources[i].vbCount = 5000;
+        mFrameResources[i].ibCount = 10000;
     }
 
     SetupRootSig();
@@ -42,11 +42,11 @@ void MLDX12Imgui::Init(ID3D12Device *device)
 void MLDX12Imgui::Term(void)
 {
     for (UINT i = 0; i < 2; i++) {
-        if (m_frameResources[i].IB) { m_frameResources[i].IB->Release(); m_frameResources[i].IB = nullptr; }
-        if (m_frameResources[i].VB) { m_frameResources[i].VB->Release(); m_frameResources[i].VB = nullptr; }
+        if (mFrameResources[i].IB) { mFrameResources[i].IB->Release(); mFrameResources[i].IB = nullptr; }
+        if (mFrameResources[i].VB) { mFrameResources[i].VB->Release(); mFrameResources[i].VB = nullptr; }
     }
 
-    m_device = nullptr;
+    mDevice = nullptr;
 }
 
 
@@ -101,9 +101,9 @@ void MLDX12Imgui::SetupRootSig(void)
     ComPtr<ID3DBlob> blob;
     ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, NULL));
 
-    ThrowIfFailed(m_device->CreateRootSignature(0, blob->GetBufferPointer(),
-        blob->GetBufferSize(), IID_PPV_ARGS(&m_rootSig)));
-    NAME_D3D12_OBJECT(m_rootSig);
+    ThrowIfFailed(mDevice->CreateRootSignature(0, blob->GetBufferPointer(),
+        blob->GetBufferSize(), IID_PPV_ARGS(&mRootSig)));
+    NAME_D3D12_OBJECT(mRootSig);
 }
 
 void MLDX12Imgui::SetupPso(void)
@@ -114,7 +114,7 @@ void MLDX12Imgui::SetupPso(void)
     memset(&psoDesc, 0, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
     psoDesc.NodeMask = 1;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    psoDesc.pRootSignature = m_rootSig.Get();
+    psoDesc.pRootSignature = mRootSig.Get();
     psoDesc.SampleMask = UINT_MAX;
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -236,8 +236,8 @@ void MLDX12Imgui::SetupPso(void)
         desc.BackFace = desc.FrontFace;
     }
 
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pso)));
-    NAME_D3D12_OBJECT(m_pso);
+    ThrowIfFailed(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPso)));
+    NAME_D3D12_OBJECT(mPso);
 }
 
 void
@@ -245,7 +245,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
 {
     // FIXME: I'm assuming that this only gets called once per frame!
     // If not, we can't just re-allocate the IB or VB, we'll have to do a proper allocator.
-    FrameResources* frameResources = &m_frameResources[frameIdx];
+    FrameResources* frameResources = &mFrameResources[frameIdx];
     ID3D12Resource* pVB = frameResources->VB;
     ID3D12Resource* pIB = frameResources->IB;
     int vbSize = frameResources->vbCount;
@@ -271,7 +271,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
         desc.SampleDesc.Count = 1;
         desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
+        ThrowIfFailed(mDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&pVB)));
         frameResources->VB = pVB;
         frameResources->vbCount = vbSize;
@@ -295,7 +295,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
         desc.SampleDesc.Count = 1;
         desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
+        ThrowIfFailed(mDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&pIB)));
         frameResources->IB = pIB;
         frameResources->ibCount = ibSize;
@@ -366,8 +366,8 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
     ibv.Format = sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
     ctx->IASetIndexBuffer(&ibv);
     ctx->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    ctx->SetPipelineState(m_pso.Get());
-    ctx->SetGraphicsRootSignature(m_rootSig.Get());
+    ctx->SetPipelineState(mPso.Get());
+    ctx->SetGraphicsRootSignature(mRootSig.Get());
     ctx->SetGraphicsRoot32BitConstants(0, 16, &vertex_constant_buffer, 0);
 
     // Setup render state
