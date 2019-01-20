@@ -36,10 +36,24 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     mFenceValues{},
     mRtvDescSize(0),
     mWindowedMode(true),
-    mFrameSkipCount(0)
+    mFrameSkipCount(0),
+    mDrawGamma(2.2f)
 {
     strcpy_s(mWritePath, "c:/data/output.avi");
     mMsg[0] = 0;
+
+    CreateGammaTable(2.2f);
+}
+
+void 
+MLDX12App::CreateGammaTable(float gamma) {
+    // 12bit value to 8bit value
+
+    for (int i = 0; i < 4096; ++i) {
+        float y = (float)(i) / 4095.0f;
+        y = pow(y, 1.0f / gamma);
+        mGammaTable[i] = (int)floor(255.0f * y + 0.5f);
+    }
 }
 
 void MLDX12App::OnInit()
@@ -707,6 +721,8 @@ void MLDX12App::WaitForGpu()
 void
 MLDX12App::ImGuiCommands(void)
 {
+    ImGui::ShowDemoWindow();
+
     ImGui::Begin("Settings");
 
     if (ImGui::BeginPopupModal("ErrorPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -835,6 +851,10 @@ MLDX12App::ImGuiCommands(void)
             }
 
             ImGui::Checkbox("Raw SDI preview", &mRawSDI);
+            if (mRawSDI) {
+                ImGui::DragFloat("Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
+                CreateGammaTable(mDrawGamma);
+            }
 
             ImGui::Text("Draw Queue size : %d", queueSize);
             ImGui::SameLine();
@@ -963,6 +983,83 @@ YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height)
     }
 }
 
+
+void
+MLDX12App::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
+    const int DNG_W = width + 32;
+    const int DNG_H = height + 32;
+    const int DNG_WH = DNG_W * DNG_H;
+
+    uint8_t *bayer = new uint8_t[DNG_WH];
+    int posT = 0;
+    for (int i = 0;; i += 4) {
+        // extract lower 8bit from yuv422 10bit
+        uint8_t cr0 = (pFrom[i] & 0x0ff00000) >> 20;
+        uint8_t y0  = (pFrom[i] & 0x0003fc00) >> 10;
+        uint8_t cb0 = (pFrom[i] & 0x000000ff);
+
+        uint8_t y2  = (pFrom[i + 1] & 0x0ff00000) >> 20;
+        uint8_t cb2 = (pFrom[i + 1] & 0x0003fc00) >> 10;
+        uint8_t y1  = (pFrom[i + 1] & 0x000000ff);
+
+        uint8_t cb4 = (pFrom[i + 2] & 0x0ff00000) >> 20;
+        uint8_t y3  = (pFrom[i + 2] & 0x0003fc00) >> 10;
+        uint8_t cr2 = (pFrom[i + 2] & 0x000000ff);
+
+        uint8_t y5  = (pFrom[i + 3] & 0x0ff00000) >> 20;
+        uint8_t cr4 = (pFrom[i + 3] & 0x0003fc00) >> 10;
+        uint8_t y4  = (pFrom[i + 3] & 0x000000ff);
+
+        // 12bit RAW sensor data
+        uint16_t p0_12 = (uint16_t)(cb0 | ((y0 & 0xf) << 8));
+        uint16_t p1_12 = (uint16_t)((cr0 << 4) | (y0 >> 4));
+        uint16_t p2_12 = (uint16_t)(y1 | ((cb2 & 0xf) << 8));
+        uint16_t p3_12 = (uint16_t)((cb2 >> 4) | (y2 << 4));
+
+        uint16_t p4_12 = (uint16_t)(cr2 | ((y3 & 0xf) << 8));
+        uint16_t p5_12 = (uint16_t)((cb4 << 4) | (y3 >> 4));
+        uint16_t p6_12 = (uint16_t)(y4 | ((cr4 & 0xf) << 8));
+        uint16_t p7_12 = (uint16_t)((cr4 >> 4) | (y5 << 4));
+
+        // store gamma corrected 8bit value
+        bayer[posT + 0] = mGammaTable[p0_12];
+        bayer[posT + 1] = mGammaTable[p1_12];
+        bayer[posT + 2] = mGammaTable[p2_12];
+        bayer[posT + 3] = mGammaTable[p3_12];
+
+        bayer[posT + 4] = mGammaTable[p4_12];
+        bayer[posT + 5] = mGammaTable[p5_12];
+        bayer[posT + 6] = mGammaTable[p6_12];
+        bayer[posT + 7] = mGammaTable[p7_12];
+
+        posT += 8;
+        if (DNG_WH <= posT) {
+            break;
+        }
+    }
+
+    uint8_t a = 255;
+    for (int y = 0; y < height; y+=2) {
+        for (int x = 0; x < width; x+=2) {
+            /* G0 R
+             * B  G1
+             */
+            uint8_t g0 = bayer[x + 0 + 16 + (y + 0 + 16)*DNG_W];
+            uint8_t r  = bayer[x + 1 + 16 + (y + 0 + 16)*DNG_W];
+            uint8_t b  = bayer[x + 0 + 16 + (y + 1 + 16)*DNG_W];
+            uint8_t g1 = bayer[x + 1 + 16 + (y + 1 + 16)*DNG_W];
+
+            pTo[x + 0 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
+            pTo[x + 1 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
+            pTo[x + 0 + (y + 1)*width] = (a << 24) + (b << 16) + (g1 << 8) + r;
+            pTo[x + 1 + (y + 1)*width] = (a << 24) + (b << 16) + (g1 << 8) + r;
+        }
+    }
+
+    delete[] bayer;
+    bayer = nullptr;
+}
+
 void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
 {
@@ -1010,7 +1107,10 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
         }
         break;
     case bmdFormat10BitYUV:
-        {
+        if (mRawSDI) {
+            RawYuvV210ToRGBA(pFrom, pTo, width, height);
+            ci.drawMode = DM_RGB;
+        } else {
             YuvV210ToYuvA(pFrom, pTo, width, height);
             ci.drawMode = DM_YUV;
         }

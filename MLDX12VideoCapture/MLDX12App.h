@@ -38,6 +38,7 @@ public:
     
     void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame);
 
+
 private:
     static const UINT FrameCount = 2;
 
@@ -146,6 +147,11 @@ private:
 
     char mMsg[512];
 
+    float mDrawGamma;
+    
+    // 12bit value to 8bit value
+    uint8_t mGammaTable[4096];
+
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);
@@ -169,4 +175,9 @@ private:
     void AddCrosshair(CapturedImage &ci);
     void AddTitleSafeArea(CapturedImage &ci);
     void AddGrid(CapturedImage &ci);
+
+    void RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height);
+
+    void CreateGammaTable(float gamma);
+
 };
