@@ -721,7 +721,7 @@ void MLDX12App::WaitForGpu()
 void
 MLDX12App::ImGuiCommands(void)
 {
-    ImGui::ShowDemoWindow();
+    //ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
 
