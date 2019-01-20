@@ -80,50 +80,51 @@ private:
         GR_6x6,
     };
 
-    State m_state;
-    DrawMode m_drawMode;
-    CrosshairType m_crosshairType;
-    bool m_titleSafeArea;
-    GridType m_gridType;
+    State mState;
+    DrawMode mDrawMode;
+    CrosshairType mCrosshairType;
+    bool mTitleSafeArea;
+    GridType mGridType;
 
-    CD3DX12_VIEWPORT m_viewport;
-    CD3DX12_RECT m_scissorRect;
-    ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
-    ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12PipelineState> m_pipelineStateRGB;
-    ComPtr<ID3D12PipelineState> m_pipelineStateYUV;
+    CD3DX12_VIEWPORT mViewport;
+    CD3DX12_RECT mScissorRect;
+    ComPtr<IDXGISwapChain3> mSwapChain;
+    ComPtr<ID3D12Device> mDevice;
+    ComPtr<ID3D12Resource> mRenderTargets[FrameCount];
+    ComPtr<ID3D12CommandAllocator> mCmdAllocators[FrameCount];
+    ComPtr<ID3D12CommandQueue> mCmdQ;
+    ComPtr<ID3D12RootSignature> mRootSignature;
+    ComPtr<ID3D12DescriptorHeap> mRtvHeap;
+    ComPtr<ID3D12PipelineState> mPipelineStateRGB;
+    ComPtr<ID3D12PipelineState> mPipelineStateYUV;
 
-    MLDX12Imgui m_dx12Imgui;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    MLDX12Imgui mDx12Imgui;
+    ComPtr<ID3D12GraphicsCommandList> mCmdList;
 
-    ComPtr<ID3D12GraphicsCommandList> m_commandListTextureUpload;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocatorTextureUpload;
+    ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
+    ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
 
-    UINT m_rtvDescriptorSize;
-    int m_numVertices;
+    UINT mRtvDescSize;
+    int mNumVertices;
 
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+    ComPtr<ID3D12Resource> mVertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap;
-    UINT m_srvDescriptorSize;
-    ComPtr<ID3D12Resource>      m_textureImgui;
-    ComPtr<ID3D12Resource>       m_textureVideo[2];
-    int m_textureVideoIdToShow;
+    ComPtr<ID3D12DescriptorHeap> mSrvHeap;
+    UINT                         mSrvDescSize;
+    ComPtr<ID3D12Resource>      mTexImgui;
+    ComPtr<ID3D12Resource>       mTexVideo[2];
+    int mTexVideoIdToShow;
 
-    UINT m_frameIndex;
-    HANDLE m_fenceEvent;
-    ComPtr<ID3D12Fence> m_fence;
-    UINT64 m_fenceValues[FrameCount];
-    bool m_windowedMode;
+    UINT mFrameIdx;
+    HANDLE mFenceEvent;
+    ComPtr<ID3D12Fence> mFence;
+    UINT64 mFenceValues[FrameCount];
+    bool mWindowedMode;
+    bool mRawSDI;
     
-    MLVideoCaptureEnum m_videoCaptureDeviceList;
-    MLVideoCapture m_videoCapture;
+    MLVideoCaptureEnum mVideoCaptureDeviceList;
+    MLVideoCapture mVideoCapture;
 
     struct CapturedImage {
         uint8_t *data;
@@ -134,16 +135,16 @@ private:
         std::string imgFormat;
     };
 
-    std::list<CapturedImage> m_capturedImages;
-    std::mutex m_mutex;
+    std::list<CapturedImage> mCapturedImages;
+    std::mutex mMutex;
 
-    int64_t m_frameSkipCount;
+    int64_t mFrameSkipCount;
 
-    MLAviWriter m_aviWriter;
+    MLAviWriter mAviWriter;
 
-    char m_writePath[512];
+    char mWritePath[512];
 
-    char m_msg[512];
+    char mMsg[512];
 
     void LoadPipeline(void);
     void LoadAssets(void);

@@ -25,33 +25,33 @@ NtoHL(uint32_t v)
 
 MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
-    m_state(S_Init),
-    m_drawMode(DM_RGB),
-    m_crosshairType(CH_None),
-    m_titleSafeArea(false),
-    m_frameIndex(0),
-    m_textureVideoIdToShow(0),
-    m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
-    m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-    m_fenceValues{},
-    m_rtvDescriptorSize(0),
-    m_windowedMode(true),
-    m_frameSkipCount(0)
+    mState(S_Init),
+    mDrawMode(DM_RGB),
+    mCrosshairType(CH_None),
+    mTitleSafeArea(false),
+    mFrameIdx(0),
+    mTexVideoIdToShow(0),
+    mViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+    mScissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
+    mFenceValues{},
+    mRtvDescSize(0),
+    mWindowedMode(true),
+    mFrameSkipCount(0)
 {
-    strcpy_s(m_writePath, "c:/data/output.avi");
-    m_msg[0] = 0;
+    strcpy_s(mWritePath, "c:/data/output.avi");
+    mMsg[0] = 0;
 }
 
 void MLDX12App::OnInit()
 {
-    m_videoCaptureDeviceList.Init();
+    mVideoCaptureDeviceList.Init();
 
     OutputDebugString(L"OnInit started\n");
 
     LoadPipeline();
     LoadAssets();
 
-    m_dx12Imgui.Init(m_device.Get());
+    mDx12Imgui.Init(mDevice.Get());
     CreateImguiTexture();
 
     OutputDebugString(L"OnInit end\n");
@@ -63,21 +63,21 @@ void MLDX12App::OnDestroy()
     // cleaned up by the destructor.
     WaitForGpu();
 
-    CloseHandle(m_fenceEvent);
+    CloseHandle(mFenceEvent);
 
-    m_videoCapture.SetCallback(nullptr);
-    m_videoCapture.Term();
+    mVideoCapture.SetCallback(nullptr);
+    mVideoCapture.Term();
 
-    m_videoCaptureDeviceList.Term();
+    mVideoCaptureDeviceList.Term();
 
-    for (auto ite = m_capturedImages.begin(); ite != m_capturedImages.end(); ++ite) {
+    for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
         auto & item = *ite;
         delete[] item.data;
         item.data = nullptr;
     }
-    m_capturedImages.clear();
+    mCapturedImages.clear();
 
-    m_dx12Imgui.Term();
+    mDx12Imgui.Term();
 }
 
 
@@ -106,14 +106,14 @@ void MLDX12App::LoadPipeline()
     ThrowIfFailed(D3D12CreateDevice(
         hardwareAdapter.Get(),
         D3D_FEATURE_LEVEL_11_0,
-        IID_PPV_ARGS(&m_device)
+        IID_PPV_ARGS(&mDevice)
     ));
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-    NAME_D3D12_OBJECT(m_commandQueue);
+    ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCmdQ)));
+    NAME_D3D12_OBJECT(mCmdQ);
 
     DXGI_SWAP_CHAIN_DESC1 scDesc = {};
     scDesc.BufferCount = FrameCount;
@@ -125,33 +125,33 @@ void MLDX12App::LoadPipeline()
     scDesc.SampleDesc.Count = 1;
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
-        m_commandQueue.Get(),
+        mCmdQ.Get(),
         WinApp::GetHwnd(),
         &scDesc,
         nullptr,
         nullptr,
         &swapChain));
 
-    ThrowIfFailed(swapChain.As(&m_swapChain));
+    ThrowIfFailed(swapChain.As(&mSwapChain));
 
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    mFrameIdx = mSwapChain->GetCurrentBackBufferIndex();
 
     {
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
         rtvHeapDesc.NumDescriptors = FrameCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        NAME_D3D12_OBJECT(m_rtvHeap);
+        ThrowIfFailed(mDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
+        mRtvDescSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        NAME_D3D12_OBJECT(mRtvHeap);
     }
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT n = 0; n < FrameCount; n++) {
-            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-            m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
-            rtvHandle.Offset(1, m_rtvDescriptorSize);
-            NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
+            ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(&mRenderTargets[n])));
+            mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), nullptr, rtvHandle);
+            rtvHandle.Offset(1, mRtvDescSize);
+            NAME_D3D12_OBJECT_INDEXED(mRenderTargets, n);
         }
     }
 
@@ -161,23 +161,23 @@ void MLDX12App::LoadPipeline()
         srvHeapDesc.NumDescriptors = TE_NUM;
         srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
-        NAME_D3D12_OBJECT(m_srvHeap);
-        m_srvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        ThrowIfFailed(mDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
+        NAME_D3D12_OBJECT(mSrvHeap);
+        mSrvDescSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     {
         for (UINT n = 0; n < FrameCount; n++) {
             ThrowIfFailed(
-                m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                    IID_PPV_ARGS(&m_commandAllocators[n])));
-            NAME_D3D12_OBJECT_INDEXED(m_commandAllocators,n);
+                mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                    IID_PPV_ARGS(&mCmdAllocators[n])));
+            NAME_D3D12_OBJECT_INDEXED(mCmdAllocators,n);
         }
 
         ThrowIfFailed(
-            m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                IID_PPV_ARGS(&m_commandAllocatorTextureUpload)));
-        NAME_D3D12_OBJECT(m_commandAllocatorTextureUpload);
+            mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                IID_PPV_ARGS(&mCmdAllocatorTexUpload)));
+        NAME_D3D12_OBJECT(mCmdAllocatorTexUpload);
 
     }
 }
@@ -187,7 +187,7 @@ void MLDX12App::LoadAssets()
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-        if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
+        if (FAILED(mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
@@ -220,25 +220,25 @@ void MLDX12App::LoadAssets()
         ComPtr<ID3DBlob> error;
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc,
             featureData.HighestVersion, &signature, &error));
-        ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(),
-            signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-        NAME_D3D12_OBJECT(m_rootSignature);
+        ThrowIfFailed(mDevice->CreateRootSignature(0, signature->GetBufferPointer(),
+            signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
+        NAME_D3D12_OBJECT(mRootSignature);
     }
 
-    SetupPSO(L"shadersRGB.hlsl", m_pipelineStateRGB);
-    SetupPSO(L"shadersYUV.hlsl", m_pipelineStateYUV);
-    NAME_D3D12_OBJECT(m_pipelineStateRGB);
-    NAME_D3D12_OBJECT(m_pipelineStateYUV);
+    SetupPSO(L"shadersRGB.hlsl", mPipelineStateRGB);
+    SetupPSO(L"shadersYUV.hlsl", mPipelineStateYUV);
+    NAME_D3D12_OBJECT(mPipelineStateRGB);
+    NAME_D3D12_OBJECT(mPipelineStateYUV);
 
-    ThrowIfFailed(m_device->CreateCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(),
-        m_pipelineStateRGB.Get(), IID_PPV_ARGS(&m_commandList)));
-    NAME_D3D12_OBJECT(m_commandList);
+    ThrowIfFailed(mDevice->CreateCommandList(
+        0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocators[mFrameIdx].Get(),
+        mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdList)));
+    NAME_D3D12_OBJECT(mCmdList);
 
-    ThrowIfFailed(m_device->CreateCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocatorTextureUpload.Get(),
-        m_pipelineStateRGB.Get(), IID_PPV_ARGS(&m_commandListTextureUpload)));
-    NAME_D3D12_OBJECT(m_commandListTextureUpload);
+    ThrowIfFailed(mDevice->CreateCommandList(
+        0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocatorTexUpload.Get(),
+        mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdListTexUpload)));
+    NAME_D3D12_OBJECT(mCmdListTexUpload);
 
     {
         Vertex verts[] =
@@ -252,38 +252,38 @@ void MLDX12App::LoadAssets()
         };
 
         int numTriangles = 2;
-        m_numVertices = 3 * numTriangles;
+        mNumVertices = 3 * numTriangles;
 
         const UINT vbBytes = sizeof verts;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
+        ThrowIfFailed(mDevice->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
             &CD3DX12_RESOURCE_DESC::Buffer(vbBytes),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            IID_PPV_ARGS(&m_vertexBuffer)));
-        NAME_D3D12_OBJECT(m_vertexBuffer);
+            IID_PPV_ARGS(&mVertexBuffer)));
+        NAME_D3D12_OBJECT(mVertexBuffer);
 
         UINT8* pVertexDataBegin;
         // We do not intend to read from this resource on the CPU.
         CD3DX12_RANGE readRange(0, 0);
-        ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+        ThrowIfFailed(mVertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
         memcpy(pVertexDataBegin, verts, vbBytes);
-        m_vertexBuffer->Unmap(0, nullptr);
+        mVertexBuffer->Unmap(0, nullptr);
 
-        m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-        m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-        m_vertexBufferView.SizeInBytes = vbBytes;
+        mVertexBufferView.BufferLocation = mVertexBuffer->GetGPUVirtualAddress();
+        mVertexBufferView.StrideInBytes = sizeof(Vertex);
+        mVertexBufferView.SizeInBytes = vbBytes;
     }
 
     {
-        ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex],
-            D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        NAME_D3D12_OBJECT(m_fence);
-        m_fenceValues[m_frameIndex]++;
-        m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (m_fenceEvent == nullptr) {
+        ThrowIfFailed(mDevice->CreateFence(mFenceValues[mFrameIdx],
+            D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+        NAME_D3D12_OBJECT(mFence);
+        mFenceValues[mFrameIdx]++;
+        mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (mFenceEvent == nullptr) {
             ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
         }
 
@@ -291,9 +291,9 @@ void MLDX12App::LoadAssets()
 
     UpdateViewAndScissor();
     
-    ThrowIfFailed(m_commandList->Close());
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ThrowIfFailed(mCmdList->Close());
+    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
+    mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
     {
@@ -303,7 +303,7 @@ void MLDX12App::LoadAssets()
 
         memset(buff, 0x80, texW*texH * 4);
 
-        m_commandListTextureUpload->Close();
+        mCmdListTexUpload->Close();
 
         CreateVideoTexture(0, texW, texH, DXGI_FORMAT_R8G8B8A8_UNORM, 4, (uint8_t*)buff);
         CreateVideoTexture(1, texW, texH, DXGI_FORMAT_R8G8B8A8_UNORM, 4, (uint8_t*)buff);
@@ -336,7 +336,7 @@ void MLDX12App::SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> 
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-    psoDesc.pRootSignature = m_rootSignature.Get();
+    psoDesc.pRootSignature = mRootSignature.Get();
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
     psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -366,14 +366,14 @@ void MLDX12App::SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> 
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.SampleDesc.Count = 1;
-    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+    ThrowIfFailed(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 }
 
 void
 MLDX12App::CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data)
 {
-    ThrowIfFailed(m_commandAllocatorTextureUpload->Reset());
-    ThrowIfFailed(m_commandListTextureUpload->Reset(m_commandAllocatorTextureUpload.Get(), m_pipelineStateRGB.Get()));
+    ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
+    ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
     ComPtr<ID3D12Resource> texUploadHeap;
@@ -389,18 +389,18 @@ MLDX12App::CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pix
         texDesc.SampleDesc.Quality = 0;
         texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
+        ThrowIfFailed(mDevice->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
-            IID_PPV_ARGS(&m_textureVideo[texIdx])));
-        NAME_D3D12_OBJECT_INDEXED(m_textureVideo, texIdx);
+            IID_PPV_ARGS(&mTexVideo[texIdx])));
+        NAME_D3D12_OBJECT_INDEXED(mTexVideo, texIdx);
 
-        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_textureVideo[texIdx].Get(), 0, 1);
+        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexVideo[texIdx].Get(), 0, 1);
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
+        ThrowIfFailed(mDevice->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
             &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
@@ -413,12 +413,12 @@ MLDX12App::CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pix
         textureData.RowPitch = w * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * h;
 
-        UpdateSubresources(m_commandListTextureUpload.Get(), m_textureVideo[texIdx].Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        m_commandListTextureUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureVideo[texIdx].Get(),
+        UpdateSubresources(mCmdListTexUpload.Get(), mTexVideo[texIdx].Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexVideo[texIdx].Get(),
             D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-        srvHandle.Offset(texIdx, m_srvDescriptorSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
+        srvHandle.Offset(texIdx, mSrvDescSize);
         
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -426,20 +426,20 @@ MLDX12App::CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pix
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        m_device->CreateShaderResourceView(m_textureVideo[texIdx].Get(), &srvDesc, srvHandle);
+        mDevice->CreateShaderResourceView(mTexVideo[texIdx].Get(), &srvDesc, srvHandle);
     }
 
-    ThrowIfFailed(m_commandListTextureUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = { m_commandListTextureUpload.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ThrowIfFailed(mCmdListTexUpload->Close());
+    ID3D12CommandList* ppCommandLists[] = { mCmdListTexUpload.Get() };
+    mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 }
 
 void
 MLDX12App::CreateImguiTexture(void)
 {
-    ThrowIfFailed(m_commandAllocatorTextureUpload->Reset());
-    ThrowIfFailed(m_commandListTextureUpload->Reset(m_commandAllocatorTextureUpload.Get(), m_pipelineStateRGB.Get()));
+    ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
+    ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
 
     // Build texture atlas
     ImGuiIO& io = ImGui::GetIO();
@@ -462,19 +462,19 @@ MLDX12App::CreateImguiTexture(void)
     texDesc.SampleDesc.Quality = 0;
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
+    ThrowIfFailed(mDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
         nullptr,
-        IID_PPV_ARGS(&m_textureImgui)));
-    NAME_D3D12_OBJECT(m_textureImgui);
+        IID_PPV_ARGS(&mTexImgui)));
+    NAME_D3D12_OBJECT(mTexImgui);
 
-    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_textureImgui.Get(), 0, 1);
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexImgui.Get(), 0, 1);
 
     // Create the GPU upload buffer.
-    ThrowIfFailed(m_device->CreateCommittedResource(
+    ThrowIfFailed(mDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
         D3D12_HEAP_FLAG_NONE,
         &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
@@ -487,18 +487,18 @@ MLDX12App::CreateImguiTexture(void)
     textureData.RowPitch = width * pixelBytes;
     textureData.SlicePitch = textureData.RowPitch * height;
 
-    UpdateSubresources(m_commandListTextureUpload.Get(), m_textureImgui.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-    m_commandListTextureUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureImgui.Get(),
+    UpdateSubresources(mCmdListTexUpload.Get(), mTexImgui.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+    mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexImgui.Get(),
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-    ThrowIfFailed(m_commandListTextureUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = { m_commandListTextureUpload.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ThrowIfFailed(mCmdListTexUpload->Close());
+    ID3D12CommandList* ppCommandLists[] = { mCmdListTexUpload.Get() };
+    mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
     // Create font texture view
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-    srvCpuHandle.Offset(TE_IMGUI, m_srvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
+    srvCpuHandle.Offset(TE_IMGUI, mSrvDescSize);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     ZeroMemory(&srvDesc, sizeof(srvDesc));
@@ -507,11 +507,11 @@ MLDX12App::CreateImguiTexture(void)
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    m_device->CreateShaderResourceView(m_textureImgui.Get(), &srvDesc, srvCpuHandle);
+    mDevice->CreateShaderResourceView(mTexImgui.Get(), &srvDesc, srvCpuHandle);
 
     // Store our identifier
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-    srvGpuHandle.Offset(TE_IMGUI, m_srvDescriptorSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+    srvGpuHandle.Offset(TE_IMGUI, mSrvDescSize);
     io.Fonts->TexID = (ImTextureID)srvGpuHandle.ptr;
 }
 
@@ -523,8 +523,8 @@ void MLDX12App::OnKeyUp(int key)
     case VK_SPACE:
     {
         BOOL fullscreenState;
-        ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-        if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr))) {
+        ThrowIfFailed(mSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+        if (FAILED(mSwapChain->SetFullscreenState(!fullscreenState, nullptr))) {
             // Transitions to fullscreen mode can fail when running apps over
             // terminal services or for some other unexpected reason.  Consider
             // notifying the user in some way when this happens.
@@ -549,19 +549,19 @@ void MLDX12App::OnSizeChanged(int width, int height, bool minimized)
         WaitForGpu();
 
         for (UINT n = 0; n < FrameCount; n++) {
-            m_renderTargets[n].Reset();
-            m_fenceValues[n] = m_fenceValues[m_frameIndex];
+            mRenderTargets[n].Reset();
+            mFenceValues[n] = mFenceValues[mFrameIdx];
         }
 
         DXGI_SWAP_CHAIN_DESC desc = {};
-        m_swapChain->GetDesc(&desc);
-        ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.BufferDesc.Format, desc.Flags));
+        mSwapChain->GetDesc(&desc);
+        ThrowIfFailed(mSwapChain->ResizeBuffers(FrameCount, width, height, desc.BufferDesc.Format, desc.Flags));
 
         BOOL fullscreenState;
-        ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-        m_windowedMode = !fullscreenState;
+        ThrowIfFailed(mSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+        mWindowedMode = !fullscreenState;
 
-        m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+        mFrameIdx = mSwapChain->GetCurrentBackBufferIndex();
 
         UpdateForSizeChange(width, height);
 
@@ -574,15 +574,15 @@ void MLDX12App::UpdateViewAndScissor()
     float x = 1.0f;
     float y = 1.0f;
 
-    m_viewport.TopLeftX = mWidth * (1.0f - x) / 2.0f;
-    m_viewport.TopLeftY = mHeight * (1.0f - y) / 2.0f;
-    m_viewport.Width = x * mWidth;
-    m_viewport.Height = y * mHeight;
+    mViewport.TopLeftX = mWidth * (1.0f - x) / 2.0f;
+    mViewport.TopLeftY = mHeight * (1.0f - y) / 2.0f;
+    mViewport.Width = x * mWidth;
+    mViewport.Height = y * mHeight;
 
-    m_scissorRect.left = static_cast<LONG>(m_viewport.TopLeftX);
-    m_scissorRect.right = static_cast<LONG>(m_viewport.TopLeftX + m_viewport.Width);
-    m_scissorRect.top = static_cast<LONG>(m_viewport.TopLeftY);
-    m_scissorRect.bottom = static_cast<LONG>(m_viewport.TopLeftY + m_viewport.Height);
+    mScissorRect.left = static_cast<LONG>(mViewport.TopLeftX);
+    mScissorRect.right = static_cast<LONG>(mViewport.TopLeftX + mViewport.Width);
+    mScissorRect.top = static_cast<LONG>(mViewport.TopLeftY);
+    mScissorRect.bottom = static_cast<LONG>(mViewport.TopLeftY + mViewport.Height);
 }
 
 void MLDX12App::LoadSizeDependentResources()
@@ -590,13 +590,13 @@ void MLDX12App::LoadSizeDependentResources()
     UpdateViewAndScissor();
 
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT n = 0; n < FrameCount; n++) {
-            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-            m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
-            rtvHandle.Offset(1, m_rtvDescriptorSize);
+            ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(&mRenderTargets[n])));
+            mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), nullptr, rtvHandle);
+            rtvHandle.Offset(1, mRtvDescSize);
 
-            NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
+            NAME_D3D12_OBJECT_INDEXED(mRenderTargets, n);
         }
     }
 }
@@ -609,54 +609,54 @@ void MLDX12App::OnRender()
 {
     PopulateCommandList();
 
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
+    mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     UpdateVideoTexture();
 
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+    ThrowIfFailed(mSwapChain->Present(1, 0));
     MoveToNextFrame();
 }
 
 void MLDX12App::DrawFullscreenTexture(void)
 {
-    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-    ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    ID3D12DescriptorHeap* ppHeaps[] = { mSrvHeap.Get() };
+    mCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE dh(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-    dh.Offset(m_textureVideoIdToShow, m_srvDescriptorSize);
-    m_commandList->SetGraphicsRootDescriptorTable(0, dh);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE dh(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+    dh.Offset(mTexVideoIdToShow, mSrvDescSize);
+    mCmdList->SetGraphicsRootDescriptorTable(0, dh);
 
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+    mCmdList->RSSetViewports(1, &mViewport);
+    mCmdList->RSSetScissorRects(1, &mScissorRect);
 
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT,
+    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT,
         D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
-        m_frameIndex, m_rtvDescriptorSize);
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
+        mFrameIdx, mRtvDescSize);
+    mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(m_numVertices, 1, 0, 0);
+    mCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    mCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    mCmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
+    mCmdList->DrawInstanced(mNumVertices, 1, 0, 0);
 }
 
 void MLDX12App::PopulateCommandList()
 {
-    ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
+    ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
 
-    switch (m_drawMode) {
+    switch (mDrawMode) {
     case DM_RGB:
-        ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineStateRGB.Get()));
+        ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
         break;
     case DM_YUV:
-        ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineStateYUV.Get()));
+        ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateYUV.Get()));
         break;
     default:
         break;
@@ -670,37 +670,37 @@ void MLDX12App::PopulateCommandList()
     ImGui::NewFrame();
 
     ImGuiCommands();
-    m_dx12Imgui.Render(ImGui::GetDrawData(), m_commandList.Get(), m_frameIndex);
+    mDx12Imgui.Render(ImGui::GetDrawData(), mCmdList.Get(), mFrameIdx);
 
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
+    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PRESENT));
 
-    ThrowIfFailed(m_commandList->Close());
+    ThrowIfFailed(mCmdList->Close());
 }
 
 void MLDX12App::MoveToNextFrame()
 {
-    const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    const UINT64 currentFenceValue = mFenceValues[mFrameIdx];
+    ThrowIfFailed(mCmdQ->Signal(mFence.Get(), currentFenceValue));
+    mFrameIdx = mSwapChain->GetCurrentBackBufferIndex();
 
-    if (m_fence->GetCompletedValue() < m_fenceValues[m_frameIndex]) {
-        ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
+    if (mFence->GetCompletedValue() < mFenceValues[mFrameIdx]) {
+        ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValues[mFrameIdx], mFenceEvent));
 
-        WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+        WaitForSingleObjectEx(mFenceEvent, INFINITE, FALSE);
     }
 
-    m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+    mFenceValues[mFrameIdx] = currentFenceValue + 1;
 }
 
 void MLDX12App::WaitForGpu()
 {
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
-    ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
-    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
-    m_fenceValues[m_frameIndex]++;
+    ThrowIfFailed(mCmdQ->Signal(mFence.Get(), mFenceValues[mFrameIdx]));
+    ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValues[mFrameIdx], mFenceEvent));
+    WaitForSingleObjectEx(mFenceEvent, INFINITE, FALSE);
+    mFenceValues[mFrameIdx]++;
 }
 
 
@@ -710,18 +710,18 @@ MLDX12App::ImGuiCommands(void)
     ImGui::Begin("Settings");
 
     if (ImGui::BeginPopupModal("ErrorPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text(m_msg);
+        ImGui::Text(mMsg);
         if (ImGui::Button("OK", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
-            m_msg[0] = 0;
+            mMsg[0] = 0;
         }
         ImGui::EndPopup();
     }
 
     if (ImGui::BeginPopupModal("WriteFlushPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text(m_msg);
+        ImGui::Text(mMsg);
 
-        if (m_state != S_WaitRecordEnd) {
+        if (mState != S_WaitRecordEnd) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -732,36 +732,36 @@ MLDX12App::ImGuiCommands(void)
 
     static int selectedDeviceIdx = 0;
 
-    switch (m_state) {
+    switch (mState) {
     case S_Init:
         ImGui::Text("Video capture device list:");
-        for (int i = 0; i < m_videoCaptureDeviceList.NumOfDevices(); ++i) {
-            auto name = m_videoCaptureDeviceList.DeviceName(i);
+        for (int i = 0; i < mVideoCaptureDeviceList.NumOfDevices(); ++i) {
+            auto name = mVideoCaptureDeviceList.DeviceName(i);
             ImGui::RadioButton(name.c_str(), &selectedDeviceIdx, 0);
         }
-        if (m_videoCaptureDeviceList.NumOfDevices() == 0) {
+        if (mVideoCaptureDeviceList.NumOfDevices() == 0) {
             ImGui::Text("No video capture device found.");
         }
         if (ImGui::Button("Start Capture")) {
-            m_frameSkipCount = 0;
+            mFrameSkipCount = 0;
 
-            IDeckLink *p = m_videoCaptureDeviceList.Device(selectedDeviceIdx);
-            m_videoCapture.Init(p);
-            m_videoCapture.SetCallback(this);
-            bool brv = m_videoCapture.StartCapture(0);
+            IDeckLink *p = mVideoCaptureDeviceList.Device(selectedDeviceIdx);
+            mVideoCapture.Init(p);
+            mVideoCapture.SetCallback(this);
+            bool brv = mVideoCapture.StartCapture(0);
             if (brv) {
-                m_state = S_Previewing;
+                mState = S_Previewing;
             }
         }
         break;
     case S_WaitRecordEnd:
         {
-            sprintf_s(m_msg, "Now Writing AVI...\nRemaining %d frames.", m_aviWriter.RecQueueSize());
-            m_mutex.lock();
-            bool bEnd = m_aviWriter.PollThreadEnd();
-            m_mutex.unlock();
+            sprintf_s(mMsg, "Now Writing AVI...\nRemaining %d frames.", mAviWriter.RecQueueSize());
+            mMutex.lock();
+            bool bEnd = mAviWriter.PollThreadEnd();
+            mMutex.unlock();
             if (bEnd) {
-                m_state = S_Previewing;
+                mState = S_Previewing;
             }
         }
         break;
@@ -769,40 +769,40 @@ MLDX12App::ImGuiCommands(void)
     case S_Previewing:
         {
             int queueSize = 0;
-            m_mutex.lock();
-            if (!m_capturedImages.empty()) {
-                queueSize = (int)m_capturedImages.size();
-                auto & front = m_capturedImages.front();
+            mMutex.lock();
+            if (!mCapturedImages.empty()) {
+                queueSize = (int)mCapturedImages.size();
+                auto & front = mCapturedImages.front();
                 ImGui::Text(front.imgFormat.c_str());
             } else {
                 ImGui::Text("");
             }
-            m_mutex.unlock();
+            mMutex.unlock();
 
-            BMDTimeScale ts = m_videoCapture.FrameRateTS();
-            BMDTimeValue tv = m_videoCapture.FrameRateTV();
+            BMDTimeScale ts = mVideoCapture.FrameRateTS();
+            BMDTimeValue tv = mVideoCapture.FrameRateTV();
             ImGui::Text("Frame rate : %.1f", (double)ts / tv);
 
             ImGui::Separator();
 
-            if (m_state == S_Previewing) {
+            if (mState == S_Previewing) {
                 ImGui::Text("Now Previewing...");
-                BMDPixelFormat pixFmt = m_videoCapture.PixelFormat();
+                BMDPixelFormat pixFmt = mVideoCapture.PixelFormat();
                 if (bmdFormat10BitYUV == pixFmt) {
-                    ImGui::InputText("Record filename", m_writePath, sizeof m_writePath - 1);
+                    ImGui::InputText("Record filename", mWritePath, sizeof mWritePath - 1);
                     if (ImGui::Button("Record", ImVec2(256, 64))) {
                         wchar_t path[512];
                         memset(path, 0, sizeof path);
-                        MultiByteToWideChar(CP_UTF8, 0, m_writePath, sizeof m_writePath, path, 511);
+                        MultiByteToWideChar(CP_UTF8, 0, mWritePath, sizeof mWritePath, path, 511);
 
-                        bool bRv = m_aviWriter.Start(path, m_videoCapture.Width(),
-                            m_videoCapture.Height(), (int)(ts / 1000),
+                        bool bRv = mAviWriter.Start(path, mVideoCapture.Width(),
+                            mVideoCapture.Height(), (int)(ts / 1000),
                             MLAviWriter::IF_YUV422v210);
                         if (bRv) {
-                            m_state = S_Recording;
-                            m_msg[0] = 0;
+                            mState = S_Recording;
+                            mMsg[0] = 0;
                         } else {
-                            sprintf_s(m_msg, "Record Failed.\nFile open error : %s", m_writePath);
+                            sprintf_s(mMsg, "Record Failed.\nFile open error : %s", mWritePath);
                             ImGui::OpenPopup("ErrorPopup");
                         }
                     }
@@ -810,63 +810,66 @@ MLDX12App::ImGuiCommands(void)
 
                 if (ImGui::Button("Stop Capture")) {
 
-                    m_videoCapture.StopCapture();
-                    m_videoCapture.Term();
+                    mVideoCapture.StopCapture();
+                    mVideoCapture.Term();
 
-                    m_videoCaptureDeviceList.Term();
-                    m_videoCaptureDeviceList.Init();
+                    mVideoCaptureDeviceList.Term();
+                    mVideoCaptureDeviceList.Init();
 
-                    m_state = S_Init;
+                    mState = S_Init;
                 }
-            } else if (m_state == S_Recording) {
+            } else if (mState == S_Recording) {
                 ImGui::Text("Now Recording...");
-                ImGui::Text("Record filename : %s", m_writePath);
+                ImGui::Text("Record filename : %s", mWritePath);
                 if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
-                    m_state = S_WaitRecordEnd;
+                    mState = S_WaitRecordEnd;
 
-                    m_mutex.lock();
-                    m_aviWriter.StopAsync();
-                    m_mutex.unlock();
+                    mMutex.lock();
+                    mAviWriter.StopAsync();
+                    mMutex.unlock();
 
                     ImGui::OpenPopup("WriteFlushPopup");
                 }
 
-                ImGui::Text("Rec Queue size : %d", m_aviWriter.RecQueueSize());
+                ImGui::Text("Rec Queue size : %d", mAviWriter.RecQueueSize());
             }
 
+            //ImGui::Checkbox("Raw SDI preview", &mRawSDI);
+
             ImGui::Text("Draw Queue size : %d", queueSize);
+            ImGui::SameLine();
             if (ImGui::Button("Clear Draw Queue")) {
                 ClearDrawQueue();
             }
-            ImGui::Text("Frame Draw skip count : %lld", m_frameSkipCount);
+            ImGui::Text("Frame Draw skip count : %lld", mFrameSkipCount);
 
             ImGui::BeginGroup();
-            if (ImGui::RadioButton("Center Crosshair", m_crosshairType == CH_CenterCrosshair)) {
-                m_crosshairType = CH_CenterCrosshair;
+            if (ImGui::RadioButton("Center Crosshair", mCrosshairType == CH_CenterCrosshair)) {
+                mCrosshairType = CH_CenterCrosshair;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("4 Crosshairs", m_crosshairType == CH_4Crosshairs)) {
-                m_crosshairType = CH_4Crosshairs;
+            if (ImGui::RadioButton("4 Crosshairs", mCrosshairType == CH_4Crosshairs)) {
+                mCrosshairType = CH_4Crosshairs;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("CHNone", m_crosshairType == CH_None)) {
-                m_crosshairType = CH_None;
+            if (ImGui::RadioButton("CHNone", mCrosshairType == CH_None)) {
+                mCrosshairType = CH_None;
             }
             ImGui::EndGroup();
 
-            ImGui::Checkbox("Title safe area", &m_titleSafeArea);
+            ImGui::Checkbox("Title safe area", &mTitleSafeArea);
 
             ImGui::BeginGroup();
-            if (ImGui::RadioButton("3x3 Grid", m_gridType == GR_3x3)) {
-                m_gridType = GR_3x3;
+            if (ImGui::RadioButton("3x3 Grid", mGridType == GR_3x3)) {
+                mGridType = GR_3x3;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("6x6 Grid", m_gridType == GR_6x6)) {
-                m_gridType = GR_6x6;
+            if (ImGui::RadioButton("6x6 Grid", mGridType == GR_6x6)) {
+                mGridType = GR_6x6;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("GRNone", m_gridType == GR_None)) {
-                m_gridType = GR_None;
+            if (ImGui::RadioButton("GRNone", mGridType == GR_None)) {
+                mGridType = GR_None;
             }
             ImGui::EndGroup();
         }
@@ -901,16 +904,75 @@ BMDPixelFormatToStr(int a)
     }
 }
 
+static void
+Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
+    int pos = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            uint32_t v = NtoHL(pFrom[pos]);
+            uint32_t r = (v >> 22) & 0xff;
+            uint32_t g = (v >> 12) & 0xff;
+            uint32_t b = (v >> 2) & 0xff;
+            uint32_t a = 0xff;
+            pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
+
+            ++pos;
+        }
+    }
+}
+
+static void
+YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width / 6; ++x) {
+            int posF = 4 * (x + y * width / 6);
+            int posT = 6 * (x + y * width / 6);
+
+            uint32_t w0 = pFrom[posF];
+            uint32_t w1 = pFrom[posF + 1];
+            uint32_t w2 = pFrom[posF + 2];
+            uint32_t w3 = pFrom[posF + 3];
+
+            uint8_t cr0 = (w0 >> 22) & 0xff;
+            uint8_t y0 = (w0 >> 12) & 0xff;
+            uint8_t cb0 = (w0 >> 2) & 0xff;
+
+            uint8_t y2 = (w1 >> 22) & 0xff;
+            uint8_t cb2 = (w1 >> 12) & 0xff;
+            uint8_t y1 = (w1 >> 2) & 0xff;
+
+            uint8_t cb4 = (w2 >> 22) & 0xff;
+            uint8_t y3 = (w2 >> 12) & 0xff;
+            uint8_t cr2 = (w2 >> 2) & 0xff;
+
+            uint8_t y5 = (w3 >> 22) & 0xff;
+            uint8_t cr4 = (w3 >> 12) & 0xff;
+            uint8_t y4 = (w3 >> 2) & 0xff;
+
+            uint8_t a = 0xff;
+            pTo[posT + 0] = (a << 24) + (y0 << 16) + (cb0 << 8) + cr0;
+            pTo[posT + 1] = (a << 24) + (y1 << 16) + (cb0 << 8) + cr0;
+            pTo[posT + 2] = (a << 24) + (y2 << 16) + (cb2 << 8) + cr2;
+            pTo[posT + 3] = (a << 24) + (y3 << 16) + (cb2 << 8) + cr2;
+            pTo[posT + 4] = (a << 24) + (y4 << 16) + (cb4 << 8) + cr4;
+            pTo[posT + 5] = (a << 24) + (y5 << 16) + (cb4 << 8) + cr4;
+
+            //posF += 4;
+            //posT += 6;
+        }
+    }
+}
+
 void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
 {
-    m_mutex.lock();
-    if (CapturedImageQueueSize <= m_capturedImages.size()) {
-        ++m_frameSkipCount;
-        m_mutex.unlock();
+    mMutex.lock();
+    if (CapturedImageQueueSize <= mCapturedImages.size()) {
+        ++mFrameSkipCount;
+        mMutex.unlock();
         return;
     }
-    m_mutex.unlock();
+    mMutex.unlock();
 
     void *buffer = nullptr;
     videoFrame->GetBytes(&buffer);
@@ -920,11 +982,11 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     int fmt = videoFrame->GetPixelFormat();
     int rowBytes = videoFrame->GetRowBytes();
 
-    m_mutex.lock();
-    if (m_state == S_Recording) {
-        m_aviWriter.AddImage((const uint32_t*)buffer, rowBytes*height);
+    mMutex.lock();
+    if (mState == S_Recording) {
+        mAviWriter.AddImage((const uint32_t*)buffer, rowBytes*height);
     }
-    m_mutex.unlock();
+    mMutex.unlock();
 
     char s[256];
     sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
@@ -938,68 +1000,18 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     ci.drawMode = DM_RGB;
     ci.data = new uint8_t[bytes];
         
+    uint32_t *pFrom = (uint32_t *)buffer;
+    uint32_t *pTo = (uint32_t *)ci.data;
     switch (fmt) {
     case bmdFormat10BitRGB:
         {
-            uint32_t *pFrom = (uint32_t *)buffer;
-            uint32_t *pTo = (uint32_t *)ci.data;
-            int pos = 0;
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    uint32_t v = NtoHL(pFrom[pos]);
-                    uint32_t r = (v >> 22) & 0xff;
-                    uint32_t g = (v >> 12) & 0xff;
-                    uint32_t b = (v >> 2) & 0xff;
-                    uint32_t a = 0xff;
-                    pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
-
-                    ++pos;
-                }
-            }
+            Rgb10bitToRGBA(pFrom, pTo, width, height);
             ci.drawMode = DM_RGB;
         }
         break;
     case bmdFormat10BitYUV:
         {
-            uint32_t *pFrom = (uint32_t *)buffer;
-            uint32_t *pTo = (uint32_t *)ci.data;
-            int posF = 0;
-            int posT = 0;
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width/6; ++x) {
-                    uint32_t w0 = pFrom[posF];
-                    uint32_t w1 = pFrom[posF+1];
-                    uint32_t w2 = pFrom[posF+2];
-                    uint32_t w3 = pFrom[posF+3];
-
-                    uint8_t cr0 = (w0 >> 22) & 0xff;
-                    uint8_t y0 = (w0 >> 12) & 0xff;
-                    uint8_t cb0 = (w0 >> 2) & 0xff;
-
-                    uint8_t y2 = (w1 >> 22) & 0xff;
-                    uint8_t cb2 = (w1 >> 12) & 0xff;
-                    uint8_t y1 = (w1 >> 2) & 0xff;
-
-                    uint8_t cb4 = (w2 >> 22) & 0xff;
-                    uint8_t y3  = (w2 >> 12) & 0xff;
-                    uint8_t cr2 = (w2 >> 2) & 0xff;
-
-                    uint8_t y5 = (w3 >> 22) & 0xff;
-                    uint8_t cr4 = (w3 >> 12) & 0xff;
-                    uint8_t y4 = (w3 >> 2) & 0xff;
-
-                    uint8_t a = 0xff;
-                    pTo[posT+0] = (a << 24) + (y0 << 16) + (cb0 << 8) + cr0;
-                    pTo[posT+1] = (a << 24) + (y1 << 16) + (cb0 << 8) + cr0;
-                    pTo[posT+2] = (a << 24) + (y2 << 16) + (cb2 << 8) + cr2;
-                    pTo[posT+3] = (a << 24) + (y3 << 16) + (cb2 << 8) + cr2;
-                    pTo[posT+4] = (a << 24) + (y4 << 16) + (cb4 << 8) + cr4;
-                    pTo[posT+5] = (a << 24) + (y5 << 16) + (cb4 << 8) + cr4;
-
-                    posF += 4;
-                    posT += 6;
-                }
-            }
+            YuvV210ToYuvA(pFrom, pTo, width, height);
             ci.drawMode = DM_YUV;
         }
         break;
@@ -1011,28 +1023,28 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     AddTitleSafeArea(ci);
     AddGrid(ci);
 
-    m_mutex.lock();
-    m_capturedImages.push_back(ci);
-    m_mutex.unlock();
+    mMutex.lock();
+    mCapturedImages.push_back(ci);
+    mMutex.unlock();
 }
 
 void MLDX12App::ClearDrawQueue(void)
 {
-    m_mutex.lock();
-    for (auto ite = m_capturedImages.begin(); ite != m_capturedImages.end(); ++ite) {
+    mMutex.lock();
+    for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
         CapturedImage &ci = *ite;
         delete [] ci.data;
         ci.data = nullptr;
     }
-    m_capturedImages.clear();
-    m_mutex.unlock();
+    mCapturedImages.clear();
+    mMutex.unlock();
 }
 
 void
 MLDX12App::UpdateVideoTexture(void) {
-    m_mutex.lock();
-    if (m_capturedImages.empty()) {
-        m_mutex.unlock();
+    mMutex.lock();
+    if (mCapturedImages.empty()) {
+        mMutex.unlock();
         //OutputDebugString(L"Not Available\n");
         return;
     }
@@ -1041,23 +1053,23 @@ MLDX12App::UpdateVideoTexture(void) {
     //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
     //OutputDebugStringA(s);
 
-    CapturedImage ci = m_capturedImages.front();
-    m_capturedImages.pop_front();
+    CapturedImage ci = mCapturedImages.front();
+    mCapturedImages.pop_front();
 
-    m_mutex.unlock();
+    mMutex.unlock();
 
     DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     int         pixelBytes = 4;
 
-    ThrowIfFailed(m_commandAllocatorTextureUpload->Reset());
-    ThrowIfFailed(m_commandListTextureUpload->Reset(m_commandAllocatorTextureUpload.Get(), m_pipelineStateRGB.Get()));
+    ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
+    ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
 
-    ID3D12Resource *tex = m_textureVideo[!m_textureVideoIdToShow].Get();
+    ID3D12Resource *tex = mTexVideo[!mTexVideoIdToShow].Get();
 
     if (ci.width != tex->GetDesc().Width
         || ci.height != tex->GetDesc().Height) {
         // 中でInternalRelease()される。
-        m_textureVideo[!m_textureVideoIdToShow] = nullptr;
+        mTexVideo[!mTexVideoIdToShow] = nullptr;
 
         // サイズが変わった。
         D3D12_RESOURCE_DESC texDesc = {};
@@ -1071,17 +1083,17 @@ MLDX12App::UpdateVideoTexture(void) {
         texDesc.SampleDesc.Quality = 0;
         texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
+        ThrowIfFailed(mDevice->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
-            IID_PPV_ARGS(&m_textureVideo[!m_textureVideoIdToShow])));
-        NAME_D3D12_OBJECT_INDEXED(m_textureVideo, !m_textureVideoIdToShow);
+            IID_PPV_ARGS(&mTexVideo[!mTexVideoIdToShow])));
+        NAME_D3D12_OBJECT_INDEXED(mTexVideo, !mTexVideoIdToShow);
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-        srvHandle.Offset(!m_textureVideoIdToShow, m_srvDescriptorSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
+        srvHandle.Offset(!mTexVideoIdToShow, mSrvDescSize);
 
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1089,16 +1101,16 @@ MLDX12App::UpdateVideoTexture(void) {
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        m_device->CreateShaderResourceView(m_textureVideo[!m_textureVideoIdToShow].Get(), &srvDesc, srvHandle);
+        mDevice->CreateShaderResourceView(mTexVideo[!mTexVideoIdToShow].Get(), &srvDesc, srvHandle);
     }
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
     ComPtr<ID3D12Resource> texUploadHeap;
     {
-        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_textureVideo[!m_textureVideoIdToShow].Get(), 0, 1);
+        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexVideo[!mTexVideoIdToShow].Get(), 0, 1);
 
         // Create the GPU upload buffer.
-        ThrowIfFailed(m_device->CreateCommittedResource(
+        ThrowIfFailed(mDevice->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
             &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
@@ -1106,26 +1118,26 @@ MLDX12App::UpdateVideoTexture(void) {
             nullptr,
             IID_PPV_ARGS(&texUploadHeap)));
 
-        m_commandListTextureUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureVideo[!m_textureVideoIdToShow].Get(),
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexVideo[!mTexVideoIdToShow].Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
         D3D12_SUBRESOURCE_DATA textureData = {};
         textureData.pData = &ci.data[0];
         textureData.RowPitch = ci.width * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * ci.height;
-        UpdateSubresources(m_commandListTextureUpload.Get(), m_textureVideo[!m_textureVideoIdToShow].Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        m_commandListTextureUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureVideo[!m_textureVideoIdToShow].Get(),
+        UpdateSubresources(mCmdListTexUpload.Get(), mTexVideo[!mTexVideoIdToShow].Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexVideo[!mTexVideoIdToShow].Get(),
             D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
     }
 
-    ThrowIfFailed(m_commandListTextureUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = {m_commandListTextureUpload.Get()};
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ThrowIfFailed(mCmdListTexUpload->Close());
+    ID3D12CommandList* ppCommandLists[] = {mCmdListTexUpload.Get()};
+    mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
-    m_textureVideoIdToShow = !m_textureVideoIdToShow;
+    mTexVideoIdToShow = !mTexVideoIdToShow;
 
-    m_drawMode = ci.drawMode;
+    mDrawMode = ci.drawMode;
     delete[] ci.data;
     ci.data = nullptr;
 }
@@ -1156,7 +1168,7 @@ MLDX12App::AddCrosshair(CapturedImage &ci)
         break;
     }
 
-    switch (m_crosshairType) {
+    switch (mCrosshairType) {
     case CH_CenterCrosshair:
         // 横線
         for (int y = height / 2 - HALF_THICKNESS; y < height / 2 + HALF_THICKNESS; ++y) {
@@ -1200,7 +1212,7 @@ MLDX12App::AddCrosshair(CapturedImage &ci)
 
 void
 MLDX12App::AddTitleSafeArea(CapturedImage &ci) {
-    if (!m_titleSafeArea) {
+    if (!mTitleSafeArea) {
         return;
     }
 
@@ -1255,7 +1267,7 @@ MLDX12App::AddTitleSafeArea(CapturedImage &ci) {
 
 void
 MLDX12App::AddGrid(CapturedImage &ci) {
-    if (m_gridType == GR_None) {
+    if (mGridType == GR_None) {
         return;
     }
 
@@ -1281,7 +1293,7 @@ MLDX12App::AddGrid(CapturedImage &ci) {
     }
 
     int nBlocks = 3;
-    if (m_gridType == GR_6x6) {
+    if (mGridType == GR_6x6) {
         nBlocks = 6;
     }
 

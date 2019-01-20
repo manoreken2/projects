@@ -15,7 +15,7 @@ YUV to RGB conversion is not optimal.
 
 ### About output AVI file of MLDX12VideoCapture 
 
-Currently only YUV 10bit format can be recorded.
+Currently only YUV 10bit v210 format can be recorded.
 
 Output AVI file does not contain audio data.
 

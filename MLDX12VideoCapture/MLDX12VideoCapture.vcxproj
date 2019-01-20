@@ -120,6 +120,8 @@
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
       <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,6 +146,8 @@
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
       <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
