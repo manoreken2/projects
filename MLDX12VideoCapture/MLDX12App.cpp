@@ -14,15 +14,6 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //*********************************************************
 
-static uint32_t
-NtoHL(uint32_t v)
-{
-    return   ((v & 0xff) << 24) |
-        (((v >> 8) & 0xff) << 16) |
-        (((v >> 16) & 0xff) << 8) |
-        (((v >> 24) & 0xff));
-}
-
 MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
     mState(S_Init),
@@ -916,24 +907,6 @@ BMDPixelFormatToStr(int a)
     }
 }
 
-static void
-Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
-    const uint32_t a = 0xff;
-    int pos = 0;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const uint32_t v = NtoHL(pFrom[pos]);
-            const uint32_t r = (v >> 22) & 0xff;
-            const uint32_t g = (v >> 12) & 0xff;
-            const uint32_t b = (v >> 2) & 0xff;
-            pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
-
-            ++pos;
-        }
-    }
-}
-
-
 void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
 {
@@ -976,7 +949,7 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     switch (fmt) {
     case bmdFormat10BitRGB:
         {
-            Rgb10bitToRGBA(pFrom, pTo, width, height);
+            MLConverter::Rgb10bitToRGBA(pFrom, pTo, width, height);
             ci.imgMode = MLCapturedImage::IM_RGB;
         }
         break;
