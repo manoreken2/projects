@@ -14,6 +14,9 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="MLAviWriter.h" />
+    <ClInclude Include="MLCapturedImage.h" />
+    <ClInclude Include="MLConverter.h" />
+    <ClInclude Include="MLDrawings.h" />
     <ClInclude Include="MLDX12.h" />
     <ClInclude Include="MLDX12App.h" />
     <ClInclude Include="MLDX12Imgui.h" />
@@ -29,6 +32,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MLAviWriter.cpp" />
+    <ClCompile Include="MLConverter.cpp" />
+    <ClCompile Include="MLDrawings.cpp" />
     <ClCompile Include="MLDX12.cpp" />
     <ClCompile Include="MLDX12App.cpp" />
     <ClCompile Include="MLDX12Imgui.cpp" />

@@ -18,6 +18,9 @@
 #include <mutex>
 #include <list>
 #include "MLAviWriter.h"
+#include "MLConverter.h"
+#include "MLCapturedImage.h"
+#include "MLDrawings.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -64,37 +67,11 @@ private:
         TE_NUM
     };
 
-    enum DrawMode {
-        DM_RGB,
-        DM_YUV
-    };
-
-    enum CrosshairType {
-        CH_None,
-        CH_CenterCrosshair,
-        CH_4Crosshairs,
-    };
-
-    enum GridType {
-        GR_None,
-        GR_3x3,
-        GR_6x6,
-    };
-
-    struct CapturedImage {
-        uint8_t *data;
-        int bytes;
-        int width;
-        int height;
-        DrawMode drawMode;
-        std::string imgFormat;
-    };
-
     State mState;
-    DrawMode mDrawMode;
-    CrosshairType mCrosshairType;
+    MLCapturedImage::ImageMode mDrawMode;
+    MLDrawings::CrosshairType mCrosshairType;
     bool mTitleSafeArea;
-    GridType mGridType;
+    MLDrawings::GridType mGridType;
 
     CD3DX12_VIEWPORT mViewport;
     CD3DX12_RECT mScissorRect;
@@ -136,7 +113,7 @@ private:
     MLVideoCaptureEnum mVideoCaptureDeviceList;
     MLVideoCapture mVideoCapture;
 
-    std::list<CapturedImage> mCapturedImages;
+    std::list<MLCapturedImage> mCapturedImages;
     std::mutex mMutex;
 
     int64_t mFrameSkipCount;
@@ -148,10 +125,10 @@ private:
     char mMsg[512];
 
     float mDrawGamma;
-    
-    // 12bit value to 8bit value
-    uint8_t mGammaTable[4096];
 
+    MLConverter mConverter;
+    MLDrawings mDrawings;
+    
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);
@@ -171,13 +148,5 @@ private:
     void ImGuiCommands(void);
 
     void DrawFullscreenTexture(void);
-
-    void AddCrosshair(CapturedImage &ci);
-    void AddTitleSafeArea(CapturedImage &ci);
-    void AddGrid(CapturedImage &ci);
-
-    void RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height);
-
-    void CreateGammaTable(float gamma);
 
 };

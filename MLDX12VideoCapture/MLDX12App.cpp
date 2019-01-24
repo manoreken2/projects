@@ -26,8 +26,9 @@ NtoHL(uint32_t v)
 MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
     mState(S_Init),
-    mDrawMode(DM_RGB),
-    mCrosshairType(CH_None),
+    mDrawMode(MLCapturedImage::IM_RGB),
+    mCrosshairType(MLDrawings::CH_None),
+    mGridType(MLDrawings::GR_None),
     mTitleSafeArea(false),
     mFrameIdx(0),
     mTexVideoIdToShow(0),
@@ -42,18 +43,7 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     strcpy_s(mWritePath, "c:/data/output.avi");
     mMsg[0] = 0;
 
-    CreateGammaTable(2.2f);
-}
-
-void 
-MLDX12App::CreateGammaTable(float gamma) {
-    // 12bit value to 8bit value
-
-    for (int i = 0; i < 4096; ++i) {
-        float y = (float)(i) / 4095.0f;
-        y = pow(y, 1.0f / gamma);
-        mGammaTable[i] = (int)floor(255.0f * y + 0.5f);
-    }
+    mConverter.CreateGammaTable(2.2f);
 }
 
 void MLDX12App::OnInit()
@@ -666,10 +656,10 @@ void MLDX12App::PopulateCommandList()
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
 
     switch (mDrawMode) {
-    case DM_RGB:
+    case MLCapturedImage::IM_RGB:
         ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
         break;
-    case DM_YUV:
+    case MLCapturedImage::IM_YUV:
         ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateYUV.Get()));
         break;
     default:
@@ -850,10 +840,12 @@ MLDX12App::ImGuiCommands(void)
                 ImGui::Text("Rec Queue size : %d", mAviWriter.RecQueueSize());
             }
 
-            ImGui::Checkbox("Raw SDI preview", &mRawSDI);
-            if (mRawSDI) {
-                ImGui::DragFloat("Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
-                CreateGammaTable(mDrawGamma);
+            if (mVideoCapture.Width() == 3840 && mVideoCapture.Height() == 2160 && mVideoCapture.PixelFormat() == bmdFormat10BitYUV) {
+                ImGui::Checkbox("Raw SDI preview", &mRawSDI);
+                if (mRawSDI) {
+                    ImGui::DragFloat("Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
+                    mConverter.CreateGammaTable(mDrawGamma);
+                }
             }
 
             ImGui::Text("Draw Queue size : %d", queueSize);
@@ -864,32 +856,32 @@ MLDX12App::ImGuiCommands(void)
             ImGui::Text("Frame Draw skip count : %lld", mFrameSkipCount);
 
             ImGui::BeginGroup();
-            if (ImGui::RadioButton("Center Crosshair", mCrosshairType == CH_CenterCrosshair)) {
-                mCrosshairType = CH_CenterCrosshair;
+            if (ImGui::RadioButton("Center Crosshair", mCrosshairType == MLDrawings::CH_CenterCrosshair)) {
+                mCrosshairType = MLDrawings::CH_CenterCrosshair;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("4 Crosshairs", mCrosshairType == CH_4Crosshairs)) {
-                mCrosshairType = CH_4Crosshairs;
+            if (ImGui::RadioButton("4 Crosshairs", mCrosshairType == MLDrawings::CH_4Crosshairs)) {
+                mCrosshairType = MLDrawings::CH_4Crosshairs;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("CHNone", mCrosshairType == CH_None)) {
-                mCrosshairType = CH_None;
+            if (ImGui::RadioButton("CHNone", mCrosshairType == MLDrawings::CH_None)) {
+                mCrosshairType = MLDrawings::CH_None;
             }
             ImGui::EndGroup();
 
             ImGui::Checkbox("Title safe area", &mTitleSafeArea);
 
             ImGui::BeginGroup();
-            if (ImGui::RadioButton("3x3 Grid", mGridType == GR_3x3)) {
-                mGridType = GR_3x3;
+            if (ImGui::RadioButton("3x3 Grid", mGridType == MLDrawings::GR_3x3)) {
+                mGridType = MLDrawings::GR_3x3;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("6x6 Grid", mGridType == GR_6x6)) {
-                mGridType = GR_6x6;
+            if (ImGui::RadioButton("6x6 Grid", mGridType == MLDrawings::GR_6x6)) {
+                mGridType = MLDrawings::GR_6x6;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("GRNone", mGridType == GR_None)) {
-                mGridType = GR_None;
+            if (ImGui::RadioButton("GRNone", mGridType == MLDrawings::GR_None)) {
+                mGridType = MLDrawings::GR_None;
             }
             ImGui::EndGroup();
         }
@@ -941,150 +933,6 @@ Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height
     }
 }
 
-static void
-YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
-    const uint8_t a = 0xff;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width / 6; ++x) {
-            const int posF = 4 * (x + y * width / 6);
-            const int posT = 6 * (x + y * width / 6);
-
-            const uint32_t w0 = pFrom[posF];
-            const uint32_t w1 = pFrom[posF + 1];
-            const uint32_t w2 = pFrom[posF + 2];
-            const uint32_t w3 = pFrom[posF + 3];
-
-            const uint8_t cr0 = (w0 >> 22) & 0xff;
-            const uint8_t y0 = (w0 >> 12) & 0xff;
-            const uint8_t cb0 = (w0 >> 2) & 0xff;
-
-            const uint8_t y2 = (w1 >> 22) & 0xff;
-            const uint8_t cb2 = (w1 >> 12) & 0xff;
-            const uint8_t y1 = (w1 >> 2) & 0xff;
-
-            const uint8_t cb4 = (w2 >> 22) & 0xff;
-            const uint8_t y3 = (w2 >> 12) & 0xff;
-            const uint8_t cr2 = (w2 >> 2) & 0xff;
-
-            const uint8_t y5 = (w3 >> 22) & 0xff;
-            const uint8_t cr4 = (w3 >> 12) & 0xff;
-            const uint8_t y4 = (w3 >> 2) & 0xff;
-
-            pTo[posT + 0] = (a << 24) + (y0 << 16) + (cb0 << 8) + cr0;
-            pTo[posT + 1] = (a << 24) + (y1 << 16) + (cb0 << 8) + cr0;
-            pTo[posT + 2] = (a << 24) + (y2 << 16) + (cb2 << 8) + cr2;
-            pTo[posT + 3] = (a << 24) + (y3 << 16) + (cb2 << 8) + cr2;
-            pTo[posT + 4] = (a << 24) + (y4 << 16) + (cb4 << 8) + cr4;
-            pTo[posT + 5] = (a << 24) + (y5 << 16) + (cb4 << 8) + cr4;
-
-            //posF += 4;
-            //posT += 6;
-        }
-    }
-}
-
-
-void
-MLDX12App::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height) {
-    const int DNG_W = width + 32;
-    const int DNG_H = height + 32;
-    const int DNG_WH = DNG_W * DNG_H;
-
-    uint8_t *bayer = new uint8_t[DNG_WH];
-    int posT = 0;
-    for (int i = 0;; i += 4) {
-        // Decklink SDK p.217
-        // extract lower 8bit from yuv422 10bit
-        // upper 2bits are discarded
-        const uint32_t pF0 = pFrom[i+0];
-        const uint32_t pF1 = pFrom[i+1];
-        const uint32_t pF2 = pFrom[i+2];
-        const uint32_t pF3 = pFrom[i+3];
-
-        const uint8_t cr0 = (pF0 & 0x0ff00000) >> 20;
-        const uint8_t y0  = (pF0 & 0x0003fc00) >> 10;
-        const uint8_t cb0 = (pF0 & 0x000000ff);
-
-        const uint8_t y2  = (pF1 & 0x0ff00000) >> 20;
-        const uint8_t cb2 = (pF1 & 0x0003fc00) >> 10;
-        const uint8_t y1  = (pF1 & 0x000000ff);
-
-        const uint8_t cb4 = (pF2 & 0x0ff00000) >> 20;
-        const uint8_t y3  = (pF2 & 0x0003fc00) >> 10;
-        const uint8_t cr2 = (pF2 & 0x000000ff);
-
-        const uint8_t y5  = (pF3 & 0x0ff00000) >> 20;
-        const uint8_t cr4 = (pF3 & 0x0003fc00) >> 10;
-        const uint8_t y4  = (pF3 & 0x000000ff);
-
-#if 0
-        // 10bit YUV data for debug.
-        const uint16_t cr0_10 = (pF0 & 0x3ff00000) >> 20;
-        const uint16_t y0_10  = (pF0 & 0x000ffc00) >> 10;
-        const uint16_t cb0_10 = (pF0 & 0x000003ff);
-        const uint16_t y2_10  = (pF1 & 0x3ff00000) >> 20;
-        const uint16_t cb2_10 = (pF1 & 0x000ffc00) >> 10;
-        const uint16_t y1_10  = (pF1 & 0x000003ff);
-
-        const uint16_t cb4_10 = (pF2 & 0x3ff00000) >> 20;
-        const uint16_t y3_10  = (pF2 & 0x000ffc00) >> 10;
-        const uint16_t cr2_10 = (pF2 & 0x000003ff);
-
-        const uint16_t y5_10  = (pF3 & 0x3ff00000) >> 20;
-        const uint16_t cr4_10 = (pF3 & 0x000ffc00) >> 10;
-        const uint16_t y4_10  = (pF3 & 0x000003ff);
-#endif
-
-        // Blackmagic Studio Camera Manual p.59
-        // 12bit RAW sensor data
-        const uint16_t p0_12 = (uint16_t)(cb0 | ((y0 & 0xf) << 8));
-        const uint16_t p1_12 = (uint16_t)((cr0 << 4) | (y0 >> 4));
-        const uint16_t p2_12 = (uint16_t)(y1 | ((cb2 & 0xf) << 8));
-        const uint16_t p3_12 = (uint16_t)((cb2 >> 4) | (y2 << 4));
-
-        const uint16_t p4_12 = (uint16_t)(cr2 | ((y3 & 0xf) << 8));
-        const uint16_t p5_12 = (uint16_t)((cb4 << 4) | (y3 >> 4));
-        const uint16_t p6_12 = (uint16_t)(y4 | ((cr4 & 0xf) << 8));
-        const uint16_t p7_12 = (uint16_t)((cr4 >> 4) | (y5 << 4));
-
-        // store gamma corrected 8bit value
-        bayer[posT + 0] = mGammaTable[p0_12];
-        bayer[posT + 1] = mGammaTable[p1_12];
-        bayer[posT + 2] = mGammaTable[p2_12];
-        bayer[posT + 3] = mGammaTable[p3_12];
-
-        bayer[posT + 4] = mGammaTable[p4_12];
-        bayer[posT + 5] = mGammaTable[p5_12];
-        bayer[posT + 6] = mGammaTable[p6_12];
-        bayer[posT + 7] = mGammaTable[p7_12];
-
-        posT += 8;
-        if (DNG_WH <= posT) {
-            break;
-        }
-    }
-
-    const uint8_t a = 0xff;
-    for (int y = 0; y < height; y+=2) {
-        for (int x = 0; x < width; x+=2) {
-            /* G0 R
-             * B  G1
-             */
-            const uint8_t g0 = bayer[x + 0 + 16 + (y + 0 + 16)*DNG_W];
-            const uint8_t r  = bayer[x + 1 + 16 + (y + 0 + 16)*DNG_W];
-            const uint8_t b  = bayer[x + 0 + 16 + (y + 1 + 16)*DNG_W];
-            const uint8_t g1 = bayer[x + 1 + 16 + (y + 1 + 16)*DNG_W];
-
-            pTo[x + 0 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
-            pTo[x + 1 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
-            pTo[x + 0 + (y + 1)*width] = (a << 24) + (b << 16) + (g1 << 8) + r;
-            pTo[x + 1 + (y + 1)*width] = (a << 24) + (b << 16) + (g1 << 8) + r;
-        }
-    }
-
-    delete[] bayer;
-    bayer = nullptr;
-}
 
 void
 MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
@@ -1115,12 +963,12 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
     int bytes = width * height * 4;
 
-    CapturedImage ci;
+    MLCapturedImage ci;
     ci.imgFormat = s;
     ci.bytes = bytes;
     ci.width = width;
     ci.height = height;
-    ci.drawMode = DM_RGB;
+    ci.imgMode = MLCapturedImage::IM_RGB;
     ci.data = new uint8_t[bytes];
         
     uint32_t *pFrom = (uint32_t *)buffer;
@@ -1129,25 +977,27 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     case bmdFormat10BitRGB:
         {
             Rgb10bitToRGBA(pFrom, pTo, width, height);
-            ci.drawMode = DM_RGB;
+            ci.imgMode = MLCapturedImage::IM_RGB;
         }
         break;
     case bmdFormat10BitYUV:
         if (mRawSDI) {
-            RawYuvV210ToRGBA(pFrom, pTo, width, height);
-            ci.drawMode = DM_RGB;
+            mConverter.RawYuvV210ToRGBA(pFrom, pTo, width, height);
+            ci.imgMode = MLCapturedImage::IM_RGB;
         } else {
-            YuvV210ToYuvA(pFrom, pTo, width, height);
-            ci.drawMode = DM_YUV;
+            MLConverter::YuvV210ToYuvA(pFrom, pTo, width, height);
+            ci.imgMode = MLCapturedImage::IM_YUV;
         }
         break;
     default:
         break;
     }
 
-    AddCrosshair(ci);
-    AddTitleSafeArea(ci);
-    AddGrid(ci);
+    mDrawings.AddCrosshair(ci, mCrosshairType);
+    if (mTitleSafeArea) {
+        mDrawings.AddTitleSafeArea(ci);
+    }
+    mDrawings.AddGrid(ci, mGridType);
 
     mMutex.lock();
     mCapturedImages.push_back(ci);
@@ -1158,7 +1008,7 @@ void MLDX12App::ClearDrawQueue(void)
 {
     mMutex.lock();
     for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
-        CapturedImage &ci = *ite;
+        MLCapturedImage &ci = *ite;
         delete [] ci.data;
         ci.data = nullptr;
     }
@@ -1179,7 +1029,7 @@ MLDX12App::UpdateVideoTexture(void) {
     //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
     //OutputDebugStringA(s);
 
-    CapturedImage ci = mCapturedImages.front();
+    MLCapturedImage ci = mCapturedImages.front();
     mCapturedImages.pop_front();
 
     mMutex.unlock();
@@ -1263,184 +1113,8 @@ MLDX12App::UpdateVideoTexture(void) {
 
     mTexVideoIdToShow = !mTexVideoIdToShow;
 
-    mDrawMode = ci.drawMode;
+    mDrawMode = ci.imgMode;
     delete[] ci.data;
     ci.data = nullptr;
 }
-
-void
-MLDX12App::AddCrosshair(CapturedImage &ci)
-{
-    uint32_t *pTo = (uint32_t*)ci.data;
-
-    int HALF_LENGTH = 40;
-    int HALF_THICKNESS = 3;
-    if (ci.width <= 1920) {
-        HALF_LENGTH /= 2;
-        HALF_THICKNESS /= 2;
-    }
-
-    const int width = ci.width;
-    const int height = ci.height;
-
-    //                 a             y              cb         cr
-    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
-    switch (ci.drawMode) {
-    case DM_RGB:
-        //        A B G R
-        color = 0xffffffff;
-        break;
-    default:
-        break;
-    }
-
-    switch (mCrosshairType) {
-    case CH_CenterCrosshair:
-        // 横線
-        for (int y = height / 2 - HALF_THICKNESS; y < height / 2 + HALF_THICKNESS; ++y) {
-            for (int x = width / 2 - HALF_LENGTH; x < width / 2 + HALF_LENGTH; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-        // 縦線
-        for (int y = height / 2 - HALF_LENGTH; y < height / 2 + HALF_LENGTH; ++y) {
-            for (int x = width / 2 - HALF_THICKNESS; x < width / 2 + HALF_THICKNESS; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-        break;
-    case CH_4Crosshairs:
-        for (int yi = 0; yi <= 1; ++yi) {
-            for (int xi = 0; xi <= 1; ++xi) {
-                // 横線
-                for (int y = height / 4 - HALF_THICKNESS + yi * height / 2; y < height / 4 + HALF_THICKNESS + yi * height / 2; ++y) {
-                    for (int x = width / 4 - HALF_LENGTH + xi * width / 2; x < width / 4 + HALF_LENGTH + xi * width / 2; ++x) {
-                        int pos = x + y * width;
-                        pTo[pos] = color;
-                    }
-                }
-                // 縦線
-                for (int y = height / 4 - HALF_LENGTH + yi * height / 2; y < height / 4 + HALF_LENGTH + yi * height / 2; ++y) {
-                    for (int x = width / 4 - HALF_THICKNESS + xi * width / 2; x < width / 4 + HALF_THICKNESS + xi * width / 2; ++x) {
-                        int pos = x + y * width;
-                        pTo[pos] = color;
-                    }
-                }
-            }
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-void
-MLDX12App::AddTitleSafeArea(CapturedImage &ci) {
-    if (!mTitleSafeArea) {
-        return;
-    }
-
-    uint32_t *pTo = (uint32_t*)ci.data;
-
-    int HALF_THICKNESS = 3;
-    if (ci.width <= 1920) {
-        HALF_THICKNESS /= 2;
-    }
-
-    const int width = ci.width;
-    const int height = ci.height;
-
-    //                 a             y              cb         cr
-    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
-    switch (ci.drawMode) {
-    case DM_RGB:
-        //        A B G R
-        color = 0xffffffff;
-        break;
-    default:
-        break;
-    }
-
-    // 横線
-    for (int y = height / 10 - HALF_THICKNESS; y < height / 10 + HALF_THICKNESS; ++y) {
-        for (int x = width / 10; x < width - width / 10; ++x) {
-            int pos = x + y * width;
-            pTo[pos] = color;
-        }
-    }
-    for (int y = height - height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
-        for (int x = width / 10; x < width - width / 10; ++x) {
-            int pos = x + y * width;
-            pTo[pos] = color;
-        }
-    }
-    // 縦線
-    for (int y = height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
-        for (int x = width / 10 - HALF_THICKNESS; x < width / 10 + HALF_THICKNESS; ++x) {
-            int pos = x + y * width;
-            pTo[pos] = color;
-        }
-    }
-    for (int y = height / 10 - HALF_THICKNESS; y < height - height / 10 + HALF_THICKNESS; ++y) {
-        for (int x = width - width / 10 - HALF_THICKNESS; x < width - width / 10 + HALF_THICKNESS; ++x) {
-            int pos = x + y * width;
-            pTo[pos] = color;
-        }
-    }
-}
-
-void
-MLDX12App::AddGrid(CapturedImage &ci) {
-    if (mGridType == GR_None) {
-        return;
-    }
-
-    uint32_t *pTo = (uint32_t*)ci.data;
-
-    int HALF_THICKNESS = 3;
-    if (ci.width <= 1920) {
-        HALF_THICKNESS /= 2;
-    }
-
-    const int width = ci.width;
-    const int height = ci.height;
-
-    //                 a             y              cb         cr
-    uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
-    switch (ci.drawMode) {
-    case DM_RGB:
-        //        A B G R
-        color = 0xffffffff;
-        break;
-    default:
-        break;
-    }
-
-    int nBlocks = 3;
-    if (mGridType == GR_6x6) {
-        nBlocks = 6;
-    }
-
-    // 横線
-    for (int i = 1; i < nBlocks; ++i) {
-        for (int y = i * height / nBlocks - HALF_THICKNESS; y < i * height / nBlocks + HALF_THICKNESS; ++y) {
-            for (int x = 0; x < width; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-    }
-    // 縦線
-    for (int i = 1; i < nBlocks; ++i) {
-        for (int y = 0; y<height; ++y) {
-            for (int x = i * width / nBlocks - HALF_THICKNESS; x < i * width / nBlocks + HALF_THICKNESS; ++x) {
-                int pos = x + y * width;
-                pTo[pos] = color;
-            }
-        }
-    }
-}
-
 
