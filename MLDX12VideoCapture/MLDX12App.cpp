@@ -29,12 +29,15 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     mRtvDescSize(0),
     mWindowedMode(true),
     mFrameSkipCount(0),
-    mDrawGamma(2.2f)
+    mDrawGamma(2.2f),
+    mDrawGainR(1.0f),
+    mDrawGainG(1.0f),
+    mDrawGainB(1.0f)
 {
     strcpy_s(mWritePath, "c:/data/output.avi");
     mMsg[0] = 0;
 
-    mConverter.CreateGammaTable(2.2f);
+    mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 }
 
 void MLDX12App::OnInit()
@@ -832,12 +835,18 @@ MLDX12App::ImGuiCommands(void)
             }
 
             if (mVideoCapture.Width() == 3840 && mVideoCapture.Height() == 2160 && mVideoCapture.PixelFormat() == bmdFormat10BitYUV) {
+                // Maybe Blackmagic Micro Studio Camera 4K...
                 ImGui::Checkbox("Raw SDI preview", &mRawSDI);
                 if (mRawSDI) {
-                    ImGui::DragFloat("Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
-                    mConverter.CreateGammaTable(mDrawGamma);
+                    ImGui::DragFloat("Preview Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
+                    ImGui::DragFloat("Preview Gain R", &mDrawGainR, 0.01f, 0.5f, 2.0f);
+                    ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
+                    ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
+
+                    mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
                 }
             }
+
 
             ImGui::Text("Draw Queue size : %d", queueSize);
             ImGui::SameLine();

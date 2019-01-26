@@ -1,38 +1,54 @@
 #include "MLConverter.h"
 #include <ctgmath>
 #include <assert.h>
+#include <algorithm>
 
 static const int BAYER_W = 3840 + 32;
 static const int BAYER_H = 2160 + 32;
 static const int BAYER_WH = BAYER_W * BAYER_H;
 
 static uint32_t
-NtoHL(uint32_t v) {
+NtoHL(uint32_t v)
+{
     return   ((v & 0xff) << 24) |
         (((v >> 8) & 0xff) << 16) |
         (((v >> 16) & 0xff) << 8) |
         (((v >> 24) & 0xff));
 }
 
-MLConverter::MLConverter(void) {
-    mBayer = new uint8_t[BAYER_WH];
+MLConverter::MLConverter(void)
+{
+    /* G R
+     * B G
+     */
+    mGammaBayerTable[0] = mGammaTableG;
+    mGammaBayerTable[1] = mGammaTableR;
+    mGammaBayerTable[2] = mGammaTableB;
+    mGammaBayerTable[3] = mGammaTableG;
 
+    mBayer = new uint8_t[BAYER_WH];
+    CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 }
 
-MLConverter::~MLConverter(void) {
+MLConverter::~MLConverter(void)
+{
     delete[] mBayer;
     mBayer = nullptr;
 }
 
 void
-MLConverter::CreateGammaTable(float gamma)
+MLConverter::CreateGammaTable(const float gamma, const float gainR, const float gainG, const float gainB)
 {
     // 12bit value to 8bit value
 
     for (int i = 0; i < 4096; ++i) {
-        float y = (float)(i) / 4095.0f;
-        y = pow(y, 1.0f / gamma);
-        mGammaTable[i] = (int)floor(255.0f * y + 0.5f);
+        const float y = (const float)(i) / 4095.0f;
+        const float r = pow(std::min(1.0f, y * gainR), 1.0f / gamma);
+        const float g = pow(std::min(1.0f, y * gainG), 1.0f / gamma);
+        const float b = pow(std::min(1.0f, y * gainB), 1.0f / gamma);
+        mGammaTableR[i] = (int)floor(255.0f * r + 0.5f);
+        mGammaTableG[i] = (int)floor(255.0f * g + 0.5f);
+        mGammaTableB[i] = (int)floor(255.0f * b + 0.5f);
     }
 }
 
@@ -53,9 +69,6 @@ MLConverter::Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, con
         }
     }
 }
-
-
-
 
 void
 MLConverter::YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height)
@@ -106,6 +119,8 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
     assert(width == 3840);
     assert(height == 2160);
     
+    int x = 0;
+    int y = 0;
     int posT = 0;
     for (int i = 0;; i += 4) {
         // Decklink SDK p.217
@@ -163,25 +178,31 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
         const uint16_t p7_12 = (uint16_t)((cr4 >> 4) | (y5 << 4));
 
         // store gamma corrected 8bit value
-        mBayer[posT + 0] = mGammaTable[p0_12];
-        mBayer[posT + 1] = mGammaTable[p1_12];
-        mBayer[posT + 2] = mGammaTable[p2_12];
-        mBayer[posT + 3] = mGammaTable[p3_12];
+        mBayer[posT + 0] = GammaTable(x + 0, y, p0_12);
+        mBayer[posT + 1] = GammaTable(x + 1, y, p1_12);
+        mBayer[posT + 2] = GammaTable(x + 2, y, p2_12);
+        mBayer[posT + 3] = GammaTable(x + 3, y, p3_12);
 
-        mBayer[posT + 4] = mGammaTable[p4_12];
-        mBayer[posT + 5] = mGammaTable[p5_12];
-        mBayer[posT + 6] = mGammaTable[p6_12];
-        mBayer[posT + 7] = mGammaTable[p7_12];
+        mBayer[posT + 4] = GammaTable(x + 4, y, p4_12);
+        mBayer[posT + 5] = GammaTable(x + 5, y, p5_12);
+        mBayer[posT + 6] = GammaTable(x + 6, y, p6_12);
+        mBayer[posT + 7] = GammaTable(x + 7, y, p7_12);
 
         posT += 8;
         if (BAYER_WH <= posT) {
             break;
         }
+
+        x += 8;
+        if (BAYER_W <= x) {
+            x = 0;
+            ++y;
+        }
     }
 
     const uint8_t a = 0xff;
-    for (int y = 0; y < height; y += 2) {
-        for (int x = 0; x < width; x += 2) {
+    for (y = 0; y < height; y += 2) {
+        for (x = 0; x < width; x += 2) {
             /* G0 R
              * B  G1
              */

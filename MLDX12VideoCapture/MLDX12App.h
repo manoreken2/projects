@@ -125,6 +125,9 @@ private:
     char mMsg[512];
 
     float mDrawGamma;
+    float mDrawGainR;
+    float mDrawGainG;
+    float mDrawGainB;
 
     MLConverter mConverter;
     MLDrawings mDrawings;
