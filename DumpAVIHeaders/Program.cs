@@ -387,7 +387,7 @@ namespace DumpAVIHeaders {
                 return;
             }
 
-            using (var br = new BinaryReader(new FileStream(args[0], FileMode.Open))) {
+            using (var br = new BinaryReader(new FileStream(args[0], FileMode.Open, FileAccess.Read))) {
                 uint RIFF = StringToFourCC("RIFF");
 
                 do {

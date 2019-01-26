@@ -18,6 +18,10 @@ NtoHL(uint32_t v)
 
 MLConverter::MLConverter(void)
 {
+    memset(mGammaTableR, 0, sizeof mGammaTableR);
+    memset(mGammaTableG, 0, sizeof mGammaTableG);
+    memset(mGammaTableB, 0, sizeof mGammaTableB);
+
     /* G R
      * B G
      */

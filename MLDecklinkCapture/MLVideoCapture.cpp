@@ -30,14 +30,14 @@ MLVideoCapture::Term(void)
         m_modeList.pop_back();
     }
 
-    if (m_deckLinkInput != NULL) {
+    if (m_deckLinkInput != nullptr) {
         m_deckLinkInput->Release();
-        m_deckLinkInput = NULL;
+        m_deckLinkInput = nullptr;
     }
 
-    if (m_deckLink != NULL) {
+    if (m_deckLink != nullptr) {
         m_deckLink->Release();
-        m_deckLink = NULL;
+        m_deckLink = nullptr;
     }
 }
 
@@ -46,10 +46,10 @@ MLVideoCapture::QueryInterface(REFIID iid, LPVOID *ppv)
 {
     HRESULT result = E_NOINTERFACE;
 
-    if (ppv == NULL) {
+    if (ppv == nullptr) {
         return E_INVALIDARG;
     }
-    *ppv = NULL;
+    *ppv = nullptr;
 
     if (iid == IID_IUnknown) {
         *ppv = this;
@@ -94,10 +94,10 @@ MLVideoCapture::Init(IDeckLink *device)
     m_deckLink = device;
     m_deckLink->AddRef();
 
-    IDeckLinkAttributes*            deckLinkAttributes = NULL;
-    IDeckLinkDisplayModeIterator*   displayModeIterator = NULL;
-    IDeckLinkDisplayMode*           displayMode = NULL;
-    BSTR                            deviceNameBSTR = NULL;
+    IDeckLinkAttributes*            deckLinkAttributes = nullptr;
+    IDeckLinkDisplayModeIterator*   displayModeIterator = nullptr;
+    IDeckLinkDisplayMode*           displayMode = nullptr;
+    BSTR                            deviceNameBSTR = nullptr;
 
     if (m_deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&m_deckLinkInput) != S_OK) {
         MessageBox(nullptr, L"This device does not have input", L"Error", 0);
@@ -155,9 +155,9 @@ MLVideoCapture::StartCapture(int videoModeIdx)
 void
 MLVideoCapture::StopCapture(void)
 {
-    if (m_deckLinkInput != NULL) {
+    if (m_deckLinkInput != nullptr) {
         m_deckLinkInput->StopStreams();
-        m_deckLinkInput->SetCallback(NULL);
+        m_deckLinkInput->SetCallback(nullptr);
     }
 
     m_state = S_Init;
@@ -223,7 +223,7 @@ bail:
 HRESULT
 MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoFrame, /* in */ IDeckLinkAudioInputPacket* audioPacket)
 {
-    if (videoFrame == NULL) {
+    if (videoFrame == nullptr) {
         return S_OK;
     }
 

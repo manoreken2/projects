@@ -22,13 +22,19 @@ wWinMain(
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    bool coInitialized = false;
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (SUCCEEDED(hr)) {
+        coInitialized = true;
+    }
 
     MLDX12App app(1920, 1080);
 
     int rv = WinApp::Run(&app, hInstance, nCmdShow);
 
-    CoUninitialize();
+    if (coInitialized) {
+        CoUninitialize();
+    }
 
     return rv;
 }

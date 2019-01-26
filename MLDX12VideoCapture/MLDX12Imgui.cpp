@@ -48,7 +48,6 @@ void MLDX12Imgui::Term(void)
     mDevice = nullptr;
 }
 
-
 void MLDX12Imgui::SetupRootSig(void)
 {
     D3D12_DESCRIPTOR_RANGE descRange = {};
@@ -98,7 +97,7 @@ void MLDX12Imgui::SetupRootSig(void)
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
     ComPtr<ID3DBlob> blob;
-    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, NULL));
+    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr));
 
     ThrowIfFailed(mDevice->CreateRootSignature(0, blob->GetBufferPointer(),
         blob->GetBufferSize(), IID_PPV_ARGS(&mRootSig)));
@@ -150,7 +149,7 @@ void MLDX12Imgui::SetupPso(void)
               return output;\
             }";
 
-        ThrowIfFailed(D3DCompile(vsCode, strlen(vsCode), NULL, NULL, NULL, "main", "vs_5_0", 0, 0, &vertexShader, NULL));
+        ThrowIfFailed(D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vertexShader, nullptr));
         assert(vertexShader.Get());
 
         psoDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
@@ -188,7 +187,7 @@ void MLDX12Imgui::SetupPso(void)
               return out_col; \
             }";
 
-        ThrowIfFailed(D3DCompile(psCode, strlen(psCode), NULL, NULL, NULL, "main", "ps_5_0", 0, 0, &pixelShader, NULL));
+        ThrowIfFailed(D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &pixelShader, nullptr));
         assert(pixelShader.Get());
         psoDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
     }
@@ -252,7 +251,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
 
     // Create and grow vertex/index buffers if needed
     if (!pVB || vbSize < draw_data->TotalVtxCount) {
-        if (pVB) { pVB->Release(); pVB = NULL; }
+        if (pVB) { pVB->Release(); pVB = nullptr; }
         vbSize = draw_data->TotalVtxCount + 5000;
         D3D12_HEAP_PROPERTIES props;
         memset(&props, 0, sizeof(D3D12_HEAP_PROPERTIES));
@@ -271,12 +270,12 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
         desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         desc.Flags = D3D12_RESOURCE_FLAG_NONE;
         ThrowIfFailed(mDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&pVB)));
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&pVB)));
         frameResources->VB = pVB;
         frameResources->vbCount = vbSize;
     }
     if (!pIB || ibSize < draw_data->TotalIdxCount) {
-        if (pIB) { pIB->Release(); pIB = NULL; }
+        if (pIB) { pIB->Release(); pIB = nullptr; }
         ibSize = draw_data->TotalIdxCount + 10000;
         D3D12_HEAP_PROPERTIES props;
         memset(&props, 0, sizeof(D3D12_HEAP_PROPERTIES));
@@ -295,7 +294,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
         desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         desc.Flags = D3D12_RESOURCE_FLAG_NONE;
         ThrowIfFailed(mDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, NULL, IID_PPV_ARGS(&pIB)));
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&pIB)));
         frameResources->IB = pIB;
         frameResources->ibCount = ibSize;
     }

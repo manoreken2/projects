@@ -32,7 +32,7 @@ WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.lpszClassName = L"DXSampleClass";
     RegisterClassEx(&wc);
 
@@ -58,7 +58,7 @@ WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
 
     MSG msg = {};
     while (msg.message != WM_QUIT) {
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }

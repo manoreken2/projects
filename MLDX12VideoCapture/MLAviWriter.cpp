@@ -3,108 +3,11 @@
 #include "WinApp.h"
 
 namespace {
-    const uint32_t  FCC_00db = 0x62643030;
-
-    struct AviMainHeader {
-         uint32_t fcc;
-         uint32_t cb;
-         uint32_t dwMicroSecPerFrame;
-         uint32_t dwMaxBytesPersec;
-         uint32_t dwPaddingGranularity;
-         uint32_t dwFlags;
-
-         uint32_t dwTotalFrames;
-         uint32_t dwInitialFrames;
-         uint32_t dwStreams;
-         uint32_t dwSuggestedBufferSize;
-         uint32_t dwWidth;
-
-         uint32_t dwHeight;
-         uint32_t dwReserved0;
-         uint32_t dwReserved1;
-         uint32_t dwReserved2;
-         uint32_t dwReserved3;
-    };
-
-    struct AviStreamHeader {
-         uint32_t fcc;
-         uint32_t cb;
-         uint32_t fccType;
-         uint32_t fccHandler;
-         uint32_t dwFlags;
-         uint16_t wPriority;
-         uint16_t wLanguage;
-
-         uint32_t dwInitialFrames;
-         uint32_t dwScale;
-         uint32_t dwRate;
-         uint32_t dwStart;
-         uint32_t dwLength;
-
-         uint32_t dwSuggestedBufferSize;
-         uint32_t dwQuality;
-         uint32_t dwSampleSize;
-         short left;
-         short top;
-
-         short right;
-         short bottom;
-    };
-
-    struct BitmapInfoHeader {
-         uint32_t biSize;
-         int biWidth;
-         int biHeight;
-         short biPlanes;
-         short biBitCount;
-
-         uint32_t biCompression;
-         uint32_t biSizeImage;
-         int biXPelsPerMeter;
-         int biYPelsPerMeter;
-         uint32_t biClrUsed;
-
-         uint32_t biClrImportant;
-    };
-
-    struct RiffHeader {
-        uint32_t riff;
-        uint32_t bytes;
-        uint32_t type;
-    };
-
-    struct ListHeader {
-        uint32_t LIST;
-        uint32_t bytes;
-        uint32_t type;
-    };
-
-    struct StreamDataHeader {
-        uint32_t fcc;
-        uint32_t bytes;
-    };
-
-    uint32_t StringToFourCC(const char *s) {
-        uint32_t fcc = 0;
-        int count = (int)strlen(s);
-        if (4 < count) {
-            count = 4;
-        }
-
-        for (int i = 0; i < count; ++i) {
-            fcc |= (((unsigned char)s[i]) << i * 8);
-        }
-
-        for (int i = count; i < 4; ++i) {
-            fcc |= (((unsigned char)' ') << i * 8);
-        }
-
-        return fcc;
-    }
 };
 
 MLAviWriter::MLAviWriter(void)
-    : mFp(nullptr), mLastRiffIdx(-1), mLastMoviIdx(-1)
+        : mLastRiffIdx(-1), mLastMoviIdx(-1), mTotalFrames(0), mAviMainHeaderPos(0), mAviStreamHeaderPos(0),
+          mFp(nullptr)
 {
     mState = AVIS_Init;
     m_thread = nullptr;
@@ -128,13 +31,13 @@ MLAviWriter::~MLAviWriter(void)
 void
 MLAviWriter::WriteFccHeader(const char *fccS, int bytes)
 {
-    uint32_t fcc = StringToFourCC(fccS);
+    uint32_t fcc = MLStringToFourCC(fccS);
     fwrite(&fcc, 1, 4, mFp);
     fwrite(&bytes, 1, 4, mFp);
 }
 
 bool
-MLAviWriter::Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt)
+MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt)
 {
     assert(mFp == nullptr);
 
@@ -239,7 +142,7 @@ MLAviWriter::RecQueueSize(void)
 int
 MLAviWriter::WriteRiff(const char *fccS)
 {
-    uint32_t fcc = StringToFourCC(fccS);
+    uint32_t fcc = MLStringToFourCC(fccS);
 
     int riffIdx = (int)mRiffChunks.size();
 
@@ -249,8 +152,8 @@ MLAviWriter::WriteRiff(const char *fccS)
     rc.bDone = false;
     mRiffChunks.push_back(rc);
 
-    RiffHeader rh;
-    rh.riff = StringToFourCC("RIFF");
+    MLRiffHeader rh;
+    rh.riff = MLStringToFourCC("RIFF");
     rh.bytes = 0;
     rh.type = fcc;
     fwrite(&rh, 1, sizeof rh, mFp);
@@ -280,7 +183,7 @@ MLAviWriter::FinishRiff(int idx)
 int
 MLAviWriter::WriteList(const char * fccS)
 {
-    uint32_t fcc = StringToFourCC(fccS);
+    uint32_t fcc = MLStringToFourCC(fccS);
 
     int listIdx = (int)mListChunks.size();
 
@@ -290,8 +193,8 @@ MLAviWriter::WriteList(const char * fccS)
     lc.bDone = false;
     mListChunks.push_back(lc);
 
-    ListHeader lh;
-    lh.LIST = StringToFourCC("LIST");
+    MLListHeader lh;
+    lh.LIST = MLStringToFourCC("LIST");
     lh.bytes = 0;
     lh.type = fcc;
     fwrite(&lh, 1, sizeof lh, mFp);
@@ -322,7 +225,7 @@ MLAviWriter::FinishList(int idx)
 uint32_t
 MLAviWriter::ImageBytes(void) const
 {
-    assert(mImgFmt == IF_YUV422v210);
+    assert(mImgFmt == MLIF_YUV422v210);
     return mWidth * mHeight * 8 / 3;
 }
 
@@ -331,8 +234,8 @@ MLAviWriter::WriteAviMainHeader(void)
 {
     mAviMainHeaderPos = _ftelli64(mFp);
 
-    AviMainHeader mh;
-    mh.fcc = StringToFourCC("avih");
+    MLAviMainHeader mh;
+    mh.fcc = MLStringToFourCC("avih");
     mh.cb = 0x38;
     mh.dwMicroSecPerFrame = (uint32_t)((1.0 / mFps) * 1000 * 1000);
     mh.dwMaxBytesPersec = 0;
@@ -355,15 +258,15 @@ MLAviWriter::WriteAviMainHeader(void)
 void
 MLAviWriter::WriteAviStreamHeader(void)
 {
-    assert(mImgFmt == IF_YUV422v210);
+    assert(mImgFmt == MLIF_YUV422v210);
         
     mAviStreamHeaderPos = _ftelli64(mFp);
 
-    AviStreamHeader sh;
-    sh.fcc = StringToFourCC("strh");
+    MLAviStreamHeader sh;
+    sh.fcc = MLStringToFourCC("strh");
     sh.cb = 0x38;
-    sh.fccType = StringToFourCC("vids");
-    sh.fccHandler = StringToFourCC("v210");
+    sh.fccType = MLStringToFourCC("vids");
+    sh.fccHandler = MLStringToFourCC("v210");
     sh.dwFlags = 0;
     sh.wPriority = 0;
     sh.wLanguage = 0;
@@ -386,15 +289,15 @@ MLAviWriter::WriteAviStreamHeader(void)
 void
 MLAviWriter::WriteBitmapInfoHeader(void)
 {
-    assert(mImgFmt == IF_YUV422v210);
+    assert(mImgFmt == MLIF_YUV422v210);
 
-    BitmapInfoHeader ih;
+    MLBitmapInfoHeader ih;
     ih.biSize = 0x28;
     ih.biWidth = mWidth;
     ih.biHeight = mHeight;
     ih.biPlanes = 1;
     ih.biBitCount = 20;
-    ih.biCompression = StringToFourCC("v210");
+    ih.biCompression = MLStringToFourCC("v210");
     ih.biSizeImage = ImageBytes();
     ih.biXPelsPerMeter = 0;
     ih.biYPelsPerMeter = 0;
@@ -407,7 +310,7 @@ MLAviWriter::WriteBitmapInfoHeader(void)
 void
 MLAviWriter::WriteStreamDataHeader(uint32_t fcc, int bytes)
 {
-    StreamDataHeader sd;
+    MLStreamDataHeader sd;
     sd.fcc = fcc;
     sd.bytes = bytes;
 
@@ -494,7 +397,13 @@ DWORD
 MLAviWriter::ThreadMain(void)
 {
     DWORD rv = 0;
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    
+    bool coInitialized = false;
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (SUCCEEDED(hr)) {
+        coInitialized = true;
+    }
+
     HANDLE waitAry[2] = {m_shutdownEvent, m_readyEvent};
     DWORD waitRv;
 
@@ -523,7 +432,9 @@ MLAviWriter::ThreadMain(void)
     fclose(mFp);
     mFp = nullptr;
 
-    CoUninitialize();
+    if (coInitialized) {
+        CoUninitialize();
+    }
 
     mState = AVIS_Init;
     return rv;
@@ -561,7 +472,9 @@ MLAviWriter::WriteOne(ImageItem& ii)
         RestartRiff();
     }
 
-    WriteStreamDataHeader(FCC_00db, ii.bytes);
+    // compressed video == 00dc
+    // uncompressed video == 00db
+    WriteStreamDataHeader(MLFOURCC_00dc, ii.bytes);
     fwrite(ii.buf, 1, ii.bytes, mFp);
 
     ++mTotalFrames;

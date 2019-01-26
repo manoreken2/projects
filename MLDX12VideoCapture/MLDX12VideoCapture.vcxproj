@@ -13,6 +13,8 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="MLAVICommon.h" />
+    <ClInclude Include="MLAviReader.h" />
     <ClInclude Include="MLAviWriter.h" />
     <ClInclude Include="MLCapturedImage.h" />
     <ClInclude Include="MLConverter.h" />
@@ -31,6 +33,8 @@
     <ClInclude Include="WinApp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MLAviCommon.cpp" />
+    <ClCompile Include="MLAviReader.cpp" />
     <ClCompile Include="MLAviWriter.cpp" />
     <ClCompile Include="MLConverter.cpp" />
     <ClCompile Include="MLDrawings.cpp" />

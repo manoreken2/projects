@@ -7,17 +7,14 @@
 #include "Common.h"
 #include <list>
 #include <mutex>
+#include "MLAVICommon.h"
 
 class MLAviWriter {
 public:
     MLAviWriter(void);
     ~MLAviWriter(void);
 
-    enum ImageFormat {
-        IF_YUV422v210,
-    };
-
-    bool Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt);
+    bool Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt);
 
     void AddImage(const uint32_t * img, int bytes);
 

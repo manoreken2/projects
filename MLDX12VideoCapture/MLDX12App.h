@@ -21,6 +21,7 @@
 #include "MLConverter.h"
 #include "MLCapturedImage.h"
 #include "MLDrawings.h"
+#include "MLAviReader.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -41,7 +42,6 @@ public:
     
     void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame);
 
-
 private:
     static const UINT FrameCount = 2;
 
@@ -61,8 +61,10 @@ private:
     };
 
     enum TextureEnum {
-        TE_VIDEO0,
-        TE_VIDEO1,
+        TE_CAPVIDEO0,
+        TE_CAPVIDEO1,
+        TE_PLAYVIDEO0,
+        TE_PLAYVIDEO1,
         TE_IMGUI,
         TE_NUM
     };
@@ -100,7 +102,8 @@ private:
     ComPtr<ID3D12DescriptorHeap> mSrvHeap;
     UINT                         mSrvDescSize;
     ComPtr<ID3D12Resource>      mTexImgui;
-    ComPtr<ID3D12Resource>       mTexVideo[2];
+    ComPtr<ID3D12Resource>       mTexCapturedVideo[2];
+    ComPtr<ID3D12Resource>       mTexPlayVideo[2];
     int mTexVideoIdToShow;
 
     UINT mFrameIdx;
@@ -119,11 +122,13 @@ private:
     int64_t mFrameSkipCount;
 
     MLAviWriter mAviWriter;
+    MLAviReader mAviReader;
 
     char mWritePath[512];
     char mReadPath[512];
 
-    char mMsg[512];
+    char mCaptureMsg[512];
+    char mPlayMsg[512];
 
     float mDrawGamma;
     float mDrawGainR;
@@ -132,6 +137,9 @@ private:
 
     MLConverter mConverter;
     MLDrawings mDrawings;
+
+    int mPlayFrameNr;
+    float mPlayAlpha;
     
     void LoadPipeline(void);
     void LoadAssets(void);
@@ -143,8 +151,8 @@ private:
 
     void ClearDrawQueue(void);
 
-    void CreateVideoTexture(int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
-    void UpdateVideoTexture(void);
+    void CreateVideoTexture(ComPtr<ID3D12Resource> & tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
+    void UpdateCapturedVideoTexture(void);
 
     void SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso);
 
@@ -155,5 +163,7 @@ private:
 
     void ShowCaptureSettingsWindow(void);
     void ShowPlaybackWindow(void);
+
+    void UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texIdx);
 
 };

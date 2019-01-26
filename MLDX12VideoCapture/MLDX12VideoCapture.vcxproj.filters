@@ -74,6 +74,12 @@
     <ClInclude Include="MLCapturedImage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MLAviReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAVICommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -113,6 +119,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MLDrawings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviCommon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
