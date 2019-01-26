@@ -3,6 +3,8 @@
 #include "WinApp.h"
 
 namespace {
+    const uint32_t  FCC_00db = 0x62643030;
+
     struct AviMainHeader {
          uint32_t fcc;
          uint32_t cb;
@@ -99,8 +101,6 @@ namespace {
 
         return fcc;
     }
-
-
 };
 
 MLAviWriter::MLAviWriter(void)
@@ -111,7 +111,6 @@ MLAviWriter::MLAviWriter(void)
     m_shutdownEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
     m_readyEvent    = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
 }
-
 
 MLAviWriter::~MLAviWriter(void)
 {
@@ -126,14 +125,17 @@ MLAviWriter::~MLAviWriter(void)
     }
 }
 
-void MLAviWriter::WriteFccHeader(const char *fccS, int bytes) {
+void
+MLAviWriter::WriteFccHeader(const char *fccS, int bytes)
+{
     uint32_t fcc = StringToFourCC(fccS);
     fwrite(&fcc, 1, 4, mFp);
     fwrite(&bytes, 1, 4, mFp);
 }
 
-
-bool MLAviWriter::Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt) {
+bool
+MLAviWriter::Start(std::wstring path, int width, int height, int fps, ImageFormat imgFmt)
+{
     assert(mFp == nullptr);
 
     mWidth = width;
@@ -185,9 +187,9 @@ bool MLAviWriter::Start(std::wstring path, int width, int height, int fps, Image
     return true;
 }
 
-static const uint32_t  FCC_00db = 0x62643030;
-
-void MLAviWriter::AddImage(const uint32_t * img, int bytes) {
+void
+MLAviWriter::AddImage(const uint32_t * img, int bytes)
+{
     assert(mFp != nullptr);
     assert(m_readyEvent != nullptr);
 
@@ -207,7 +209,9 @@ void MLAviWriter::AddImage(const uint32_t * img, int bytes) {
     SetEvent(m_readyEvent);
 }
 
-void MLAviWriter::StopBlocking(void) {
+void
+MLAviWriter::StopBlocking(void)
+{
     if (mFp == nullptr) {
         return;
     }
@@ -215,11 +219,15 @@ void MLAviWriter::StopBlocking(void) {
     StopThreadBlock();
 }
 
-void MLAviWriter::StopAsync(void) {
+void
+MLAviWriter::StopAsync(void)
+{
     StopThreadAsync();
 }
 
-int MLAviWriter::RecQueueSize(void) {
+int
+MLAviWriter::RecQueueSize(void)
+{
     int count;
     m_mutex.lock();
     count = (int)mImageList.size();
@@ -228,7 +236,9 @@ int MLAviWriter::RecQueueSize(void) {
 
 }
 
-int MLAviWriter::WriteRiff(const char *fccS) {
+int
+MLAviWriter::WriteRiff(const char *fccS)
+{
     uint32_t fcc = StringToFourCC(fccS);
 
     int riffIdx = (int)mRiffChunks.size();
@@ -248,7 +258,9 @@ int MLAviWriter::WriteRiff(const char *fccS) {
     return riffIdx;
 }
 
-void MLAviWriter::FinishRiff(int idx) {
+void
+MLAviWriter::FinishRiff(int idx)
+{
     uint64_t pos = _ftelli64(mFp);
 
     RiffChunk &rc = mRiffChunks[idx];
@@ -265,7 +277,9 @@ void MLAviWriter::FinishRiff(int idx) {
     rc.bDone = true;
 }
 
-int MLAviWriter::WriteList(const char * fccS) {
+int
+MLAviWriter::WriteList(const char * fccS)
+{
     uint32_t fcc = StringToFourCC(fccS);
 
     int listIdx = (int)mListChunks.size();
@@ -285,7 +299,9 @@ int MLAviWriter::WriteList(const char * fccS) {
     return listIdx;
 }
 
-void MLAviWriter::FinishList(int idx) {
+void
+MLAviWriter::FinishList(int idx)
+{
     uint64_t pos = _ftelli64(mFp);
 
     ListChunk &lc = mListChunks[idx];
@@ -303,12 +319,16 @@ void MLAviWriter::FinishList(int idx) {
     lc.bDone = true;
 }
 
-uint32_t MLAviWriter::ImageBytes(void) const {
+uint32_t
+MLAviWriter::ImageBytes(void) const
+{
     assert(mImgFmt == IF_YUV422v210);
     return mWidth * mHeight * 8 / 3;
 }
 
-void MLAviWriter::WriteAviMainHeader(void) {
+void
+MLAviWriter::WriteAviMainHeader(void)
+{
     mAviMainHeaderPos = _ftelli64(mFp);
 
     AviMainHeader mh;
@@ -332,7 +352,9 @@ void MLAviWriter::WriteAviMainHeader(void) {
     fwrite(&mh, 1, sizeof mh, mFp);
 }
 
-void MLAviWriter::WriteAviStreamHeader(void) {
+void
+MLAviWriter::WriteAviStreamHeader(void)
+{
     assert(mImgFmt == IF_YUV422v210);
         
     mAviStreamHeaderPos = _ftelli64(mFp);
@@ -360,7 +382,10 @@ void MLAviWriter::WriteAviStreamHeader(void) {
 
     fwrite(&sh, 1, sizeof sh, mFp);
 }
-void MLAviWriter::WriteBitmapInfoHeader(void) {
+
+void
+MLAviWriter::WriteBitmapInfoHeader(void)
+{
     assert(mImgFmt == IF_YUV422v210);
 
     BitmapInfoHeader ih;
@@ -379,7 +404,9 @@ void MLAviWriter::WriteBitmapInfoHeader(void) {
     fwrite(&ih, 1, sizeof ih, mFp);
 }
 
-void MLAviWriter::WriteStreamDataHeader(uint32_t fcc, int bytes) {
+void
+MLAviWriter::WriteStreamDataHeader(uint32_t fcc, int bytes)
+{
     StreamDataHeader sd;
     sd.fcc = fcc;
     sd.bytes = bytes;
@@ -387,7 +414,9 @@ void MLAviWriter::WriteStreamDataHeader(uint32_t fcc, int bytes) {
     fwrite(&sd, 1, sizeof sd, mFp);
 }
 
-void MLAviWriter::RestartRiff(void) {
+void
+MLAviWriter::RestartRiff(void)
+{
     FinishList(mLastMoviIdx);
     FinishRiff(mLastRiffIdx);
 
@@ -398,7 +427,8 @@ void MLAviWriter::RestartRiff(void) {
 // ============================================================
 // thread
 
-void MLAviWriter::StartThread(void)
+void
+MLAviWriter::StartThread(void)
 {
     if (m_thread != nullptr) {
         return;
@@ -408,7 +438,9 @@ void MLAviWriter::StartThread(void)
     m_thread = CreateThread(nullptr, 0, AviWriterEntry, this, 0, nullptr);
 }
 
-void MLAviWriter::StopThreadBlock(void) {
+void
+MLAviWriter::StopThreadBlock(void)
+{
     if (m_thread == nullptr) {
         return;
     }
@@ -421,7 +453,9 @@ void MLAviWriter::StopThreadBlock(void) {
     mState = AVIS_Init;
 }
 
-void MLAviWriter::StopThreadAsync(void) {
+void
+MLAviWriter::StopThreadAsync(void)
+{
     if (m_thread == nullptr) {
         return;
     }
@@ -432,7 +466,9 @@ void MLAviWriter::StopThreadAsync(void) {
     SetEvent(m_shutdownEvent);
 }
 
-bool MLAviWriter::PollThreadEnd(void) {
+bool
+MLAviWriter::PollThreadEnd(void)
+{
     if (m_thread == nullptr) {
         return true;
     }
@@ -446,16 +482,17 @@ bool MLAviWriter::PollThreadEnd(void) {
     return false;
 }
 
-
 DWORD WINAPI
-MLAviWriter::AviWriterEntry(LPVOID param) {
+MLAviWriter::AviWriterEntry(LPVOID param)
+{
     MLAviWriter *self = (MLAviWriter *)param;
 
     return self->ThreadMain();
 }
 
 DWORD
-MLAviWriter::ThreadMain(void) {
+MLAviWriter::ThreadMain(void)
+{
     DWORD rv = 0;
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     HANDLE waitAry[2] = {m_shutdownEvent, m_readyEvent};
@@ -493,7 +530,8 @@ MLAviWriter::ThreadMain(void) {
 }
 
 void
-MLAviWriter::WriteAll(void) {
+MLAviWriter::WriteAll(void)
+{
     ImageItem ii;
 
     m_mutex.lock();

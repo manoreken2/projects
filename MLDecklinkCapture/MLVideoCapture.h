@@ -25,7 +25,11 @@ public:
     bool Init(IDeckLink *device);
     void Term(void);
     bool StartCapture(int videoModeIdx);
+
     void StopCapture(void);
+
+    /// HRESULT
+    int FlushStreams(void);
 
     int Width(void) const { return m_width; }
     int Height(void) const { return m_height; }

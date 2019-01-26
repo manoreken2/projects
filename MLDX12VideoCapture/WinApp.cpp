@@ -20,12 +20,12 @@ WinApp::WinApp(void)
 {
 }
 
-
 WinApp::~WinApp(void)
 {
 }
 
-int WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
+int
+WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
 {
     WNDCLASSEX wc = { 0 };
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -70,7 +70,8 @@ int WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
     return static_cast<char>(msg.wParam);
 }
 
-LRESULT CALLBACK WinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK
+WinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     MLDX12* pDX12 = reinterpret_cast<MLDX12*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 

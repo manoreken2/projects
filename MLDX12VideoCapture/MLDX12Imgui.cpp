@@ -16,7 +16,6 @@ struct VERTEX_CONSTANT_BUFFER
     float   mvp[4][4];
 };
 
-
 void MLDX12Imgui::Init(ID3D12Device *device)
 {
     mDevice = device;

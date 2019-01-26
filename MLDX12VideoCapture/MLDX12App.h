@@ -121,6 +121,7 @@ private:
     MLAviWriter mAviWriter;
 
     char mWritePath[512];
+    char mReadPath[512];
 
     char mMsg[512];
 
@@ -151,5 +152,8 @@ private:
     void ImGuiCommands(void);
 
     void DrawFullscreenTexture(void);
+
+    void ShowCaptureSettingsWindow(void);
+    void ShowPlaybackWindow(void);
 
 };

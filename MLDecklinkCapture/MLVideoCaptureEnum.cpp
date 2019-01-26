@@ -1,6 +1,4 @@
-
 #include "MLVideoCaptureEnum.h"
-
 
 MLVideoCaptureEnum::MLVideoCaptureEnum(void) :
         m_deckLinkDiscovery(nullptr),

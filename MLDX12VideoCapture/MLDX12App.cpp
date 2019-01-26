@@ -35,12 +35,14 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     mDrawGainB(1.0f)
 {
     strcpy_s(mWritePath, "c:/data/output.avi");
+    strcpy_s(mReadPath, "c:/data/output.avi");
     mMsg[0] = 0;
 
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 }
 
-void MLDX12App::OnInit()
+void
+MLDX12App::OnInit(void)
 {
     mVideoCaptureDeviceList.Init();
 
@@ -55,7 +57,8 @@ void MLDX12App::OnInit()
     OutputDebugString(L"OnInit end\n");
 }
 
-void MLDX12App::OnDestroy()
+void
+MLDX12App::OnDestroy(void)
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
@@ -78,9 +81,8 @@ void MLDX12App::OnDestroy()
     mDx12Imgui.Term();
 }
 
-
-
-void MLDX12App::LoadPipeline()
+void
+MLDX12App::LoadPipeline(void)
 {
     UINT dxgiFactoryFlags = 0;
 
@@ -176,11 +178,11 @@ void MLDX12App::LoadPipeline()
             mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                 IID_PPV_ARGS(&mCmdAllocatorTexUpload)));
         NAME_D3D12_OBJECT(mCmdAllocatorTexUpload);
-
     }
 }
 
-void MLDX12App::LoadAssets()
+void
+MLDX12App::LoadAssets(void)
 {
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -308,10 +310,10 @@ void MLDX12App::LoadAssets()
 
         delete[] buff;
     }
-
 }
 
-void MLDX12App::SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso)
+void
+MLDX12App::SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso)
 {
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;
@@ -513,9 +515,8 @@ MLDX12App::CreateImguiTexture(void)
     io.Fonts->TexID = (ImTextureID)srvGpuHandle.ptr;
 }
 
-
-
-void MLDX12App::OnKeyUp(int key)
+void
+MLDX12App::OnKeyUp(int key)
 {
     switch (key) {
     case VK_SPACE:
@@ -534,10 +535,10 @@ void MLDX12App::OnKeyUp(int key)
     default:
         break;
     }
-
 }
 
-void MLDX12App::OnSizeChanged(int width, int height, bool minimized)
+void
+MLDX12App::OnSizeChanged(int width, int height, bool minimized)
 {
     char s[256];
     sprintf_s(s, "\n\nOnSizeChanged(%d %d)\n", width, height);
@@ -567,7 +568,8 @@ void MLDX12App::OnSizeChanged(int width, int height, bool minimized)
     }
 }
 
-void MLDX12App::UpdateViewAndScissor()
+void
+MLDX12App::UpdateViewAndScissor(void)
 {
     float x = 1.0f;
     float y = 1.0f;
@@ -583,7 +585,8 @@ void MLDX12App::UpdateViewAndScissor()
     mScissorRect.bottom = static_cast<LONG>(mViewport.TopLeftY + mViewport.Height);
 }
 
-void MLDX12App::LoadSizeDependentResources()
+void
+MLDX12App::LoadSizeDependentResources(void)
 {
     UpdateViewAndScissor();
 
@@ -599,11 +602,13 @@ void MLDX12App::LoadSizeDependentResources()
     }
 }
 
-void MLDX12App::OnUpdate()
+void
+MLDX12App::OnUpdate(void)
 {
 }
 
-void MLDX12App::OnRender()
+void
+MLDX12App::OnRender(void)
 {
     PopulateCommandList();
 
@@ -616,7 +621,8 @@ void MLDX12App::OnRender()
     MoveToNextFrame();
 }
 
-void MLDX12App::DrawFullscreenTexture(void)
+void
+MLDX12App::DrawFullscreenTexture(void)
 {
     mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
@@ -645,7 +651,8 @@ void MLDX12App::DrawFullscreenTexture(void)
     mCmdList->DrawInstanced(mNumVertices, 1, 0, 0);
 }
 
-void MLDX12App::PopulateCommandList()
+void
+MLDX12App::PopulateCommandList(void)
 {
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
 
@@ -678,7 +685,8 @@ void MLDX12App::PopulateCommandList()
     ThrowIfFailed(mCmdList->Close());
 }
 
-void MLDX12App::MoveToNextFrame()
+void
+MLDX12App::MoveToNextFrame(void)
 {
     const UINT64 currentFenceValue = mFenceValues[mFrameIdx];
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), currentFenceValue));
@@ -693,7 +701,8 @@ void MLDX12App::MoveToNextFrame()
     mFenceValues[mFrameIdx] = currentFenceValue + 1;
 }
 
-void MLDX12App::WaitForGpu()
+void
+MLDX12App::WaitForGpu(void)
 {
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), mFenceValues[mFrameIdx]));
     ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValues[mFrameIdx], mFenceEvent));
@@ -701,13 +710,10 @@ void MLDX12App::WaitForGpu()
     mFenceValues[mFrameIdx]++;
 }
 
-
 void
-MLDX12App::ImGuiCommands(void)
+MLDX12App::ShowCaptureSettingsWindow(void)
 {
-    //ImGui::ShowDemoWindow();
-
-    ImGui::Begin("Settings");
+    ImGui::Begin("Capture Settings");
 
     if (ImGui::BeginPopupModal("ErrorPopup", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mMsg);
@@ -855,6 +861,10 @@ MLDX12App::ImGuiCommands(void)
             }
             ImGui::Text("Frame Draw skip count : %lld", mFrameSkipCount);
 
+            if (ImGui::Button("Flush streams")) {
+                mVideoCapture.FlushStreams();
+            }
+
             ImGui::BeginGroup();
             if (ImGui::RadioButton("Center Crosshair", mCrosshairType == MLDrawings::CH_CenterCrosshair)) {
                 mCrosshairType = MLDrawings::CH_CenterCrosshair;
@@ -892,6 +902,25 @@ MLDX12App::ImGuiCommands(void)
     }
 
     ImGui::End();
+}
+
+void
+MLDX12App::ShowPlaybackWindow(void)
+{
+    ImGui::Begin("Playback Control");
+    ImGui::InputText("Read filename", mReadPath, sizeof mReadPath - 1);
+
+    ImGui::End();
+}
+
+void
+MLDX12App::ImGuiCommands(void)
+{
+    //ImGui::ShowDemoWindow();
+
+    ShowCaptureSettingsWindow();
+    ShowPlaybackWindow();
+
     ImGui::Render();
 }
 
@@ -986,7 +1015,8 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     mMutex.unlock();
 }
 
-void MLDX12App::ClearDrawQueue(void)
+void
+MLDX12App::ClearDrawQueue(void)
 {
     mMutex.lock();
     for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {

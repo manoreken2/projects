@@ -1,7 +1,8 @@
 ﻿#include "MLDrawings.h"
 
 void
-MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct) {
+MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct)
+{
     if (ct == CH_None) {
         return;
     }
@@ -72,7 +73,8 @@ MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct) {
 }
 
 void
-MLDrawings::AddTitleSafeArea(MLCapturedImage &ci) {
+MLDrawings::AddTitleSafeArea(MLCapturedImage &ci)
+{
     uint32_t *pTo = (uint32_t*)ci.data;
 
     int HALF_THICKNESS = 3;
@@ -123,7 +125,8 @@ MLDrawings::AddTitleSafeArea(MLCapturedImage &ci) {
 }
 
 void
-MLDrawings::AddGrid(MLCapturedImage &ci, GridType gt) {
+MLDrawings::AddGrid(MLCapturedImage &ci, GridType gt)
+{
     if (gt == GR_None) {
         return;
     }

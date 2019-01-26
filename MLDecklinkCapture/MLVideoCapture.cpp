@@ -1,7 +1,5 @@
 #include "MLVideoCapture.h"
 
-
-
 MLVideoCapture::MLVideoCapture(void)
 {
     m_state = S_Init;
@@ -165,6 +163,15 @@ MLVideoCapture::StopCapture(void)
     m_state = S_Init;
 }
 
+int
+MLVideoCapture::FlushStreams(void)
+{
+    if (m_deckLinkInput != nullptr) {
+        return m_deckLinkInput->FlushStreams();
+    }
+
+    return E_NOT_VALID_STATE;
+}
 
 HRESULT
 MLVideoCapture::VideoInputFormatChanged(
