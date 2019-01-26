@@ -57,9 +57,9 @@ MLConverter::CreateGammaTable(const float gamma, const float gainR, const float 
 }
 
 void
-MLConverter::Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height)
+MLConverter::Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha)
 {
-    const uint32_t a = 0xff;
+    const uint32_t a = alpha;
     int pos = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -75,9 +75,9 @@ MLConverter::Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, con
 }
 
 void
-MLConverter::YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height)
+MLConverter::YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha)
 {
-    const uint8_t a = 0xff;
+    const uint8_t a = alpha;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width / 6; ++x) {
             const int posF = 4 * (x + y * width / 6);
@@ -118,7 +118,7 @@ MLConverter::YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, cons
 }
 
 void
-MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height)
+MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha)
 {
     assert(width == 3840);
     assert(height == 2160);
@@ -204,7 +204,7 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
         }
     }
 
-    const uint8_t a = 0xff;
+    const uint8_t a = alpha;
     for (y = 0; y < height; y += 2) {
         for (x = 0; x < width; x += 2) {
             /* G0 R

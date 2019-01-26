@@ -16,7 +16,7 @@
     <ClInclude Include="MLAVICommon.h" />
     <ClInclude Include="MLAviReader.h" />
     <ClInclude Include="MLAviWriter.h" />
-    <ClInclude Include="MLCapturedImage.h" />
+    <ClInclude Include="MLImage.h" />
     <ClInclude Include="MLConverter.h" />
     <ClInclude Include="MLDrawings.h" />
     <ClInclude Include="MLDX12.h" />

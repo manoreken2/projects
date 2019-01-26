@@ -8,10 +8,10 @@ public:
     ~MLConverter(void);
 
     void CreateGammaTable(const float gamma, const float gainR, const float gainG, const float gainB);
-    void RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height);
+    void RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha);
 
-    static void YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height);
-    static void Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height);
+    static void YuvV210ToYuvA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha);
+    static void Rgb10bitToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha);
 private:
     // 12bit value to 8bit value
     uint8_t mGammaTableR[4096];

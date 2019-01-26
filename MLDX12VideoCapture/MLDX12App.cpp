@@ -18,12 +18,12 @@
 MLDX12App::MLDX12App(UINT width, UINT height) :
     MLDX12(width, height),
     mState(S_Init),
-    mDrawMode(MLCapturedImage::IM_RGB),
+    mCaptureDrawMode(MLImage::IM_RGB),
     mCrosshairType(MLDrawings::CH_None),
     mGridType(MLDrawings::GR_None),
     mTitleSafeArea(false),
     mFrameIdx(0),
-    mTexVideoIdToShow(0),
+    mIdToShowCapVideoTex(0),
     mViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     mScissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     mFenceValues{},
@@ -36,7 +36,9 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     mDrawGainG(1.0f),
     mDrawGainB(1.0f),
     mPlayFrameNr(0),
-    mPlayAlpha(0.0f)
+    mPlayAlpha(0.0f),
+    mPlayDrawMode(MLImage::IM_YUV),
+    mIdToShowPlayVideoTex(0)
 {
     strcpy_s(mWritePath, "c:/data/output.avi");
     strcpy_s(mReadPath, "c:/data/output.avi");
@@ -44,6 +46,25 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     mPlayMsg[0] = 0;
 
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
+
+    // YUV 10bit v210
+    mPlayBufferBytes = 3840 * 2160 * 8 / 3;
+    mPlayBuffer = new uint8_t[mPlayBufferBytes];
+
+    {
+        const int imgBytes = 3840 * 2160 * 4;
+        uint8_t *buff = new uint8_t[imgBytes];
+        memset(buff, 0, imgBytes);
+        mPlayImage.Init(3840, 2160, MLImage::IM_RGB, "", imgBytes, buff);
+    }
+}
+
+MLDX12App::~MLDX12App(void)
+{
+    mPlayImage.Term();
+
+    delete[] mPlayBuffer;
+    mPlayBuffer = nullptr;
 }
 
 void
@@ -629,7 +650,7 @@ MLDX12App::OnRender(void)
 }
 
 void
-MLDX12App::DrawFullscreenTexture(void)
+MLDX12App::DrawFullscreenTexture(TextureEnum texId)
 {
     mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
@@ -637,7 +658,7 @@ MLDX12App::DrawFullscreenTexture(void)
     mCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE dh(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
-    dh.Offset(mTexVideoIdToShow, mSrvDescSize);
+    dh.Offset(texId, mSrvDescSize);
     mCmdList->SetGraphicsRootDescriptorTable(0, dh);
 
     mCmdList->RSSetViewports(1, &mViewport);
@@ -651,8 +672,6 @@ MLDX12App::DrawFullscreenTexture(void)
         mFrameIdx, mRtvDescSize);
     mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    mCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     mCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     mCmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
     mCmdList->DrawInstanced(mNumVertices, 1, 0, 0);
@@ -663,19 +682,31 @@ MLDX12App::PopulateCommandList(void)
 {
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
 
-    switch (mDrawMode) {
-    case MLCapturedImage::IM_RGB:
+    switch (mCaptureDrawMode) {
+    case MLImage::IM_RGB:
         ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
         break;
-    case MLCapturedImage::IM_YUV:
+    case MLImage::IM_YUV:
         ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateYUV.Get()));
         break;
     default:
         break;
     }
 
+    {   // clear screen
+        const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
+            mFrameIdx, mRtvDescSize);
+        mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        mCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    }
+
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
-    DrawFullscreenTexture();
+    DrawFullscreenTexture((TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex));
+
+    if (0.0f < mPlayAlpha) {
+        DrawFullscreenTexture((TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex));
+    }
 
     // Start the Dear ImGui frame
     ImGui_ImplWin32_NewFrame();
@@ -933,8 +964,18 @@ MLDX12App::ShowPlaybackWindow(void)
             memset(path, 0, sizeof path);
             MultiByteToWideChar(CP_UTF8, 0, mReadPath, sizeof mReadPath, path, 511);
             if (mAviReader.Open(path)) {
-                mPlayMsg[0] = 0;
-                mPlayAlpha = 1.0f;
+                const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
+
+                if (bi.biWidth != 3840 || bi.biHeight != 2160 || bi.biCompression != MLFOURCC_v210) {
+                    sprintf_s(mPlayMsg, "Error: Not supported AVI format : %s", mReadPath);
+                    ImGui::OpenPopup("ErrorPlayPopup");
+                    mAviReader.Close();
+                } else {
+                    // success
+                    mPlayMsg[0] = 0;
+                    mPlayAlpha = 1.0f;
+                    mPlayFrameNr = 0;
+                }
             } else {
                 sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %s", mReadPath);
                 ImGui::OpenPopup("ErrorPlayPopup");
@@ -945,14 +986,29 @@ MLDX12App::ShowPlaybackWindow(void)
             mAviReader.Close();
             mPlayAlpha = 0.0f;
         }
-        ImGui::Text("Total %d frames, %d fps,. %.1f sec",
+        ImGui::Text("Total %d frames, %d fps, %.1f sec",
                 mAviReader.NumFrames(), mAviReader.FramesPerSec(), mAviReader.DurationSec());
         // シークバー。
         ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1);
 
         ImGui::DragFloat("Alpha", &mPlayAlpha, 0.01f, 0.0f, 1.0f);
 
+        const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
 
+        if (bi.biWidth == 3840 && bi.biHeight == 2160 && bi.biCompression == MLFOURCC_v210) {
+            // Maybe Blackmagic Micro Studio Camera 4K...
+            ImGui::Checkbox("Raw SDI preview", &mRawSDI);
+            if (mRawSDI) {
+                ImGui::DragFloat("Preview Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
+                ImGui::DragFloat("Preview Gain R", &mDrawGainR, 0.01f, 0.5f, 2.0f);
+                ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
+                ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
+
+                mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
+            }
+        }
+
+        UpdatePlayVideoTexture();
     }
 
     ImGui::End();
@@ -1019,30 +1075,31 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
     int bytes = width * height * 4;
 
-    MLCapturedImage ci;
+    MLImage ci;
     ci.imgFormat = s;
     ci.bytes = bytes;
     ci.width = width;
     ci.height = height;
-    ci.imgMode = MLCapturedImage::IM_RGB;
+    ci.imgMode = MLImage::IM_RGB;
     ci.data = new uint8_t[bytes];
         
+    uint8_t alpha = 255;
     uint32_t *pFrom = (uint32_t *)buffer;
     uint32_t *pTo = (uint32_t *)ci.data;
     switch (fmt) {
     case bmdFormat10BitRGB:
         {
-            MLConverter::Rgb10bitToRGBA(pFrom, pTo, width, height);
-            ci.imgMode = MLCapturedImage::IM_RGB;
+            MLConverter::Rgb10bitToRGBA(pFrom, pTo, width, height, alpha);
+            ci.imgMode = MLImage::IM_RGB;
         }
         break;
     case bmdFormat10BitYUV:
         if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, width, height);
-            ci.imgMode = MLCapturedImage::IM_RGB;
+            mConverter.RawYuvV210ToRGBA(pFrom, pTo, width, height, alpha);
+            ci.imgMode = MLImage::IM_RGB;
         } else {
-            MLConverter::YuvV210ToYuvA(pFrom, pTo, width, height);
-            ci.imgMode = MLCapturedImage::IM_YUV;
+            MLConverter::YuvV210ToYuvA(pFrom, pTo, width, height, alpha);
+            ci.imgMode = MLImage::IM_YUV;
         }
         break;
     default:
@@ -1065,7 +1122,7 @@ MLDX12App::ClearDrawQueue(void)
 {
     mMutex.lock();
     for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
-        MLCapturedImage &ci = *ite;
+        MLImage &ci = *ite;
         delete [] ci.data;
         ci.data = nullptr;
     }
@@ -1074,7 +1131,7 @@ MLDX12App::ClearDrawQueue(void)
 }
 
 void
-MLDX12App::UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texIdx)
+MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureEnum texIdx)
 {
     DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     int         pixelBytes = 4;
@@ -1085,7 +1142,7 @@ MLDX12App::UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texI
     if (ci.width != tex->GetDesc().Width
         || ci.height != tex->GetDesc().Height) {
         // 中でInternalRelease()される。
-        mTexCapturedVideo[!mTexVideoIdToShow] = nullptr;
+        tex = nullptr;
 
         // サイズが変わった。
         D3D12_RESOURCE_DESC texDesc = {};
@@ -1105,11 +1162,11 @@ MLDX12App::UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texI
             &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
-            IID_PPV_ARGS(&mTexCapturedVideo[!mTexVideoIdToShow])));
-        NAME_D3D12_OBJECT_INDEXED(mTexCapturedVideo, !mTexVideoIdToShow);
+            IID_PPV_ARGS(&tex)));
+        NAME_D3D12_OBJECT(tex);
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
-        srvHandle.Offset(!mTexVideoIdToShow, mSrvDescSize);
+        srvHandle.Offset(texIdx, mSrvDescSize);
 
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1117,13 +1174,13 @@ MLDX12App::UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texI
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        mDevice->CreateShaderResourceView(mTexCapturedVideo[!mTexVideoIdToShow].Get(), &srvDesc, srvHandle);
+        mDevice->CreateShaderResourceView(tex.Get(), &srvDesc, srvHandle);
     }
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
     ComPtr<ID3D12Resource> texUploadHeap;
     {
-        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexCapturedVideo[!mTexVideoIdToShow].Get(), 0, 1);
+        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(tex.Get(), 0, 1);
 
         // Create the GPU upload buffer.
         ThrowIfFailed(mDevice->CreateCommittedResource(
@@ -1134,15 +1191,15 @@ MLDX12App::UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texI
             nullptr,
             IID_PPV_ARGS(&texUploadHeap)));
 
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexCapturedVideo[!mTexVideoIdToShow].Get(),
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
         D3D12_SUBRESOURCE_DATA textureData = {};
         textureData.pData = &ci.data[0];
         textureData.RowPitch = ci.width * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * ci.height;
-        UpdateSubresources(mCmdListTexUpload.Get(), mTexCapturedVideo[!mTexVideoIdToShow].Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexCapturedVideo[!mTexVideoIdToShow].Get(),
+        UpdateSubresources(mCmdListTexUpload.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
             D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
     }
 
@@ -1165,19 +1222,67 @@ MLDX12App::UpdateCapturedVideoTexture(void) {
     //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
     //OutputDebugStringA(s);
 
-    MLCapturedImage ci = mCapturedImages.front();
+    MLImage ci = mCapturedImages.front();
     mCapturedImages.pop_front();
 
     mMutex.unlock();
 
-    ID3D12Resource *tex = mTexCapturedVideo[!mTexVideoIdToShow].Get();
+    UpdateVideoTexture(ci, mTexCapturedVideo[!mIdToShowCapVideoTex],
+            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
 
-    UpdateVideoTexture(ci, tex, !mTexVideoIdToShow);
+    mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
 
-    mTexVideoIdToShow = !mTexVideoIdToShow;
-
-    mDrawMode = ci.imgMode;
+    mCaptureDrawMode = ci.imgMode;
     delete[] ci.data;
     ci.data = nullptr;
+}
+
+void
+MLDX12App::UpdatePlayVideoTexture(void)
+{
+    if (mAviReader.NumFrames() == 0) {
+        return;
+    }
+
+    if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
+        return;
+    }
+
+    int bytes = mAviReader.GetImage(mPlayFrameNr, mPlayBufferBytes, mPlayBuffer);
+    if (bytes < 0) {
+        return;
+    }
+
+    const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
+
+    MLImage &ci = mPlayImage;
+    ci.width = bi.biWidth;
+    ci.height = bi.biHeight;
+    ci.bytes = bi.biWidth * bi.biHeight * 4;
+    ci.imgFormat = "";
+    ci.imgMode = MLImage::IM_RGB;
+
+    uint8_t alpha = (uint8_t)(mPlayAlpha * 255.0f + 0.5f);
+
+    uint32_t *pFrom = (uint32_t *)mPlayBuffer;
+    uint32_t *pTo = (uint32_t *)ci.data;
+    if (bi.biCompression == MLFOURCC_v210) {
+        if (mRawSDI) {
+            mConverter.RawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
+            ci.imgMode = MLImage::IM_RGB;
+        } else {
+            MLConverter::YuvV210ToYuvA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
+            ci.imgMode = MLImage::IM_YUV;
+        }
+    } else {
+        return;
+    }
+
+    UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex], 
+            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowPlayVideoTex));
+
+    mPlayDrawMode = ci.imgMode;
+
+    mIdToShowPlayVideoTex = !mIdToShowPlayVideoTex;
 }
 

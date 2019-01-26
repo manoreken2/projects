@@ -16,14 +16,6 @@
 
 HWND WinApp::mHwnd = nullptr;
 
-WinApp::WinApp(void)
-{
-}
-
-WinApp::~WinApp(void)
-{
-}
-
 int
 WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
 {

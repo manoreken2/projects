@@ -71,13 +71,13 @@
     <ClInclude Include="MLDrawings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MLCapturedImage.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MLAviReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MLAVICommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MLImage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

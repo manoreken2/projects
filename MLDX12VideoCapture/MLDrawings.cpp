@@ -1,7 +1,7 @@
 ﻿#include "MLDrawings.h"
 
 void
-MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct)
+MLDrawings::AddCrosshair(MLImage &ci, CrosshairType ct)
 {
     if (ct == CH_None) {
         return;
@@ -22,7 +22,7 @@ MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct)
     //                 a             y              cb         cr
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
-    case MLCapturedImage::IM_RGB:
+    case MLImage::IM_RGB:
         //        A B G R
         color = 0xffffffff;
         break;
@@ -73,7 +73,7 @@ MLDrawings::AddCrosshair(MLCapturedImage &ci, CrosshairType ct)
 }
 
 void
-MLDrawings::AddTitleSafeArea(MLCapturedImage &ci)
+MLDrawings::AddTitleSafeArea(MLImage &ci)
 {
     uint32_t *pTo = (uint32_t*)ci.data;
 
@@ -88,7 +88,7 @@ MLDrawings::AddTitleSafeArea(MLCapturedImage &ci)
     //                 a             y              cb         cr
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
-    case MLCapturedImage::IM_RGB:
+    case MLImage::IM_RGB:
         //        A B G R
         color = 0xffffffff;
         break;
@@ -125,7 +125,7 @@ MLDrawings::AddTitleSafeArea(MLCapturedImage &ci)
 }
 
 void
-MLDrawings::AddGrid(MLCapturedImage &ci, GridType gt)
+MLDrawings::AddGrid(MLImage &ci, GridType gt)
 {
     if (gt == GR_None) {
         return;
@@ -144,7 +144,7 @@ MLDrawings::AddGrid(MLCapturedImage &ci, GridType gt)
     //                 a             y              cb         cr
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
-    case MLCapturedImage::IM_RGB:
+    case MLImage::IM_RGB:
         //        A B G R
         color = 0xffffffff;
         break;

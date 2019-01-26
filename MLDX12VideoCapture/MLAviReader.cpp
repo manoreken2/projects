@@ -320,12 +320,12 @@ MLAviReader::GetImage(const int frameNr, const uint32_t buffBytes, uint8_t *buff
     }
 
     ImagePosBytes pb = mImages[frameNr];
-
-    _fseeki64(mFp, pb.pos, SEEK_SET);
-    uint32_t copyBytes = buffBytes;
-    if (pb.bytes < copyBytes) {
-        copyBytes = pb.bytes;
+    if (pb.bytes < buffBytes) {
+        printf("Error: buffBytes is too small\n");
+        return E_FAIL;
     }
 
-    return (int)fread(buff, 1, copyBytes, mFp);
+    _fseeki64(mFp, pb.pos, SEEK_SET);
+
+    return (int)fread(buff, 1, buffBytes, mFp);
 }

@@ -19,7 +19,7 @@
 #include <list>
 #include "MLAviWriter.h"
 #include "MLConverter.h"
-#include "MLCapturedImage.h"
+#include "MLImage.h"
 #include "MLDrawings.h"
 #include "MLAviReader.h"
 
@@ -31,6 +31,7 @@ struct ImDrawData;
 class MLDX12App : public MLDX12, IMLVideoCaptureCallback {
 public:
     MLDX12App(UINT width, UINT height);
+    virtual ~MLDX12App(void);
 
     virtual void OnInit(void);
     virtual void OnUpdate(void);
@@ -70,7 +71,7 @@ private:
     };
 
     State mState;
-    MLCapturedImage::ImageMode mDrawMode;
+    MLImage::ImageMode mCaptureDrawMode;
     MLDrawings::CrosshairType mCrosshairType;
     bool mTitleSafeArea;
     MLDrawings::GridType mGridType;
@@ -103,44 +104,44 @@ private:
     UINT                         mSrvDescSize;
     ComPtr<ID3D12Resource>      mTexImgui;
     ComPtr<ID3D12Resource>       mTexCapturedVideo[2];
-    ComPtr<ID3D12Resource>       mTexPlayVideo[2];
-    int mTexVideoIdToShow;
+    int mIdToShowCapVideoTex;
 
     UINT mFrameIdx;
     HANDLE mFenceEvent;
     ComPtr<ID3D12Fence> mFence;
     UINT64 mFenceValues[FrameCount];
     bool mWindowedMode;
-    bool mRawSDI;
-    
+
+    bool mRawSDI;    
     MLVideoCaptureEnum mVideoCaptureDeviceList;
     MLVideoCapture mVideoCapture;
-
-    std::list<MLCapturedImage> mCapturedImages;
+    std::list<MLImage> mCapturedImages;
     std::mutex mMutex;
-
     int64_t mFrameSkipCount;
-
     MLAviWriter mAviWriter;
-    MLAviReader mAviReader;
-
     char mWritePath[512];
-    char mReadPath[512];
-
     char mCaptureMsg[512];
-    char mPlayMsg[512];
-
     float mDrawGamma;
     float mDrawGainR;
     float mDrawGainG;
     float mDrawGainB;
 
+    ComPtr<ID3D12Resource> mTexPlayVideo[2];
+    MLImage mPlayImage;
+    uint8_t *mPlayBuffer;
+    int mPlayBufferBytes;
+    int mPlayFrameNr;
+    float mPlayAlpha;
+    char mReadPath[512];
+    char mPlayMsg[512];
+    MLAviReader mAviReader;
+    MLImage::ImageMode mPlayDrawMode;
+    int mIdToShowPlayVideoTex;
+    void UpdatePlayVideoTexture(void);
+
     MLConverter mConverter;
     MLDrawings mDrawings;
 
-    int mPlayFrameNr;
-    float mPlayAlpha;
-    
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);
@@ -151,7 +152,8 @@ private:
 
     void ClearDrawQueue(void);
 
-    void CreateVideoTexture(ComPtr<ID3D12Resource> & tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
+    void CreateVideoTexture(ComPtr<ID3D12Resource> & tex, int texIdx,
+            int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
     void UpdateCapturedVideoTexture(void);
 
     void SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso);
@@ -159,11 +161,11 @@ private:
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
 
-    void DrawFullscreenTexture(void);
+    void DrawFullscreenTexture(TextureEnum texId);
 
     void ShowCaptureSettingsWindow(void);
     void ShowPlaybackWindow(void);
 
-    void UpdateVideoTexture(MLCapturedImage &ci, ID3D12Resource *tex, int texIdx);
+    void UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureEnum texIdx);
 
 };

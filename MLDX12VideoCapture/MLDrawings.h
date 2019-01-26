@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MLCapturedImage.h"
+#include "MLImage.h"
 
 class MLDrawings {
 public:
@@ -16,8 +16,8 @@ public:
         GR_6x6,
     };
 
-    void AddCrosshair(MLCapturedImage &ci, CrosshairType ct);
-    void AddTitleSafeArea(MLCapturedImage &ci);
-    void AddGrid(MLCapturedImage &ci, GridType gt);
+    void AddCrosshair(MLImage &ci, CrosshairType ct);
+    void AddTitleSafeArea(MLImage &ci);
+    void AddGrid(MLImage &ci, GridType gt);
 };
 
