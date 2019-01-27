@@ -72,7 +72,7 @@ MLDX12App::OnInit(void)
 {
     mVideoCaptureDeviceList.Init();
 
-    OutputDebugString(L"OnInit started\n");
+    //OutputDebugString(L"OnInit started\n");
 
     LoadPipeline();
     LoadAssets();
@@ -80,7 +80,7 @@ MLDX12App::OnInit(void)
     mDx12Imgui.Init(mDevice.Get());
     CreateImguiTexture();
 
-    OutputDebugString(L"OnInit end\n");
+    //OutputDebugString(L"OnInit end\n");
 }
 
 void
@@ -644,14 +644,27 @@ MLDX12App::OnRender(void)
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     UpdateCapturedVideoTexture();
+    UpdatePlayVideoTexture();
 
     ThrowIfFailed(mSwapChain->Present(1, 0));
     MoveToNextFrame();
 }
 
 void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId)
+MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode)
 {
+    switch (drawMode) {
+    case MLImage::IM_RGB:
+        mCmdList->SetPipelineState(mPipelineStateRGB.Get());
+        break;
+    case MLImage::IM_YUV:
+        mCmdList->SetPipelineState(mPipelineStateYUV.Get());
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
     mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
     ID3D12DescriptorHeap* ppHeaps[] = { mSrvHeap.Get() };
@@ -663,10 +676,6 @@ MLDX12App::DrawFullscreenTexture(TextureEnum texId)
 
     mCmdList->RSSetViewports(1, &mViewport);
     mCmdList->RSSetScissorRects(1, &mScissorRect);
-
-    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
         mFrameIdx, mRtvDescSize);
@@ -681,31 +690,29 @@ void
 MLDX12App::PopulateCommandList(void)
 {
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
+    ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
-    switch (mCaptureDrawMode) {
-    case MLImage::IM_RGB:
-        ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
-        break;
-    case MLImage::IM_YUV:
-        ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateYUV.Get()));
-        break;
-    default:
-        break;
-    }
+    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT,
+        D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     {   // clear screen
-        const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
+        const float clearColorRGBA[] = {0.4f, 0.4f, 0.4f, 1.0f};
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
             mFrameIdx, mRtvDescSize);
         mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-        mCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+        mCmdList->ClearRenderTargetView(rtvHandle, clearColorRGBA, 0, nullptr);
     }
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
-    DrawFullscreenTexture((TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex));
+    DrawFullscreenTexture(
+            (TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex),
+            mCaptureDrawMode);
 
     if (0.0f < mPlayAlpha) {
-        DrawFullscreenTexture((TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex));
+        DrawFullscreenTexture(
+                (TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex),
+                mPlayDrawMode);
     }
 
     // Start the Dear ImGui frame
@@ -966,7 +973,7 @@ MLDX12App::ShowPlaybackWindow(void)
             if (mAviReader.Open(path)) {
                 const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
 
-                if (bi.biWidth != 3840 || bi.biHeight != 2160 || bi.biCompression != MLFOURCC_v210) {
+                if (bi.biCompression != MLFOURCC_v210) {
                     sprintf_s(mPlayMsg, "Error: Not supported AVI format : %s", mReadPath);
                     ImGui::OpenPopup("ErrorPlayPopup");
                     mAviReader.Close();
@@ -986,8 +993,18 @@ MLDX12App::ShowPlaybackWindow(void)
             mAviReader.Close();
             mPlayAlpha = 0.0f;
         }
-        ImGui::Text("Total %d frames, %d fps, %.1f sec",
-                mAviReader.NumFrames(), mAviReader.FramesPerSec(), mAviReader.DurationSec());
+        ImGui::Text("%d x %d, %d fps, %.1f sec",
+                mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
+                mAviReader.FramesPerSec(), mAviReader.DurationSec());
+
+        {
+            // hour:min:sec:frameを算出。
+            auto vt = mAviReader.FrameNrToTime(mPlayFrameNr);
+
+            ImGui::Text("%02d:%02d:%02d:%02d",
+                vt.hour, vt.min, vt.sec, vt.frame);
+        }
+
         // シークバー。
         ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1);
 
@@ -1007,8 +1024,6 @@ MLDX12App::ShowPlaybackWindow(void)
                 mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
             }
         }
-
-        UpdatePlayVideoTexture();
     }
 
     ImGui::End();
@@ -1175,6 +1190,9 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureE
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
         mDevice->CreateShaderResourceView(tex.Get(), &srvDesc, srvHandle);
+    } else {
+        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
     }
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
@@ -1190,9 +1208,6 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureE
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&texUploadHeap)));
-
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
 
         D3D12_SUBRESOURCE_DATA textureData = {};
         textureData.pData = &ci.data[0];
@@ -1279,7 +1294,7 @@ MLDX12App::UpdatePlayVideoTexture(void)
     }
 
     UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex], 
-            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowPlayVideoTex));
+            (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
 
     mPlayDrawMode = ci.imgMode;
 

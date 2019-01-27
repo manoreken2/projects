@@ -31,7 +31,6 @@ PSInput VSMain(float4 pos : POSITION, float4 uv : TEXCOORD)
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 rgba = g_texture.Sample(g_sampler, input.uv);
-    rgba.a = 1.0f;
     return rgba;
 }
 

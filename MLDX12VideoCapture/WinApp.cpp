@@ -15,17 +15,22 @@
 #include "imgui_impl_win32.h"
 
 HWND WinApp::mHwnd = nullptr;
+std::wstring WinApp::mTitle = L"WinApp";
 
 int
-WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
+WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow, const wchar_t *title)
 {
+    if (title) {
+        mTitle = title;
+    }
+
     WNDCLASSEX wc = { 0 };
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.lpszClassName = L"DXSampleClass";
+    wc.lpszClassName = mTitle.c_str();
     RegisterClassEx(&wc);
 
     RECT rect = { 0, 0, static_cast<LONG>(pDX12->Width()), static_cast<LONG>(pDX12->Height()) };
@@ -33,7 +38,7 @@ WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow)
 
     mHwnd = CreateWindow(
         wc.lpszClassName,
-        L"WinApp",
+        mTitle.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -100,7 +105,7 @@ WinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_SIZE:
         if (pDX12) {
-            OutputDebugString(L"WM_SIZE\n");
+            //OutputDebugString(L"WM_SIZE\n");
             RECT windowR = {};
             GetWindowRect(hWnd, &windowR);
             pDX12->SetWindowBounds(

@@ -60,7 +60,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     r.r = rgb.x;
     r.g = rgb.y;
     r.b = rgb.z;
-    r.a = 1.0f;
+    r.a = vuya.w;
 
     return r;
 }

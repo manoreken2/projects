@@ -161,7 +161,7 @@ private:
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
 
-    void DrawFullscreenTexture(TextureEnum texId);
+    void DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode);
 
     void ShowCaptureSettingsWindow(void);
     void ShowPlaybackWindow(void);

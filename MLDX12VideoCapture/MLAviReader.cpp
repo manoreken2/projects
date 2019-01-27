@@ -14,6 +14,28 @@ MLAviReader::~MLAviReader(void)
     Close();
 }
 
+MLVideoTime
+MLAviReader::FrameNrToTime(const int frameNr)
+{
+    MLVideoTime r;
+    memset(&r, 0, sizeof r);
+
+    if (FramesPerSec() == 0) {
+        return r;
+    }
+
+    r.frame = frameNr % FramesPerSec();
+    const int totalSec = frameNr / FramesPerSec();
+
+    r.hour = totalSec / 3600;
+    int remain = totalSec - r.hour * 3600;
+    r.min = remain / 60;
+    remain -= r.min * 60;
+    r.sec = remain;
+
+    return r;
+}
+
 float
 MLAviReader::DurationSec(void) const
 {
@@ -242,7 +264,8 @@ MLAviReader::ReadAviStreamFormatHeader(void)
         return false;
     }
 
-    if (bytes == 40) {
+    if (mAviStreamHeader.fccType == MLFOURCC_vids
+            && bytes == 40) {
         // BITMAPINFOHEADER
         if (40 != fread(&mImageFormat, 1, 40, mFp)) {
             printf("Error: ReadAviStreamFormatHeader() read BITMAPINFOHEADER failed\n");
@@ -320,7 +343,7 @@ MLAviReader::GetImage(const int frameNr, const uint32_t buffBytes, uint8_t *buff
     }
 
     ImagePosBytes pb = mImages[frameNr];
-    if (pb.bytes < buffBytes) {
+    if (buffBytes < pb.bytes) {
         printf("Error: buffBytes is too small\n");
         return E_FAIL;
     }

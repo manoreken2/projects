@@ -30,7 +30,7 @@ wWinMain(
 
     MLDX12App app(1920, 1080);
 
-    int rv = WinApp::Run(&app, hInstance, nCmdShow);
+    int rv = WinApp::Run(&app, hInstance, nCmdShow, L"MLDX12VideoCapture");
 
     if (coInitialized) {
         CoUninitialize();

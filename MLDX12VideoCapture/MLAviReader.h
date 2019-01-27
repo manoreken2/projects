@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "Common.h"
 #include "MLAVICommon.h"
+#include "MLVideoTime.h"
 
 class MLAviReader {
 public:
@@ -20,6 +21,8 @@ public:
     int FramesPerSec(void) const { return mAviStreamHeader.dwRate; }
 
     float DurationSec(void) const;
+
+    MLVideoTime FrameNrToTime(const int frameNr);
 
     /// @return > 0 : copied bytes, negative value: error.
     int GetImage(const int frameNr,
