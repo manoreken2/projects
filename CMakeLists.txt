@@ -6,5 +6,7 @@ add_subdirectory(BMRawYuv422p10ToTiff)
 add_subdirectory(DngRW)
 add_subdirectory(ImageToDng)
 add_subdirectory(DngHeaderDump)
+add_subdirectory(DumpAVIHeaders)
+
 
 

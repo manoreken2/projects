@@ -300,7 +300,8 @@ namespace DumpAVIHeaders {
                     Console.Write("{0} ", FourCCToString(fcc));
                     ++mVideoCount;
                 } else if (((fcc>>16) & 0xffff) == CompressedVideo) {
-                    Console.WriteLine("{0:x12} CompressedVideo {1}bytes", br.BaseStream.Position, bBytes);
+                    Console.Write("{0} ", FourCCToString(fcc));
+                    ++mVideoCount;
                 } else if (((fcc>>16) & 0xffff) == PaletteChange) {
                     Console.WriteLine("{0:x12} PaletteChange {1}bytes", br.BaseStream.Position, bBytes);
                 } else if (((fcc>>16) & 0xffff) == AudioData) {
