@@ -36,6 +36,7 @@ namespace BMRawYuv422p10ToTiff {
                 result = false;
             }
 
+
             return result;
         }
 
@@ -93,8 +94,7 @@ namespace BMRawYuv422p10ToTiff {
                 ushort[] p16 = new ushort[8];
                 var sensorRaw = new ushort[OUT_W * OUT_H];
                 int count = 0;
-                int bytes = 0;
-
+                
                 for (int i = 0; i < WH; i += 6) {
                     int yPos = i;
                     int cPos = i / 2;

@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Diagnostics;
 
-namespace BMRawYuv422p10ToDng {
+namespace BMRawAVIv210ToDng {
     public class Convert {
         private const int IMAGE_W = 3840;
         private const int IMAGE_H = 2160;
@@ -31,6 +31,7 @@ namespace BMRawYuv422p10ToDng {
                     string toPath = string.Format("{0}\\{1}_{2:d5}.dng", toDirPath, toFilename, i);
                     Write(toPath);
                 }
+                Console.WriteLine("Done. Please fix DNG file using Adobe DNG Converter.");
             } catch (Exception ex) {
                 Console.WriteLine(ex);
                 result = false;

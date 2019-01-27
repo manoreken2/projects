@@ -4,7 +4,7 @@ namespace BMRawAVIv210ToDng {
     class Program {
         static void Main(string[] args) {
             if (args.Length != 2) {
-                Console.WriteLine("Usage: BMRawYuv420p10ToDng fromYuv420p10ImageFilePath toDngFilePathTemplate");
+                Console.WriteLine("Usage: BMRawAVIv210ToDng fromAVIFilePath toDngFilePathTemplate");
                 return;
             }
 

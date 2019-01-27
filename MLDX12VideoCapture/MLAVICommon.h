@@ -24,7 +24,7 @@ enum MLFOURCC {
 };
 
 struct MLAviMainHeader {
-    uint32_t fcc;
+    uint32_t fcc; //< "avih"
     uint32_t cb;
     uint32_t dwMicroSecPerFrame;
     uint32_t dwMaxBytesPersec;
@@ -45,7 +45,7 @@ struct MLAviMainHeader {
 };
 
 struct MLAviStreamHeader {
-    uint32_t fcc;
+    uint32_t fcc; //< "strh"
     uint32_t cb;
     uint32_t fccType;
     uint32_t fccHandler;
