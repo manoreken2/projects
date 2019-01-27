@@ -107,7 +107,7 @@ namespace BMRawAVIv210ToDng {
 
                     for (int j = 0; j < 8; ++j) {
                         // p16 : 16bit value
-                        ushort p16 = (ushort)(p12[j] << 4);
+                        ushort p16 = (ushort)(p12[j] * 16);
                         sensorBytes[posT++] = (byte)(p16 & 0xff);
                         sensorBytes[posT++] = (byte)((p16 >> 8) & 0xff);
                     }
