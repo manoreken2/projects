@@ -643,8 +643,12 @@ MLDX12App::OnRender(void)
     ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    UpdateCapturedVideoTexture();
-    UpdatePlayVideoTexture();
+    // texture upload
+    bool bUpCap = UpdateCapturedVideoTexture();
+    if (!bUpCap) {
+        // テクスチャアップロードのための資源が1個しかないので。
+        UpdatePlayVideoTexture();
+    }
 
     ThrowIfFailed(mSwapChain->Present(1, 0));
     MoveToNextFrame();
@@ -1224,13 +1228,13 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureE
     WaitForGpu();
 }
 
-void
+bool
 MLDX12App::UpdateCapturedVideoTexture(void) {
     mMutex.lock();
     if (mCapturedImages.empty()) {
         mMutex.unlock();
         //OutputDebugString(L"Not Available\n");
-        return;
+        return false;
     }
 
     //char s[256];
@@ -1250,22 +1254,24 @@ MLDX12App::UpdateCapturedVideoTexture(void) {
     mCaptureDrawMode = ci.imgMode;
     delete[] ci.data;
     ci.data = nullptr;
+
+    return true;
 }
 
-void
+bool
 MLDX12App::UpdatePlayVideoTexture(void)
 {
     if (mAviReader.NumFrames() == 0) {
-        return;
+        return false;
     }
 
     if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
-        return;
+        return false;
     }
 
     int bytes = mAviReader.GetImage(mPlayFrameNr, mPlayBufferBytes, mPlayBuffer);
     if (bytes < 0) {
-        return;
+        return false;
     }
 
     const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
@@ -1290,7 +1296,7 @@ MLDX12App::UpdatePlayVideoTexture(void)
             ci.imgMode = MLImage::IM_YUV;
         }
     } else {
-        return;
+        return false;
     }
 
     UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex], 
@@ -1299,5 +1305,6 @@ MLDX12App::UpdatePlayVideoTexture(void)
     mPlayDrawMode = ci.imgMode;
 
     mIdToShowPlayVideoTex = !mIdToShowPlayVideoTex;
+    return true;
 }
 

@@ -137,7 +137,7 @@ private:
     MLAviReader mAviReader;
     MLImage::ImageMode mPlayDrawMode;
     int mIdToShowPlayVideoTex;
-    void UpdatePlayVideoTexture(void);
+    bool UpdatePlayVideoTexture(void);
 
     MLConverter mConverter;
     MLDrawings mDrawings;
@@ -154,7 +154,7 @@ private:
 
     void CreateVideoTexture(ComPtr<ID3D12Resource> & tex, int texIdx,
             int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
-    void UpdateCapturedVideoTexture(void);
+    bool UpdateCapturedVideoTexture(void);
 
     void SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso);
 

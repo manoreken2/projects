@@ -7,6 +7,7 @@ MLAviReader::MLAviReader(void)
     memset(&mAviMainHeader, 0, sizeof mAviMainHeader);
     memset(&mAviStreamHeader, 0, sizeof mAviStreamHeader);
     memset(&mImageFormat, 0, sizeof mImageFormat);
+    mImageCache.Set(-1, 0, nullptr);
 }
 
 MLAviReader::~MLAviReader(void)
@@ -73,6 +74,9 @@ MLAviReader::Close(void)
     memset(&mAviMainHeader, 0, sizeof mAviMainHeader);
     memset(&mAviStreamHeader, 0, sizeof mAviStreamHeader);
     memset(&mImageFormat, 0, sizeof mImageFormat);
+
+    delete [] mImageCache.buff;
+    mImageCache.Set(-1, 0, nullptr);
 }
 
 bool
@@ -348,7 +352,24 @@ MLAviReader::GetImage(const int frameNr, const uint32_t buffBytes, uint8_t *buff
         return E_FAIL;
     }
 
+    if (mImageCache.frameNr == frameNr) {
+        assert(mImageCache.bytes <= buffBytes);
+        // cache hit.
+        memcpy(buff, mImageCache.buff, mImageCache.bytes);
+        return mImageCache.bytes;
+    }
+
     _fseeki64(mFp, pb.pos, SEEK_SET);
 
-    return (int)fread(buff, 1, buffBytes, mFp);
+    int nBytes = (int)fread(buff, 1, buffBytes, mFp);
+
+    delete [] mImageCache.buff;
+    mImageCache.buff = nullptr;
+
+    mImageCache.frameNr = frameNr;
+    mImageCache.bytes = nBytes;
+    mImageCache.buff = new uint8_t[nBytes];
+    memcpy(mImageCache.buff, buff, nBytes);
+
+    return nBytes;
 }

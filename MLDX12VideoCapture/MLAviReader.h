@@ -44,6 +44,19 @@ private:
 
     std::vector<ImagePosBytes> mImages;
 
+    struct ImageItem {
+        int frameNr;
+        uint32_t bytes;
+        uint8_t *buff;
+        void Set(int aFrameNr, uint32_t aBytes, uint8_t *aBuff) {
+            frameNr = aFrameNr;
+            bytes = aBytes;
+            buff = aBuff;
+        }
+    };
+
+    ImageItem mImageCache;
+
     bool ReadFourBytes(uint32_t &fcc_return);
     bool ReadRiff(void);
     bool ReadListHeader(void);
