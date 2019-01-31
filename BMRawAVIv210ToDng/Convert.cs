@@ -61,7 +61,8 @@ namespace BMRawAVIv210ToDng {
 
         private void Write(byte[] from, string toPath) {
             using (var bw = new BinaryWriter(new FileStream(toPath, FileMode.Create, FileAccess.Write))) {
-                DngRW.DngWriter.WriteDngHeader(bw, BAYER_W, BAYER_H, 16, DngRW.DngWriter.CFAPatternType.GRBG);
+                DngRW.DngWriter.WriteCinemaDngHeader(bw, BAYER_W, BAYER_H, 16,
+                        DngRW.DngWriter.CFAPatternType.GRBG);
 
                 var sensorBytes = new byte[BAYER_WH * 2];
                 int posT = 0;
