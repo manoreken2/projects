@@ -7,17 +7,136 @@ namespace DngRW {
 
         private int mNumIFDEntries;
 
+        private readonly int[] mCinemaDNGtagsMandatory = new int[] {
+            254,
+            256,
+            257,
+            258,
+            259,
+            262,
+            //273,
+            274,
+            277,
+            //278,
+            //279,
+            284,
+            33421,
+            33422,
+            50706,
+            50708,
+            50721,
+        };
+
+        private readonly int[] mCinemaDNGtagsNoAllowed = new int[] {
+            301,
+            318,
+            319,
+            320,
+            347,
+            529,
+            530,
+            531,
+            532,
+            34675,
+            34856,
+            37121,
+            40961,
+            41730,
+            41985,
+        };
+
+        private List<int> mAppearedTags = new List<int>();
+
+        private enum Endianness {
+            BigEndian,
+            LittleEndian
+        };
+
+        private Endianness mEndian;
+
+        private short ReadInt16(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadInt16();
+            } else {
+                var b = br.ReadBytes(2);
+                return (short)(b[0] * 256 + b[1]);
+            }
+        }
+
+        private ushort ReadUInt16(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadUInt16();
+            } else {
+                var b = br.ReadBytes(2);
+                return (ushort)(b[0] * 256 + b[1]);
+            }
+        }
+
+        private int ReadInt32(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadInt32();
+            } else {
+                var b = br.ReadBytes(4);
+                return (int)((b[0] << 24) + (b[1] << 16) + (b[2] << 8) + b[3]);
+            }
+        }
+
+        private uint ReadUInt32(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadUInt32();
+            } else {
+                var b = br.ReadBytes(4);
+                return (uint)((b[0] <<24) + (b[1] <<16) + (b[2] <<8) + b[3]);
+            }
+        }
+
+        private float ReadSingle(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadSingle();
+            } else {
+                var b = br.ReadBytes(4);
+                var l = new byte[4];
+                l[0] = b[3];
+                l[1] = b[2];
+                l[2] = b[1];
+                l[3] = b[0];
+
+                return BitConverter.ToSingle(l,0);
+            }
+        }
+
+        private double ReadDouble(BinaryReader br) {
+            if (mEndian == Endianness.LittleEndian) {
+                return br.ReadDouble();
+            } else {
+                var b = br.ReadBytes(8);
+                var l = new byte[8];
+                for (int i=0; i<8; ++i) {
+                    l[i] = b[7 - i];
+                }
+
+                return BitConverter.ToDouble(l, 0);
+            }
+        }
+
         private bool ReadHeader(BinaryReader br) {
-            short byteOrder = br.ReadInt16(); // little endian
-            short magic = br.ReadInt16();
-            uint offset = br.ReadUInt32();
-
-            Console.WriteLine("ByteOrder={0:X4} Magic={1:X4} Offset={2:X8}", byteOrder, magic, offset);
-
-            if (byteOrder != 0x4949) {
-                Console.WriteLine("Error: not little endian!");
+            short byteOrder = br.ReadInt16();
+            if (byteOrder == 0x4949) {
+                Console.WriteLine("Byte order == little endian");
+                mEndian = Endianness.LittleEndian;
+            } else if (byteOrder == 0x4d4d) {
+                Console.WriteLine("Byte order == big endian");
+                mEndian = Endianness.BigEndian;
+            } else {
+                Console.WriteLine("Error: byte order err");
                 return false;
             }
+
+            short magic = ReadInt16(br);
+            uint offset = ReadUInt32(br);
+            
+            Console.WriteLine("ByteOrder={0:X4} Magic={1:X4} Offset={2:X8}", byteOrder, magic, offset);
+
             if (42 != magic) {
                 Console.WriteLine("Error: magic number mismatch!");
                 return false;
@@ -36,17 +155,19 @@ namespace DngRW {
         private bool ReadIFDEntry(BinaryReader br, IFDType ifdt, out IFDEntry ifdEntry) {
             long pos = br.BaseStream.Position;
 
-            uint originalTag = br.ReadUInt16();
+            uint originalTag = ReadUInt16(br);
 
             int t = (int)originalTag;
             if (ifdt == IFDType.Gps) {
                 t += 0x10000;
+            } else {
+                mAppearedTags.Add(t);
             }
 
-            int f = br.ReadUInt16();
-            int count = br.ReadInt32();
+            int f = ReadUInt16(br);
+            int count = ReadInt32(br);
 
-            uint dataOffset = br.ReadUInt32();
+            uint dataOffset = ReadUInt32(br);
 
             var tag = IFDEntry.Tag.Unknown;
             if (Enum.IsDefined(typeof(IFDEntry.Tag), t)) {
@@ -88,7 +209,8 @@ namespace DngRW {
             return true;
         }
 
-        private IFDEntry CreateIFDEntry(BinaryReader br, IFDEntry.Tag tag, IFDEntry.FieldType ft, int count) {
+        private IFDEntry CreateIFDEntry(BinaryReader br, IFDEntry.Tag tag,
+                IFDEntry.FieldType ft, int count) {
             switch (ft) {
             case IFDEntry.FieldType.ASCII:
             case IFDEntry.FieldType.BYTE:
@@ -100,49 +222,49 @@ namespace DngRW {
             case IFDEntry.FieldType.SHORT: {
                     var s = new ushort[count];
                     for (int i = 0; i < count; ++i) {
-                        s[i] = br.ReadUInt16();
+                        s[i] = ReadUInt16(br);
                     }
                     return new IFDEntry(tag, ft, count, s);
                 }
             case IFDEntry.FieldType.SSHORT: {
                     var s = new short[count];
                     for (int i = 0; i < count; ++i) {
-                        s[i] = br.ReadInt16();
+                        s[i] = ReadInt16(br);
                     }
                     return new IFDEntry(tag, ft, count, s);
                 }
             case IFDEntry.FieldType.FLOAT:
                 var f = new float[count];
                 for (int i = 0; i < count; ++i) {
-                    f[i] = br.ReadSingle();
+                    f[i] = ReadSingle(br);
                 }
                 return new IFDEntry(tag, ft, count, f);
             case IFDEntry.FieldType.LONG: {
                     var l = new uint[count];
                     for (int i = 0; i < count; ++i) {
-                        l[i] = br.ReadUInt32();
+                        l[i] = ReadUInt32(br);
                     }
                     return new IFDEntry(tag, ft, count, l);
                 }
             case IFDEntry.FieldType.SLONG: {
                     var l = new int[count];
                     for (int i = 0; i < count; ++i) {
-                        l[i] = br.ReadInt32();
+                        l[i] = ReadInt32(br);
                     }
                     return new IFDEntry(tag, ft, count, l);
                 }
             case IFDEntry.FieldType.DOUBLE:
                 var d = new double[count];
                 for (int i = 0; i < count; ++i) {
-                    d[i] = br.ReadDouble();
+                    d[i] = ReadDouble(br);
                 }
                 return new IFDEntry(tag, ft, count, d);
             case IFDEntry.FieldType.RATIONAL:
             case IFDEntry.FieldType.SRATIONAL:
                 var r = new IFDRational[count];
                 for (int i = 0; i < count; ++i) {
-                    int numer = br.ReadInt32();
-                    int denom = br.ReadInt32();
+                    int numer = ReadInt32(br);
+                    int denom = ReadInt32(br);
                     r[i] = new IFDRational(numer, denom);
                 }
                 return new IFDEntry(tag, ft, count, r);
@@ -364,7 +486,7 @@ namespace DngRW {
         long mGpsIFDPos;
 
         private bool ParseOneIFD(BinaryReader br, IFDType ifdt) {
-            mNumIFDEntries = br.ReadUInt16();
+            mNumIFDEntries = ReadUInt16(br);
             Console.WriteLine("NumIfdEntries={0:X4}", mNumIFDEntries);
 
             Console.WriteLine("Offs     tag  type count    data/offs");
@@ -421,7 +543,7 @@ namespace DngRW {
             }
             // Next IFD offset
             var endPos = br.BaseStream.Position;
-            mNextIFDPos = br.ReadUInt32();
+            mNextIFDPos = ReadUInt32(br);
             Console.WriteLine("{0:X8} Next IFD Offset=={1:X8}", endPos, mNextIFDPos);
             Console.WriteLine("End.");
 
@@ -470,6 +592,23 @@ namespace DngRW {
                     br.BaseStream.Seek(pos, SeekOrigin.Begin);
                     ParseOneIFD(br, IFDType.General);
                     ++idx;
+                }
+            }
+
+            var appearedTags = new HashSet<int>();
+            foreach (int iTag in mAppearedTags) {
+                appearedTags.Add(iTag);
+            }
+
+            foreach (int iTag in mCinemaDNGtagsMandatory) {
+                if (!appearedTags.Contains(iTag)) {
+                    Console.WriteLine("Info: CinemaDNG mandatory tag {0} is missing", (IFDEntry.Tag)iTag);
+                }
+            }
+
+            foreach (int iTag in mCinemaDNGtagsNoAllowed) {
+                if (appearedTags.Contains(iTag)) {
+                    Console.WriteLine("Info: CinemaDNG not allowed tag {0} exists", (IFDEntry.Tag)iTag);
                 }
             }
 
