@@ -38,18 +38,17 @@ namespace DngRW {
                 es.Add(new IFDEntry(IFDEntry.Tag.PhotometricInterpretation,
                         IFDEntry.FieldType.SHORT, 1,
                         (ushort)IFDEntry.PhotometricInterpretationType.ColorFilterArray));
+                es.Add(new IFDEntry(IFDEntry.Tag.Orientation, IFDEntry.FieldType.SHORT, 1,
+                        (ushort)IFDEntry.OrientationType.TopLeft));
+                es.Add(new IFDEntry(IFDEntry.Tag.SamplesPerPixel, IFDEntry.FieldType.SHORT, 1, 1));
+                es.Add(new IFDEntry(IFDEntry.Tag.PlanarConfiguration, IFDEntry.FieldType.SHORT,
+                        1, (ushort)IFDEntry.PlanarConfigurationType.Chunky));
 
                 long stripOffsetsPos = startOfIFDEntry + es.Count * 12 + 8;
                 es.Add(new IFDEntry(IFDEntry.Tag.StripOffsets, IFDEntry.FieldType.LONG, 1, 0));
 
-                es.Add(new IFDEntry(IFDEntry.Tag.Orientation, IFDEntry.FieldType.SHORT, 1,
-                        (ushort)IFDEntry.OrientationType.TopLeft));
-
-                es.Add(new IFDEntry(IFDEntry.Tag.SamplesPerPixel, IFDEntry.FieldType.SHORT, 1, 1));
                 es.Add(new IFDEntry(IFDEntry.Tag.RowsPerStrip, IFDEntry.FieldType.LONG, 1, H));
                 es.Add(new IFDEntry(IFDEntry.Tag.StripByteCounts, IFDEntry.FieldType.LONG, 1, W * H * bitsPerSample / 8));
-                es.Add(new IFDEntry(IFDEntry.Tag.PlanarConfiguration, IFDEntry.FieldType.SHORT,
-                        1, (ushort)IFDEntry.PlanarConfigurationType.Chunky));
                 es.Add(new IFDEntry(IFDEntry.Tag.CFARepeatPatternDim,
                         IFDEntry.FieldType.SHORT, 2, new ushort[] { 2, 2 }));
 
@@ -73,44 +72,43 @@ namespace DngRW {
                     }
                     es.Add(new IFDEntry(IFDEntry.Tag.CFAPattern, IFDEntry.FieldType.BYTE, 4, cfaB));
                 }
-                es.Add(new IFDEntry(IFDEntry.Tag.CFAPlaneColor, IFDEntry.FieldType.BYTE, 3, new byte[] { 0, 1, 2 }));
-                es.Add(new IFDEntry(IFDEntry.Tag.CFALayout, IFDEntry.FieldType.SHORT, 1, (ushort)IFDEntry.CFALayoutType.RectangularOrSquare));
 
-                es.Add(new IFDEntry(IFDEntry.Tag.Software, IFDEntry.FieldType.ASCII, "Software"));
-                es.Add(new IFDEntry(IFDEntry.Tag.DateTime, IFDEntry.FieldType.ASCII, "2018:10:07 11:11:01"));
-
+                es.Add(new IFDEntry(IFDEntry.Tag.ISOSpeedRatings, IFDEntry.FieldType.SHORT, 1, 0x64));
                 es.Add(new IFDEntry(IFDEntry.Tag.DNGVersion, IFDEntry.FieldType.BYTE, 4, new byte[] { 1, 1, 0, 0 }));
-                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant1, IFDEntry.FieldType.SHORT, 1, (int)IFDEntry.LightSourceType.StandardLightA));
+                es.Add(new IFDEntry(IFDEntry.Tag.UniqueCameraModel, IFDEntry.FieldType.ASCII, "Camera"));
+                es.Add(new IFDEntry(IFDEntry.Tag.CFAPlaneColor, IFDEntry.FieldType.BYTE, 3, new byte[] { 0, 1, 2 }));
+                es.Add(new IFDEntry(IFDEntry.Tag.CFALayout, IFDEntry.FieldType.SHORT, 1,
+                        (ushort)IFDEntry.CFALayoutType.RectangularOrSquare));
+                es.Add(new IFDEntry(IFDEntry.Tag.BlackLevelRepeatDim, IFDEntry.FieldType.SHORT, 2, new ushort[] { 2, 2 }));
+                es.Add(new IFDEntry(IFDEntry.Tag.BlackLevel, IFDEntry.FieldType.LONG, 4, new uint[] { 0, 0, 0, 0 }));
+                es.Add(new IFDEntry(IFDEntry.Tag.DefaultScale, IFDEntry.FieldType.RATIONAL, 2,
+                        new IFDRational[] { new IFDRational(1000000, 1000000), new IFDRational(1000000, 1000000)}));
+
                 es.Add(new IFDEntry(IFDEntry.Tag.ColorMatrix1, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] {
                     new IFDRational(7960, 10000), new IFDRational(-3736, 10000), new IFDRational(3350, 10000),
                     new IFDRational(-1422, 10000), new IFDRational(6513, 10000), new IFDRational(5888, 10000),
                     new IFDRational(1203, 10000), new IFDRational(-42, 10000), new IFDRational(8799, 10000)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.CameraCalibration1, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] {
-                    new IFDRational(1, 1), new IFDRational(0, 1), new IFDRational(0, 1),
-                    new IFDRational(0, 1), new IFDRational(1, 1), new IFDRational(0, 1),
-                    new IFDRational(0, 1), new IFDRational(0, 1), new IFDRational(1, 1)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant2, IFDEntry.FieldType.SHORT, 1, (int)IFDEntry.LightSourceType.D55));
                 es.Add(new IFDEntry(IFDEntry.Tag.ColorMatrix2, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] {
                     new IFDRational(8716, 10000), new IFDRational(-3218, 10000), new IFDRational(1392, 10000),
                     new IFDRational(-984, 10000), new IFDRational(7487, 10000), new IFDRational(4196, 10000),
                     new IFDRational(1919, 10000), new IFDRational(-72, 10000), new IFDRational(8243, 10000)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.CameraCalibration2, IFDEntry.FieldType.SRATIONAL, 9, new IFDRational[] {
-                    new IFDRational(1, 1), new IFDRational(0, 1), new IFDRational(0, 1),
-                    new IFDRational(0, 1), new IFDRational(1, 1), new IFDRational(0, 1),
-                    new IFDRational(0, 1), new IFDRational(0, 1), new IFDRational(1, 1)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.AnalogBalance, IFDEntry.FieldType.RATIONAL, 3, new IFDRational[] {
-                    new IFDRational(1, 1), new IFDRational(1, 1), new IFDRational(1, 1)}));
+                    new IFDRational(1000000, 1000000), new IFDRational(1000000, 1000000), new IFDRational(1000000, 1000000)}));
+                es.Add(new IFDEntry(IFDEntry.Tag.AsShotNeutral, IFDEntry.FieldType.RATIONAL, 3, new IFDRational[] {
+                    new IFDRational(4096, 10457), new IFDRational(4096, 4096), new IFDRational(4096, 6599)}));
                 es.Add(new IFDEntry(IFDEntry.Tag.BaselineExposure, IFDEntry.FieldType.SRATIONAL, 1, new IFDRational[] {
-                    new IFDRational(2, 1) }));
-                es.Add(new IFDEntry(IFDEntry.Tag.BaselineNoise, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(100, 100) }));
-                es.Add(new IFDEntry(IFDEntry.Tag.BaselineSharpness, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(100, 100) }));
-                es.Add(new IFDEntry(IFDEntry.Tag.LinearResponseLimit, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(100, 100) }));
-                es.Add(new IFDEntry(IFDEntry.Tag.UniqueCameraModel, IFDEntry.FieldType.ASCII, "Camera"));
-                es.Add(new IFDEntry(IFDEntry.Tag.CameraSerialNumber, IFDEntry.FieldType.ASCII, "1"));
-                es.Add(new IFDEntry(IFDEntry.Tag.LensInfo, IFDEntry.FieldType.RATIONAL, 4, new IFDRational[] {
-                    new IFDRational(500, 10), new IFDRational(500, 10), new IFDRational(14, 10), new IFDRational(220, 10)}));
-                es.Add(new IFDEntry(IFDEntry.Tag.ShadowScale, IFDEntry.FieldType.RATIONAL, 1, new IFDRational[] { new IFDRational(1, 1) }));
+                    new IFDRational(0, 1) }));
+                es.Add(new IFDEntry(IFDEntry.Tag.BayerGreenSplit, IFDEntry.FieldType.LONG, 1, 0));
+                es.Add(new IFDEntry(IFDEntry.Tag.AntiAliasStrength, IFDEntry.FieldType.RATIONAL, 1,
+                    new IFDRational(1000000, 1000000)));
                 es.Add(new IFDEntry(IFDEntry.Tag.DNGPrivateData, IFDEntry.FieldType.BYTE, 5, new byte[] { (byte)'M', (byte)'a', (byte)'k', (byte)'e', 0 }));
+                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant1, IFDEntry.FieldType.SHORT, 1,
+                    (int)IFDEntry.LightSourceType.StandardLightA));
+                es.Add(new IFDEntry(IFDEntry.Tag.CalibrationIlluminant2, IFDEntry.FieldType.SHORT, 1,
+                    (int)IFDEntry.LightSourceType.D65));
+                es.Add(new IFDEntry(IFDEntry.Tag.FrameRate, IFDEntry.FieldType.SRATIONAL, 1,
+                    new IFDRational(30000, 1000)));
+
 
                 // Num of IFD Entriesが決まったので書き込む。
                 bw.Write((short)es.Count);
