@@ -10,7 +10,7 @@ namespace DngHeaderDump {
 
             var r = new DngRW.DngReader();
             r.ReadHeader(args[0]);
-            r.InspectContent(args[0]);
+           
 
         }
     }

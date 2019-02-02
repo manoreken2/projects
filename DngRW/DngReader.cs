@@ -433,6 +433,14 @@ namespace DngRW {
                         }
                     }
                     break;
+                case IFDEntry.Tag.ISOSpeedRatings:
+                    if (ifde.fieldType != IFDEntry.FieldType.SHORT) {
+                    } else {
+                        Console.Write(", In decimal: ");
+                        var sa = ifde.GetDataAsUShortArray();
+                        Console.Write("{0} ", sa[0]);
+                    }
+                    break;
                 case IFDEntry.Tag.ImageLength:
                     if (ifde.count != 1) {
                         Console.Write("Error: ImageLength malformat");

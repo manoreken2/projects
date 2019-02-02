@@ -28,7 +28,7 @@ namespace DngRW {
 
                 // CFAフルサイズ画像情報。
                 var es = new List<IFDEntry>();
-                es.Add(new IFDEntry(IFDEntry.Tag.NewSubfileType, IFDEntry.FieldType.LONG, 1, 1));
+                es.Add(new IFDEntry(IFDEntry.Tag.NewSubfileType, IFDEntry.FieldType.LONG, 1, 0));
                 es.Add(new IFDEntry(IFDEntry.Tag.ImageWidth, IFDEntry.FieldType.LONG, 1, W));
                 es.Add(new IFDEntry(IFDEntry.Tag.ImageLength, IFDEntry.FieldType.LONG, 1, H));
                 es.Add(new IFDEntry(IFDEntry.Tag.BitsPerSample, IFDEntry.FieldType.SHORT, 1,
