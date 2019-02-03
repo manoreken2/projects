@@ -16,6 +16,8 @@
     <ClInclude Include="MLAVICommon.h" />
     <ClInclude Include="MLAviReader.h" />
     <ClInclude Include="MLAviWriter.h" />
+    <ClInclude Include="MLDX12Common.h" />
+    <ClInclude Include="MLDX12TextureUpload.h" />
     <ClInclude Include="MLImage.h" />
     <ClInclude Include="MLConverter.h" />
     <ClInclude Include="MLDrawings.h" />
@@ -48,6 +50,7 @@
     <ClCompile Include="imgui_impl_win32.cpp" />
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MLDX12Common.cpp" />
     <ClCompile Include="WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>

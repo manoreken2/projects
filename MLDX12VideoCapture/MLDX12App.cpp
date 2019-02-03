@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "MLAviCommon.h"
+#include "MLDX12Common.h"
 
 // D3D12HelloFrameBuffering sample
 //*********************************************************
@@ -75,6 +76,18 @@ MLDX12App::OnInit(void)
     //OutputDebugString(L"OnInit started\n");
 
     LoadPipeline();
+
+    {
+        ThrowIfFailed(mDevice->CreateFence(mFenceValues[mFrameIdx],
+            D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+        NAME_D3D12_OBJECT(mFence);
+        mFenceValues[mFrameIdx]++;
+        mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (mFenceEvent == nullptr) {
+            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+        }
+    }
+
     LoadAssets();
 
     mDx12Imgui.Init(mDevice.Get());
@@ -134,7 +147,6 @@ MLDX12App::LoadPipeline(void)
         D3D_FEATURE_LEVEL_11_0,
         IID_PPV_ARGS(&mDevice)
     ));
-
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -202,8 +214,14 @@ MLDX12App::LoadPipeline(void)
 
         ThrowIfFailed(
             mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                IID_PPV_ARGS(&mCmdAllocatorTexUpload)));
+            IID_PPV_ARGS(&mCmdAllocatorTexUpload)));
         NAME_D3D12_OBJECT(mCmdAllocatorTexUpload);
+
+        ThrowIfFailed(mDevice->CreateCommandList(
+            0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocatorTexUpload.Get(),
+            mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdListTexUpload)));
+        NAME_D3D12_OBJECT(mCmdListTexUpload);
+        mCmdListTexUpload->Close();
     }
 }
 
@@ -251,8 +269,8 @@ MLDX12App::LoadAssets(void)
         NAME_D3D12_OBJECT(mRootSignature);
     }
 
-    SetupPSO(L"shadersRGB.hlsl", mPipelineStateRGB);
-    SetupPSO(L"shadersYUV.hlsl", mPipelineStateYUV);
+    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersRGB.hlsl", mPipelineStateRGB);
+    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", mPipelineStateYUV);
     NAME_D3D12_OBJECT(mPipelineStateRGB);
     NAME_D3D12_OBJECT(mPipelineStateYUV);
 
@@ -260,11 +278,6 @@ MLDX12App::LoadAssets(void)
         0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocators[mFrameIdx].Get(),
         mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdList)));
     NAME_D3D12_OBJECT(mCmdList);
-
-    ThrowIfFailed(mDevice->CreateCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocatorTexUpload.Get(),
-        mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdListTexUpload)));
-    NAME_D3D12_OBJECT(mCmdListTexUpload);
 
     {
         Vertex verts[] =
@@ -303,18 +316,6 @@ MLDX12App::LoadAssets(void)
         mVertexBufferView.SizeInBytes = vbBytes;
     }
 
-    {
-        ThrowIfFailed(mDevice->CreateFence(mFenceValues[mFrameIdx],
-            D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-        NAME_D3D12_OBJECT(mFence);
-        mFenceValues[mFrameIdx]++;
-        mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (mFenceEvent == nullptr) {
-            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        }
-
-    }
-
     UpdateViewAndScissor();
     
     ThrowIfFailed(mCmdList->Close());
@@ -329,8 +330,6 @@ MLDX12App::LoadAssets(void)
 
         memset(buff, 0x80, texW*texH * 4);
 
-        mCmdListTexUpload->Close();
-
         CreateVideoTexture(mTexCapturedVideo[0], TE_CAPVIDEO0, texW, texH, DXGI_FORMAT_R8G8B8A8_UNORM, 4, (uint8_t*)buff);
         CreateVideoTexture(mTexCapturedVideo[1], TE_CAPVIDEO1, texW, texH, DXGI_FORMAT_R8G8B8A8_UNORM, 4, (uint8_t*)buff);
         CreateVideoTexture(mTexPlayVideo[0], TE_PLAYVIDEO0, texW, texH, DXGI_FORMAT_R8G8B8A8_UNORM, 4, (uint8_t*)buff);
@@ -341,67 +340,9 @@ MLDX12App::LoadAssets(void)
 }
 
 void
-MLDX12App::SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso)
-{
-    ComPtr<ID3DBlob> vertexShader;
-    ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-    // Enable better shader debugging with the graphics debugging tools.
-    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    UINT compileFlags = 0;
-#endif
-
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(shaderName).c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(shaderName).c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-
-    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
-
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
-    psoDesc.pRootSignature = mRootSignature.Get();
-    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-    psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-
-#if 1
-    // 普通のアルファーブレンディング。
-    {
-        D3D12_BLEND_DESC& desc = psoDesc.BlendState;
-        desc.AlphaToCoverageEnable = false;
-        desc.RenderTarget[0].BlendEnable = true;
-        desc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-        desc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-        desc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-        desc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-        desc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
-        desc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-        desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    }
-#else
-    // ブレンディングなしの上書き。
-    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-#endif
-    psoDesc.DepthStencilState.DepthEnable = FALSE;
-    psoDesc.DepthStencilState.StencilEnable = FALSE;
-    psoDesc.SampleMask = UINT_MAX;
-    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    psoDesc.SampleDesc.Count = 1;
-    ThrowIfFailed(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
-}
-
-void
-MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data)
-{
-    ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
-    ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
+MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data) {
+    ThrowIfFailed(mCmdAllocators[mFrameIdx].Get()->Reset());
+    ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
     ComPtr<ID3D12Resource> texUploadHeap;
@@ -441,13 +382,13 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
         textureData.RowPitch = w * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * h;
 
-        UpdateSubresources(mCmdListTexUpload.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+        UpdateSubresources(mCmdList.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+        mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
             D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
         srvHandle.Offset(texIdx, mSrvDescSize);
-        
+
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -457,17 +398,19 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
         mDevice->CreateShaderResourceView(tex.Get(), &srvDesc, srvHandle);
     }
 
-    ThrowIfFailed(mCmdListTexUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = { mCmdListTexUpload.Get() };
+    ThrowIfFailed(mCmdList->Close());
+    ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 }
 
+
+
 void
 MLDX12App::CreateImguiTexture(void)
 {
-    ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
-    ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
+    ThrowIfFailed(mCmdAllocators[mFrameIdx].Get()->Reset());
+    ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
     // Build texture atlas
     ImGuiIO& io = ImGui::GetIO();
@@ -515,12 +458,12 @@ MLDX12App::CreateImguiTexture(void)
     textureData.RowPitch = width * pixelBytes;
     textureData.SlicePitch = textureData.RowPitch * height;
 
-    UpdateSubresources(mCmdListTexUpload.Get(), mTexImgui.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-    mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexImgui.Get(),
+    UpdateSubresources(mCmdList.Get(), mTexImgui.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
+    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexImgui.Get(),
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-    ThrowIfFailed(mCmdListTexUpload->Close());
-    ID3D12CommandList* ppCommandLists[] = { mCmdListTexUpload.Get() };
+    ThrowIfFailed(mCmdList->Close());
+    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
@@ -1149,9 +1092,90 @@ MLDX12App::ClearDrawQueue(void)
     mMutex.unlock();
 }
 
-void
-MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureEnum texIdx)
+bool
+MLDX12App::UpdateCapturedVideoTexture(void) {
+    mMutex.lock();
+    if (mCapturedImages.empty()) {
+        mMutex.unlock();
+        //OutputDebugString(L"Not Available\n");
+        return false;
+    }
+
+    //char s[256];
+    //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
+    //OutputDebugStringA(s);
+
+    MLImage ci = mCapturedImages.front();
+    mCapturedImages.pop_front();
+
+    mMutex.unlock();
+
+    UpdateVideoTexture(ci, mTexCapturedVideo[!mIdToShowCapVideoTex],
+            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
+
+    mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
+
+    mCaptureDrawMode = ci.imgMode;
+    delete[] ci.data;
+    ci.data = nullptr;
+
+    return true;
+}
+
+bool
+MLDX12App::UpdatePlayVideoTexture(void)
 {
+    if (mAviReader.NumFrames() == 0) {
+        return false;
+    }
+
+    if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
+        return false;
+    }
+
+    int bytes = mAviReader.GetImage(mPlayFrameNr, mPlayBufferBytes, mPlayBuffer);
+    if (bytes < 0) {
+        return false;
+    }
+
+    const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
+
+    MLImage &ci = mPlayImage;
+    ci.width = bi.biWidth;
+    ci.height = bi.biHeight;
+    ci.bytes = bi.biWidth * bi.biHeight * 4;
+    ci.imgFormat = "";
+    ci.imgMode = MLImage::IM_RGB;
+
+    uint8_t alpha = (uint8_t)(mPlayAlpha * 255.0f + 0.5f);
+
+    uint32_t *pFrom = (uint32_t *)mPlayBuffer;
+    uint32_t *pTo = (uint32_t *)ci.data;
+    if (bi.biCompression == MLFOURCC_v210) {
+        if (mRawSDI) {
+            mConverter.RawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
+            ci.imgMode = MLImage::IM_RGB;
+        } else {
+            MLConverter::YuvV210ToYuvA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
+            ci.imgMode = MLImage::IM_YUV;
+        }
+    } else {
+        return false;
+    }
+
+    UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex],
+            (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
+
+    mPlayDrawMode = ci.imgMode;
+
+    mIdToShowPlayVideoTex = !mIdToShowPlayVideoTex;
+    return true;
+}
+
+void
+MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) {
+    assert(tex.Get());
+
     DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     int         pixelBytes = 4;
 
@@ -1226,85 +1250,5 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureE
     ID3D12CommandList* ppCommandLists[] = {mCmdListTexUpload.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
-}
-
-bool
-MLDX12App::UpdateCapturedVideoTexture(void) {
-    mMutex.lock();
-    if (mCapturedImages.empty()) {
-        mMutex.unlock();
-        //OutputDebugString(L"Not Available\n");
-        return false;
-    }
-
-    //char s[256];
-    //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
-    //OutputDebugStringA(s);
-
-    MLImage ci = mCapturedImages.front();
-    mCapturedImages.pop_front();
-
-    mMutex.unlock();
-
-    UpdateVideoTexture(ci, mTexCapturedVideo[!mIdToShowCapVideoTex],
-            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
-
-    mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
-
-    mCaptureDrawMode = ci.imgMode;
-    delete[] ci.data;
-    ci.data = nullptr;
-
-    return true;
-}
-
-bool
-MLDX12App::UpdatePlayVideoTexture(void)
-{
-    if (mAviReader.NumFrames() == 0) {
-        return false;
-    }
-
-    if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
-        return false;
-    }
-
-    int bytes = mAviReader.GetImage(mPlayFrameNr, mPlayBufferBytes, mPlayBuffer);
-    if (bytes < 0) {
-        return false;
-    }
-
-    const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
-
-    MLImage &ci = mPlayImage;
-    ci.width = bi.biWidth;
-    ci.height = bi.biHeight;
-    ci.bytes = bi.biWidth * bi.biHeight * 4;
-    ci.imgFormat = "";
-    ci.imgMode = MLImage::IM_RGB;
-
-    uint8_t alpha = (uint8_t)(mPlayAlpha * 255.0f + 0.5f);
-
-    uint32_t *pFrom = (uint32_t *)mPlayBuffer;
-    uint32_t *pTo = (uint32_t *)ci.data;
-    if (bi.biCompression == MLFOURCC_v210) {
-        if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
-            ci.imgMode = MLImage::IM_RGB;
-        } else {
-            MLConverter::YuvV210ToYuvA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
-            ci.imgMode = MLImage::IM_YUV;
-        }
-    } else {
-        return false;
-    }
-
-    UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex], 
-            (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
-
-    mPlayDrawMode = ci.imgMode;
-
-    mIdToShowPlayVideoTex = !mIdToShowPlayVideoTex;
-    return true;
 }
 

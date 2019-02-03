@@ -83,6 +83,12 @@
     <ClInclude Include="MLVideoTime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MLDX12TextureUpload.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -128,6 +134,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MLAviCommon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDX12Common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

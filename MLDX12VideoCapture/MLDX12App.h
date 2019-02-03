@@ -43,6 +43,15 @@ public:
     
     void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame);
 
+    enum TextureEnum {
+        TE_CAPVIDEO0,
+        TE_CAPVIDEO1,
+        TE_PLAYVIDEO0,
+        TE_PLAYVIDEO1,
+        TE_IMGUI,
+        TE_NUM
+    };
+
 private:
     static const UINT FrameCount = 2;
 
@@ -59,15 +68,6 @@ private:
     {
         XMFLOAT3 position;
         XMFLOAT2 uv;
-    };
-
-    enum TextureEnum {
-        TE_CAPVIDEO0,
-        TE_CAPVIDEO1,
-        TE_PLAYVIDEO0,
-        TE_PLAYVIDEO1,
-        TE_IMGUI,
-        TE_NUM
     };
 
     State mState;
@@ -91,8 +91,6 @@ private:
     MLDX12Imgui mDx12Imgui;
     ComPtr<ID3D12GraphicsCommandList> mCmdList;
 
-    ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
-    ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
 
     UINT mRtvDescSize;
     int mNumVertices;
@@ -142,6 +140,10 @@ private:
     MLConverter mConverter;
     MLDrawings mDrawings;
 
+    ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
+    ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
+
+
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);
@@ -152,11 +154,7 @@ private:
 
     void ClearDrawQueue(void);
 
-    void CreateVideoTexture(ComPtr<ID3D12Resource> & tex, int texIdx,
-            int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
     bool UpdateCapturedVideoTexture(void);
-
-    void SetupPSO(const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso);
 
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
@@ -165,7 +163,7 @@ private:
 
     void ShowCaptureSettingsWindow(void);
     void ShowPlaybackWindow(void);
-
-    void UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, TextureEnum texIdx);
+    void CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
+    void UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
 
 };

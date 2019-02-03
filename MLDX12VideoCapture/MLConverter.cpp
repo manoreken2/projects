@@ -30,14 +30,11 @@ MLConverter::MLConverter(void)
     mGammaBayerTable[2] = mGammaTableB;
     mGammaBayerTable[3] = mGammaTableG;
 
-    mBayer = new uint8_t[BAYER_WH];
     CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 }
 
 MLConverter::~MLConverter(void)
 {
-    delete[] mBayer;
-    mBayer = nullptr;
 }
 
 void
@@ -123,6 +120,8 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
     assert(width == 3840);
     assert(height == 2160);
     
+    uint8_t * bayer = new uint8_t[BAYER_WH];
+
     int x = 0;
     int y = 0;
     int posT = 0;
@@ -182,15 +181,15 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
         const uint16_t p7_12 = (uint16_t)((cr4 >> 4) | (y5 << 4));
 
         // store gamma corrected 8bit value
-        mBayer[posT + 0] = GammaTable(x + 0, y, p0_12);
-        mBayer[posT + 1] = GammaTable(x + 1, y, p1_12);
-        mBayer[posT + 2] = GammaTable(x + 2, y, p2_12);
-        mBayer[posT + 3] = GammaTable(x + 3, y, p3_12);
+        bayer[posT + 0] = GammaTable(x + 0, y, p0_12);
+        bayer[posT + 1] = GammaTable(x + 1, y, p1_12);
+        bayer[posT + 2] = GammaTable(x + 2, y, p2_12);
+        bayer[posT + 3] = GammaTable(x + 3, y, p3_12);
 
-        mBayer[posT + 4] = GammaTable(x + 4, y, p4_12);
-        mBayer[posT + 5] = GammaTable(x + 5, y, p5_12);
-        mBayer[posT + 6] = GammaTable(x + 6, y, p6_12);
-        mBayer[posT + 7] = GammaTable(x + 7, y, p7_12);
+        bayer[posT + 4] = GammaTable(x + 4, y, p4_12);
+        bayer[posT + 5] = GammaTable(x + 5, y, p5_12);
+        bayer[posT + 6] = GammaTable(x + 6, y, p6_12);
+        bayer[posT + 7] = GammaTable(x + 7, y, p7_12);
 
         posT += 8;
         if (BAYER_WH <= posT) {
@@ -210,10 +209,10 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
             /* G0 R
              * B  G1
              */
-            const uint8_t g0 = mBayer[x + 0 + 16 + (y + 0 + 16)*BAYER_W];
-            const uint8_t r = mBayer[x + 1 + 16 + (y + 0 + 16)*BAYER_W];
-            const uint8_t b = mBayer[x + 0 + 16 + (y + 1 + 16)*BAYER_W];
-            const uint8_t g1 = mBayer[x + 1 + 16 + (y + 1 + 16)*BAYER_W];
+            const uint8_t g0 = bayer[x + 0 + 16 + (y + 0 + 16)*BAYER_W];
+            const uint8_t r = bayer[x + 1 + 16 + (y + 0 + 16)*BAYER_W];
+            const uint8_t b = bayer[x + 0 + 16 + (y + 1 + 16)*BAYER_W];
+            const uint8_t g1 = bayer[x + 1 + 16 + (y + 1 + 16)*BAYER_W];
 
             pTo[x + 0 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
             pTo[x + 1 + (y + 0)*width] = (a << 24) + (b << 16) + (g0 << 8) + r;
@@ -221,5 +220,8 @@ MLConverter::RawYuvV210ToRGBA(uint32_t *pFrom, uint32_t *pTo, const int width, c
             pTo[x + 1 + (y + 1)*width] = (a << 24) + (b << 16) + (g1 << 8) + r;
         }
     }
+
+    delete[] bayer;
+    bayer = nullptr;
 }
 

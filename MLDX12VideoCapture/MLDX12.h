@@ -30,9 +30,7 @@ protected:
     RECT mWindowBounds;
     std::wstring mAssetsPath;
 
-    std::wstring GetAssetFullPath(LPCWSTR assetName) {
-        return mAssetsPath + assetName;
-    }
+
 
     void GetHardwareAdapter(IDXGIFactory2* pFactory, IDXGIAdapter1** ppAdapter);
 };

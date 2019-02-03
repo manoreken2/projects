@@ -18,7 +18,6 @@ private:
     uint8_t mGammaTableG[4096];
     uint8_t mGammaTableB[4096];
     uint8_t *mGammaBayerTable[4];
-    uint8_t *mBayer;
 
     uint8_t GammaTable(const int x, const int y, const uint16_t v) {
         const uint8_t *table = mGammaBayerTable[(x & 1) + 2 * (y & 1)];
