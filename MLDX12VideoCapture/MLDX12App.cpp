@@ -16,7 +16,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //*********************************************************
 
-MLDX12App::MLDX12App(UINT width, UINT height) :
+MLDX12App::MLDX12App(UINT width, UINT height):
     MLDX12(width, height),
     mState(S_Init),
     mCaptureDrawMode(MLImage::IM_RGB),
@@ -60,8 +60,7 @@ MLDX12App::MLDX12App(UINT width, UINT height) :
     }
 }
 
-MLDX12App::~MLDX12App(void)
-{
+MLDX12App::~MLDX12App(void) {
     mPlayImage.Term();
 
     delete[] mPlayBuffer;
@@ -69,8 +68,7 @@ MLDX12App::~MLDX12App(void)
 }
 
 void
-MLDX12App::OnInit(void)
-{
+MLDX12App::OnInit(void) {
     mVideoCaptureDeviceList.Init();
 
     //OutputDebugString(L"OnInit started\n");
@@ -97,8 +95,7 @@ MLDX12App::OnInit(void)
 }
 
 void
-MLDX12App::OnDestroy(void)
-{
+MLDX12App::OnDestroy(void) {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
     WaitForGpu();
@@ -121,8 +118,7 @@ MLDX12App::OnDestroy(void)
 }
 
 void
-MLDX12App::LoadPipeline(void)
-{
+MLDX12App::LoadPipeline(void) {
     UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
@@ -208,8 +204,8 @@ MLDX12App::LoadPipeline(void)
         for (UINT n = 0; n < FrameCount; n++) {
             ThrowIfFailed(
                 mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                    IID_PPV_ARGS(&mCmdAllocators[n])));
-            NAME_D3D12_OBJECT_INDEXED(mCmdAllocators,n);
+                IID_PPV_ARGS(&mCmdAllocators[n])));
+            NAME_D3D12_OBJECT_INDEXED(mCmdAllocators, n);
         }
 
         ThrowIfFailed(
@@ -226,8 +222,7 @@ MLDX12App::LoadPipeline(void)
 }
 
 void
-MLDX12App::LoadAssets(void)
-{
+MLDX12App::LoadAssets(void) {
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -282,12 +277,12 @@ MLDX12App::LoadAssets(void)
     {
         Vertex verts[] =
         {
-            { { -1.0f, +1.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { +1.0f, +1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-            { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-            { { +1.0f, +1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { +1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
+            {{-1.0f, +1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+        {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{+1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
         };
 
         int numTriangles = 2;
@@ -317,9 +312,9 @@ MLDX12App::LoadAssets(void)
     }
 
     UpdateViewAndScissor();
-    
+
     ThrowIfFailed(mCmdList->Close());
-    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
+    ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
@@ -407,8 +402,7 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
 
 
 void
-MLDX12App::CreateImguiTexture(void)
-{
+MLDX12App::CreateImguiTexture(void) {
     ThrowIfFailed(mCmdAllocators[mFrameIdx].Get()->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
@@ -463,7 +457,7 @@ MLDX12App::CreateImguiTexture(void)
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
     ThrowIfFailed(mCmdList->Close());
-    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
+    ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
@@ -487,30 +481,28 @@ MLDX12App::CreateImguiTexture(void)
 }
 
 void
-MLDX12App::OnKeyUp(int key)
-{
+MLDX12App::OnKeyUp(int key) {
     switch (key) {
     case VK_SPACE:
-    {
-        BOOL fullscreenState;
-        ThrowIfFailed(mSwapChain->GetFullscreenState(&fullscreenState, nullptr));
-        if (FAILED(mSwapChain->SetFullscreenState(!fullscreenState, nullptr))) {
-            // Transitions to fullscreen mode can fail when running apps over
-            // terminal services or for some other unexpected reason.  Consider
-            // notifying the user in some way when this happens.
-            OutputDebugString(L"Fullscreen transition failed");
-            assert(false);
+        {
+            BOOL fullscreenState;
+            ThrowIfFailed(mSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+            if (FAILED(mSwapChain->SetFullscreenState(!fullscreenState, nullptr))) {
+                // Transitions to fullscreen mode can fail when running apps over
+                // terminal services or for some other unexpected reason.  Consider
+                // notifying the user in some way when this happens.
+                OutputDebugString(L"Fullscreen transition failed");
+                assert(false);
+            }
+            break;
         }
-        break;
-    }
     default:
         break;
     }
 }
 
 void
-MLDX12App::OnSizeChanged(int width, int height, bool minimized)
-{
+MLDX12App::OnSizeChanged(int width, int height, bool minimized) {
     char s[256];
     sprintf_s(s, "\n\nOnSizeChanged(%d %d)\n", width, height);
     OutputDebugStringA(s);
@@ -540,8 +532,7 @@ MLDX12App::OnSizeChanged(int width, int height, bool minimized)
 }
 
 void
-MLDX12App::UpdateViewAndScissor(void)
-{
+MLDX12App::UpdateViewAndScissor(void) {
     float x = 1.0f;
     float y = 1.0f;
 
@@ -557,8 +548,7 @@ MLDX12App::UpdateViewAndScissor(void)
 }
 
 void
-MLDX12App::LoadSizeDependentResources(void)
-{
+MLDX12App::LoadSizeDependentResources(void) {
     UpdateViewAndScissor();
 
     {
@@ -574,16 +564,13 @@ MLDX12App::LoadSizeDependentResources(void)
 }
 
 void
-MLDX12App::OnUpdate(void)
-{
-}
+MLDX12App::OnUpdate(void) {}
 
 void
-MLDX12App::OnRender(void)
-{
+MLDX12App::OnRender(void) {
     PopulateCommandList();
 
-    ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
+    ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // texture upload
@@ -598,8 +585,7 @@ MLDX12App::OnRender(void)
 }
 
 void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode)
-{
+MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode) {
     switch (drawMode) {
     case MLImage::IM_RGB:
         mCmdList->SetPipelineState(mPipelineStateRGB.Get());
@@ -614,7 +600,7 @@ MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode)
 
     mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-    ID3D12DescriptorHeap* ppHeaps[] = { mSrvHeap.Get() };
+    ID3D12DescriptorHeap* ppHeaps[] = {mSrvHeap.Get()};
     mCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE dh(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
@@ -634,8 +620,7 @@ MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode)
 }
 
 void
-MLDX12App::PopulateCommandList(void)
-{
+MLDX12App::PopulateCommandList(void) {
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
@@ -653,13 +638,13 @@ MLDX12App::PopulateCommandList(void)
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
     DrawFullscreenTexture(
-            (TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex),
-            mCaptureDrawMode);
+        (TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex),
+        mCaptureDrawMode);
 
     if (0.0f < mPlayAlpha) {
         DrawFullscreenTexture(
-                (TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex),
-                mPlayDrawMode);
+            (TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex),
+            mPlayDrawMode);
     }
 
     // Start the Dear ImGui frame
@@ -678,8 +663,7 @@ MLDX12App::PopulateCommandList(void)
 }
 
 void
-MLDX12App::MoveToNextFrame(void)
-{
+MLDX12App::MoveToNextFrame(void) {
     const UINT64 currentFenceValue = mFenceValues[mFrameIdx];
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), currentFenceValue));
     mFrameIdx = mSwapChain->GetCurrentBackBufferIndex();
@@ -694,8 +678,7 @@ MLDX12App::MoveToNextFrame(void)
 }
 
 void
-MLDX12App::WaitForGpu(void)
-{
+MLDX12App::WaitForGpu(void) {
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), mFenceValues[mFrameIdx]));
     ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValues[mFrameIdx], mFenceEvent));
     WaitForSingleObjectEx(mFenceEvent, INFINITE, FALSE);
@@ -703,8 +686,7 @@ MLDX12App::WaitForGpu(void)
 }
 
 void
-MLDX12App::ShowCaptureSettingsWindow(void)
-{
+MLDX12App::ShowCaptureWindow(void) {
     ImGui::Begin("Capture Settings");
 
     if (ImGui::BeginPopupModal("ErrorCapturePopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -795,7 +777,7 @@ MLDX12App::ShowCaptureSettingsWindow(void)
 
                         bool bRv = mAviWriter.Start(path, mVideoCapture.Width(),
                             mVideoCapture.Height(), (int)(ts / 1000),
-                            MLIF_YUV422v210);
+                            MLIF_YUV422v210, true);
                         if (bRv) {
                             mState = S_Recording;
                             mCaptureMsg[0] = 0;
@@ -819,6 +801,12 @@ MLDX12App::ShowCaptureSettingsWindow(void)
             } else if (mState == S_Recording) {
                 ImGui::Text("Now Recording...");
                 ImGui::Text("Record filename : %s", mWritePath);
+                {
+                    // hour:min:sec:frameを算出。
+                    auto vt = MLFrameNrToTime(mAviWriter.FramesPerSec(), mAviWriter.TotalVideoFrames());
+                    ImGui::Text("%02d:%02d:%02d:%02d",
+                        vt.hour, vt.min, vt.sec, vt.frame);
+                }
                 if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
                     mState = S_WaitRecordEnd;
 
@@ -897,8 +885,7 @@ MLDX12App::ShowCaptureSettingsWindow(void)
 }
 
 void
-MLDX12App::ShowPlaybackWindow(void)
-{
+MLDX12App::ShowPlaybackWindow(void) {
     ImGui::Begin("Playback Control");
 
     if (ImGui::BeginPopupModal("ErrorPlayPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -941,12 +928,12 @@ MLDX12App::ShowPlaybackWindow(void)
             mPlayAlpha = 0.0f;
         }
         ImGui::Text("%d x %d, %d fps, %.1f sec",
-                mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
-                mAviReader.FramesPerSec(), mAviReader.DurationSec());
+            mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
+            mAviReader.FramesPerSec(), mAviReader.DurationSec());
 
         {
             // hour:min:sec:frameを算出。
-            auto vt = mAviReader.FrameNrToTime(mPlayFrameNr);
+            auto vt = MLFrameNrToTime(mAviReader.FramesPerSec(), mPlayFrameNr);
 
             ImGui::Text("%02d:%02d:%02d:%02d",
                 vt.hour, vt.min, vt.sec, vt.frame);
@@ -977,19 +964,17 @@ MLDX12App::ShowPlaybackWindow(void)
 }
 
 void
-MLDX12App::ImGuiCommands(void)
-{
+MLDX12App::ImGuiCommands(void) {
     //ImGui::ShowDemoWindow();
 
-    ShowCaptureSettingsWindow();
+    ShowCaptureWindow();
     ShowPlaybackWindow();
 
     ImGui::Render();
 }
 
 static const char *
-BMDPixelFormatToStr(int a)
-{
+BMDPixelFormatToStr(int a) {
     switch (a) {
     case bmdFormat8BitYUV: return "8bitYUV";
     case bmdFormat10BitYUV: return "10bitYUV";
@@ -1009,15 +994,30 @@ BMDPixelFormatToStr(int a)
 }
 
 void
-MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame)
-{
-    mMutex.lock();
-    if (CapturedImageQueueSize <= mCapturedImages.size()) {
-        ++mFrameSkipCount;
-        mMutex.unlock();
-        return;
+MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(
+    IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket) {
+
+    if (audioPacket != nullptr
+        && mState == S_Recording) {
+        // オーディオを記録する。
+        void *audioBuff = nullptr;
+        audioPacket->GetBytes(&audioBuff);
+
+        int audioFrameCount = audioPacket->GetSampleFrameCount();
+        if (0 < audioFrameCount) {
+            /*
+            char s[256];
+            sprintf_s(s, "audio frame %d\n", audioFrameCount);
+            OutputDebugStringA(s);
+            */
+
+            mMutex.lock();
+            mAviWriter.AddAudio((const uint8_t*)audioBuff, audioFrameCount);
+            mMutex.unlock();
+        }
     }
-    mMutex.unlock();
+
+    // Video
 
     void *buffer = nullptr;
     videoFrame->GetBytes(&buffer);
@@ -1029,7 +1029,16 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
 
     mMutex.lock();
     if (mState == S_Recording) {
-        mAviWriter.AddImage((const uint32_t*)buffer, rowBytes*height);
+        mAviWriter.AddImage((const uint8_t*)buffer, rowBytes*height);
+    }
+    mMutex.unlock();
+
+    mMutex.lock();
+    if (CapturedImageQueueSize <= mCapturedImages.size()) {
+        // 詰まっているときは描画更新をスキップする。
+        ++mFrameSkipCount;
+        mMutex.unlock();
+        return;
     }
     mMutex.unlock();
 
@@ -1044,7 +1053,7 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
     ci.height = height;
     ci.imgMode = MLImage::IM_RGB;
     ci.data = new uint8_t[bytes];
-        
+
     uint8_t alpha = 255;
     uint32_t *pFrom = (uint32_t *)buffer;
     uint32_t *pTo = (uint32_t *)ci.data;
@@ -1080,12 +1089,11 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFram
 }
 
 void
-MLDX12App::ClearDrawQueue(void)
-{
+MLDX12App::ClearDrawQueue(void) {
     mMutex.lock();
     for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
         MLImage &ci = *ite;
-        delete [] ci.data;
+        delete[] ci.data;
         ci.data = nullptr;
     }
     mCapturedImages.clear();
@@ -1111,7 +1119,7 @@ MLDX12App::UpdateCapturedVideoTexture(void) {
     mMutex.unlock();
 
     UpdateVideoTexture(ci, mTexCapturedVideo[!mIdToShowCapVideoTex],
-            (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
+        (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
 
     mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
 
@@ -1123,8 +1131,7 @@ MLDX12App::UpdateCapturedVideoTexture(void) {
 }
 
 bool
-MLDX12App::UpdatePlayVideoTexture(void)
-{
+MLDX12App::UpdatePlayVideoTexture(void) {
     if (mAviReader.NumFrames() == 0) {
         return false;
     }
@@ -1164,7 +1171,7 @@ MLDX12App::UpdatePlayVideoTexture(void)
     }
 
     UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex],
-            (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
+        (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
 
     mPlayDrawMode = ci.imgMode;
 

@@ -11,5 +11,5 @@
 
 class IMLVideoCaptureCallback {
 public:
-    virtual void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame) = 0;
+    virtual void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket) = 0;
 };

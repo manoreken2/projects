@@ -15,28 +15,6 @@ MLAviReader::~MLAviReader(void)
     Close();
 }
 
-MLVideoTime
-MLAviReader::FrameNrToTime(const int frameNr)
-{
-    MLVideoTime r;
-    memset(&r, 0, sizeof r);
-
-    if (FramesPerSec() == 0) {
-        return r;
-    }
-
-    r.frame = frameNr % FramesPerSec();
-    const int totalSec = frameNr / FramesPerSec();
-
-    r.hour = totalSec / 3600;
-    int remain = totalSec - r.hour * 3600;
-    r.min = remain / 60;
-    remain -= r.min * 60;
-    r.sec = remain;
-
-    return r;
-}
-
 float
 MLAviReader::DurationSec(void) const
 {

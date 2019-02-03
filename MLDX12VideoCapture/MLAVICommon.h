@@ -21,6 +21,7 @@ enum MLFOURCC {
     MLFOURCC_movi = 0x69766f6d,
     MLFOURCC_00db = 0x62643030,
     MLFOURCC_00dc = 0x63643030,
+    MLFOURCC_01wb = 0x62773130,
 };
 
 struct MLAviMainHeader {
@@ -85,6 +86,20 @@ struct MLBitmapInfoHeader {
     uint32_t biClrImportant;
 };
 
+// 18bytes
+struct MLWaveFormatExtensible {
+        uint16_t  wFormatTag;
+        short  nChannels;
+        uint32_t nSamplesPerSec;
+        uint32_t nAvgBytesPerSec;
+        short  nBlockAlign;
+        short  wBitsPerSample;
+        short  cbSize;
+        short  wValidBitsPerSample;
+        uint32_t dwChannelMask;
+        uint32_t subFormatGuid[4];
+};
+
 struct MLRiffHeader {
     uint32_t riff;
     uint32_t bytes;
@@ -105,3 +120,4 @@ struct MLStreamDataHeader {
 uint32_t MLStringToFourCC(const char *s);
 
 const std::string MLFourCCtoString(uint32_t fourcc);
+

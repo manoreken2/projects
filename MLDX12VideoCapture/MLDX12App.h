@@ -41,7 +41,7 @@ public:
     virtual void OnKeyUp(int key);
     virtual void OnSizeChanged(int width, int height, bool minimized);
     
-    void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame);
+    void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket);
 
     enum TextureEnum {
         TE_CAPVIDEO0,
@@ -143,7 +143,6 @@ private:
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
     ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
 
-
     void LoadPipeline(void);
     void LoadAssets(void);
     void PopulateCommandList(void);
@@ -161,7 +160,7 @@ private:
 
     void DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode);
 
-    void ShowCaptureSettingsWindow(void);
+    void ShowCaptureWindow(void);
     void ShowPlaybackWindow(void);
     void CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
     void UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);

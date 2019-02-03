@@ -66,5 +66,9 @@ private:
     BMDPixelFormat m_pixelFormat;
     BMDTimeValue   m_timeValue;
     BMDTimeScale   m_timeScale;
+
+    int mAudioSampleRate;
+    int mAudioNumChannels;
+    int mAudioBitsPerSample;
 };
 

@@ -22,8 +22,6 @@ public:
 
     float DurationSec(void) const;
 
-    MLVideoTime FrameNrToTime(const int frameNr);
-
     /// @return > 0 : copied bytes, negative value: error.
     int GetImage(const int frameNr,
             const uint32_t buffBytes, uint8_t *buff);

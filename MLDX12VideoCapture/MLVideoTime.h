@@ -6,3 +6,5 @@ struct MLVideoTime {
     int sec;
     int frame;
 };
+
+MLVideoTime MLFrameNrToTime(const int framesPerSec, const int frameNr);

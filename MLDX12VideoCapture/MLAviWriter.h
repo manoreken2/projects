@@ -14,9 +14,12 @@ public:
     MLAviWriter(void);
     ~MLAviWriter(void);
 
-    bool Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt);
+    bool Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt,
+            bool bAudio);
 
-    void AddImage(const uint32_t * img, int bytes);
+    void AddImage(const uint8_t * img, int bytes);
+
+    void AddAudio(const uint8_t * buff, int frames);
 
     // send thread to flush remaining data and end.
     // StopAsync() then call PallThreadEnd() every frame until PollThreadEnd() returns true
@@ -32,12 +35,17 @@ public:
 
     int RecQueueSize(void);
 
+    int FramesPerSec(void) const { return mFps; }
+
+    int TotalVideoFrames(void) const { return mTotalVideoFrames; }
+
 private:
 
     int mWidth;
     int mHeight;
     int mFps;
     int mImgFmt;
+    bool mAudio;
 
     enum AVIState {
         AVIS_Init,
@@ -62,20 +70,23 @@ private:
     std::vector<RiffChunk> mRiffChunks;
     std::vector<ListChunk> mListChunks;
 
-    struct ImageItem {
-        uint32_t *buf;
+    struct IncomingItem {
+        uint8_t *buf;
         int bytes;
+        bool bAudio;
     };
 
-    std::list<ImageItem> mImageList;
+    std::list<IncomingItem> mAudioVideoList;
 
     int mLastRiffIdx;
     int mLastMoviIdx;
 
-    int mTotalFrames;
+    int mTotalVideoFrames;
+    int mTotalAudioSamples;
 
     uint64_t mAviMainHeaderPos;
-    uint64_t mAviStreamHeaderPos;
+    uint64_t mAviStreamHeaderVideoPos;
+    uint64_t mAviStreamHeaderAudioPos;
 
     FILE *mFp;
 
@@ -84,15 +95,21 @@ private:
     HANDLE       m_shutdownEvent;
     HANDLE       m_readyEvent;
 
+    int mAudioSampleRate;
+    int mAudioBitsPerSample;
+    int mAudioNumChannels;
+
     int WriteRiff(const char *fccS);
     void FinishRiff(int idx);
 
     int WriteList(const char *fccS);
     void FinishList(int idx);
 
-    void WriteAviMainHeader(void);
-    void WriteAviStreamHeader(void);
+    void WriteAviMainHeader(int nStreams);
+    void WriteAviStreamHeaderVideo(void);
+    void WriteAviStreamHeaderAudio(void);
     void WriteBitmapInfoHeader(void);
+    void WriteWaveFormatExHeader(void);
 
     void WriteFccHeader(const char *fcc, int bytes);
 
@@ -105,7 +122,7 @@ private:
     static DWORD WINAPI AviWriterEntry(LPVOID param);
     DWORD ThreadMain(void);
     void WriteAll(void);
-    void WriteOne(ImageItem& ii);
+    void WriteOne(IncomingItem& ii);
     void StartThread(void);
     void StopThreadBlock(void);
 

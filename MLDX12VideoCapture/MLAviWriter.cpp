@@ -1,4 +1,4 @@
-#include "MLAviWriter.h"
+﻿#include "MLAviWriter.h"
 #include <assert.h>
 #include "WinApp.h"
 
@@ -6,13 +6,18 @@ namespace {
 };
 
 MLAviWriter::MLAviWriter(void)
-        : mLastRiffIdx(-1), mLastMoviIdx(-1), mTotalFrames(0), mAviMainHeaderPos(0), mAviStreamHeaderPos(0),
+        : mLastRiffIdx(-1), mLastMoviIdx(-1), mTotalVideoFrames(0), mTotalAudioSamples(0),
+          mAviMainHeaderPos(0), mAviStreamHeaderVideoPos(0),mAviStreamHeaderAudioPos(0),
           mFp(nullptr)
 {
     mState = AVIS_Init;
     m_thread = nullptr;
     m_shutdownEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
     m_readyEvent    = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+
+    mAudioSampleRate = 48000;
+    mAudioBitsPerSample = 16;
+    mAudioNumChannels = 2;
 }
 
 MLAviWriter::~MLAviWriter(void)
@@ -37,7 +42,7 @@ MLAviWriter::WriteFccHeader(const char *fccS, int bytes)
 }
 
 bool
-MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt)
+MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImageFormat imgFmt, bool bAudio)
 {
     assert(mFp == nullptr);
 
@@ -45,6 +50,7 @@ MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImage
     mHeight = height;
     mFps = fps;
     mImgFmt = imgFmt;
+    mAudio = bAudio;
 
     errno_t ercd = _wfopen_s(&mFp, path.c_str(), L"wb");
     if (ercd != 0) {
@@ -53,11 +59,12 @@ MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImage
         return false;
     }
 
+    // ビデオのみの場合。
     /* RIFF "AVI "
          LIST "hdrl"
-           AviMainHeader
+           AviMainHeader 1stream
            LIST "strl"
-             AviStreamHeader
+             AviStreamHeader vids
              "strf" BitmapInfoHeader
          LIST "movi"
            00db
@@ -69,29 +76,67 @@ MLAviWriter::Start(std::wstring path, int width, int height, int fps, MLAviImage
            00db
            ...
     */
+
+    // ビデオ+オーディオの場合。
+    /* RIFF "AVI "
+         LIST "hdrl"
+           AviMainHeader 2streams
+           LIST "strl"
+             AviStreamHeader vids
+             "strf" BitmapInfoHeader
+           LIST "strl"
+             AviStreamHeader auds
+             "strf" WaveFormatEx
+         LIST "movi"
+           00db
+           00db
+           ...
+           01wb
+           ...
+       RIFF "AVIX"
+         LIST "movi"
+           00db
+           00db
+           ...
+    */
+
     int hAvi = WriteRiff("AVI");
     int hHdrl = WriteList("hdrl");
-    WriteAviMainHeader();
-    int hStrl = WriteList("strl");
-    WriteAviStreamHeader();
 
-    WriteFccHeader("strf", 40);
-    WriteBitmapInfoHeader();
-    FinishList(hStrl);
+    WriteAviMainHeader(1 + (int)mAudio);
+
+    {
+        // Video
+        int hStrlVideo = WriteList("strl");
+        WriteAviStreamHeaderVideo();
+
+        WriteFccHeader("strf", 40);
+        WriteBitmapInfoHeader();
+        FinishList(hStrlVideo);
+    }
+    if (mAudio) {
+        int hStrlAudio = WriteList("strl");
+        WriteAviStreamHeaderAudio();
+
+        WriteFccHeader("strf", 40);
+        WriteWaveFormatExHeader();
+        FinishList(hStrlAudio);
+    }
+
     FinishList(hHdrl);
     int movi = WriteList("movi");
 
     mLastRiffIdx = hAvi;
     mLastMoviIdx = movi;
 
-    mTotalFrames = 0;
+    mTotalVideoFrames = 0;
 
     StartThread();
     return true;
 }
 
 void
-MLAviWriter::AddImage(const uint32_t * img, int bytes)
+MLAviWriter::AddImage(const uint8_t * img, int bytes)
 {
     assert(mFp != nullptr);
     assert(m_readyEvent != nullptr);
@@ -100,13 +145,43 @@ MLAviWriter::AddImage(const uint32_t * img, int bytes)
         return;
     }
 
-    ImageItem ii;
-    ii.buf = new uint32_t[bytes / 4];
+    IncomingItem ii;
+    ii.buf = new uint8_t[bytes];
     ii.bytes = bytes;
+    ii.bAudio = false;
     memcpy(ii.buf, img, bytes);
 
     m_mutex.lock();
-    mImageList.push_back(ii);
+    mAudioVideoList.push_back(ii);
+    m_mutex.unlock();
+
+    SetEvent(m_readyEvent);
+}
+
+void
+MLAviWriter::AddAudio(const uint8_t *buff, int frames)
+{
+    assert(mFp != nullptr);
+    assert(m_readyEvent != nullptr);
+
+    if (mState != AVIS_Writing) {
+        return;
+    }
+
+    if (!mAudio) {
+        return;
+    }
+
+    int bytes = frames * mAudioBitsPerSample * mAudioNumChannels / 8;
+
+    IncomingItem ii;
+    ii.buf = new uint8_t[bytes];
+    ii.bytes = bytes;
+    ii.bAudio = true;
+    memcpy(ii.buf, buff, bytes);
+
+    m_mutex.lock();
+    mAudioVideoList.push_back(ii);
     m_mutex.unlock();
 
     SetEvent(m_readyEvent);
@@ -133,7 +208,7 @@ MLAviWriter::RecQueueSize(void)
 {
     int count;
     m_mutex.lock();
-    count = (int)mImageList.size();
+    count = (int)mAudioVideoList.size();
     m_mutex.unlock();
     return count;
 
@@ -230,7 +305,7 @@ MLAviWriter::ImageBytes(void) const
 }
 
 void
-MLAviWriter::WriteAviMainHeader(void)
+MLAviWriter::WriteAviMainHeader(int nStreams)
 {
     mAviMainHeaderPos = _ftelli64(mFp);
 
@@ -241,9 +316,9 @@ MLAviWriter::WriteAviMainHeader(void)
     mh.dwMaxBytesPersec = 0;
     mh.dwPaddingGranularity = 0x1000;
     mh.dwFlags = 0;
-    mh.dwTotalFrames = mTotalFrames;
+    mh.dwTotalFrames = mTotalVideoFrames;
     mh.dwInitialFrames = 0;
-    mh.dwStreams = 1;
+    mh.dwStreams = nStreams;
     mh.dwSuggestedBufferSize = ImageBytes();
     mh.dwWidth = mWidth;
     mh.dwHeight = mHeight;
@@ -256,11 +331,11 @@ MLAviWriter::WriteAviMainHeader(void)
 }
 
 void
-MLAviWriter::WriteAviStreamHeader(void)
+MLAviWriter::WriteAviStreamHeaderVideo(void)
 {
     assert(mImgFmt == MLIF_YUV422v210);
         
-    mAviStreamHeaderPos = _ftelli64(mFp);
+    mAviStreamHeaderVideoPos = _ftelli64(mFp);
 
     MLAviStreamHeader sh;
     sh.fcc = MLStringToFourCC("strh");
@@ -274,10 +349,38 @@ MLAviWriter::WriteAviStreamHeader(void)
     sh.dwScale = 1;
     sh.dwRate = mFps;
     sh.dwStart = 0;
-    sh.dwLength = mTotalFrames;
+    sh.dwLength = mTotalVideoFrames;
     sh.dwSuggestedBufferSize = ImageBytes();
     sh.dwQuality = 9800;
     sh.dwSampleSize = sh.dwSuggestedBufferSize;
+    sh.left = 0;
+    sh.top = 0;
+    sh.right = 0;
+    sh.bottom = 0;
+
+    fwrite(&sh, 1, sizeof sh, mFp);
+}
+
+void
+MLAviWriter::WriteAviStreamHeaderAudio(void) {
+    mAviStreamHeaderAudioPos = _ftelli64(mFp);
+
+    MLAviStreamHeader sh;
+    sh.fcc = MLStringToFourCC("strh");
+    sh.cb = 0x38;
+    sh.fccType = MLStringToFourCC("auds");
+    sh.fccHandler = 0;
+    sh.dwFlags = 0;
+    sh.wPriority = 0;
+    sh.wLanguage = 0;
+    sh.dwInitialFrames = 0;
+    sh.dwScale = 1;
+    sh.dwRate = mAudioSampleRate;
+    sh.dwStart = 0;
+    sh.dwLength = mTotalAudioSamples;
+    sh.dwSuggestedBufferSize = mAudioSampleRate * mAudioBitsPerSample * mAudioNumChannels / 8;
+    sh.dwQuality = 0;
+    sh.dwSampleSize = mAudioBitsPerSample * mAudioNumChannels / 8;
     sh.left = 0;
     sh.top = 0;
     sh.right = 0;
@@ -305,6 +408,26 @@ MLAviWriter::WriteBitmapInfoHeader(void)
     ih.biClrImportant = 0;
 
     fwrite(&ih, 1, sizeof ih, mFp);
+}
+
+void
+MLAviWriter::WriteWaveFormatExHeader(void) {
+    MLWaveFormatExtensible wh;
+    wh.wFormatTag = 0xfffe;
+    wh.nChannels = 2;
+    wh.nSamplesPerSec = mAudioSampleRate;
+    wh.nAvgBytesPerSec = mAudioSampleRate * mAudioNumChannels * mAudioBitsPerSample / 8;
+    wh.nBlockAlign = mAudioBitsPerSample * mAudioNumChannels / 8;
+    wh.wBitsPerSample = mAudioBitsPerSample;
+    wh.cbSize = 22;
+    wh.wValidBitsPerSample = mAudioBitsPerSample;
+    wh.dwChannelMask = 0;
+    wh.subFormatGuid[0] = 0x00000001;
+    wh.subFormatGuid[1] = 0x00100000;
+    wh.subFormatGuid[2] = 0xaa000080;
+    wh.subFormatGuid[3] = 0x719b3800;
+
+    fwrite(&wh, 1, sizeof wh, mFp);
 }
 
 void
@@ -423,11 +546,18 @@ MLAviWriter::ThreadMain(void)
     FinishList(mLastMoviIdx);
     FinishRiff(mLastRiffIdx);
 
-    _fseeki64(mFp, mAviMainHeaderPos, SEEK_SET);
-    WriteAviMainHeader();
+    // mTotalVideoFrames, mTotalAudioSamplesが決まったので書き込む。
 
-    _fseeki64(mFp, mAviStreamHeaderPos, SEEK_SET);
-    WriteAviStreamHeader();
+    _fseeki64(mFp, mAviMainHeaderPos, SEEK_SET);
+    WriteAviMainHeader(1 + (int)mAudio);
+
+    _fseeki64(mFp, mAviStreamHeaderVideoPos, SEEK_SET);
+    WriteAviStreamHeaderVideo();
+
+    if (mAudio) {
+        _fseeki64(mFp, mAviStreamHeaderAudioPos, SEEK_SET);
+        WriteAviStreamHeaderAudio();
+    }
 
     fclose(mFp);
     mFp = nullptr;
@@ -443,16 +573,16 @@ MLAviWriter::ThreadMain(void)
 void
 MLAviWriter::WriteAll(void)
 {
-    ImageItem ii;
+    IncomingItem ii;
 
     m_mutex.lock();
-    int count = (int)mImageList.size();
+    int count = (int)mAudioVideoList.size();
     m_mutex.unlock();
 
     while (0 < count) {
         m_mutex.lock();
-        ii = mImageList.front();
-        mImageList.pop_front();
+        ii = mAudioVideoList.front();
+        mAudioVideoList.pop_front();
         m_mutex.unlock();
 
         WriteOne(ii);
@@ -460,15 +590,26 @@ MLAviWriter::WriteAll(void)
         ii.buf = nullptr;
 
         m_mutex.lock();
-        count = (int)mImageList.size();
+        count = (int)mAudioVideoList.size();
         m_mutex.unlock();
     }
 }
 
 void
-MLAviWriter::WriteOne(ImageItem& ii)
+MLAviWriter::WriteOne(IncomingItem& ii)
 {
-    if ((mTotalFrames % 30) == 29) {
+    if (ii.bAudio) {
+        WriteStreamDataHeader(MLFOURCC_01wb, ii.bytes);
+        fwrite(ii.buf, 1, ii.bytes, mFp);
+
+        int nSamples = ii.bytes / (mAudioBitsPerSample * mAudioNumChannels / 8);
+        mTotalAudioSamples += nSamples;
+        return;
+    }
+
+    // video
+
+    if ((mTotalVideoFrames % 30) == 29) {
         RestartRiff();
     }
 
@@ -477,6 +618,6 @@ MLAviWriter::WriteOne(ImageItem& ii)
     WriteStreamDataHeader(MLFOURCC_00dc, ii.bytes);
     fwrite(ii.buf, 1, ii.bytes, mFp);
 
-    ++mTotalFrames;
+    ++mTotalVideoFrames;
 }
 

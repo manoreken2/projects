@@ -186,9 +186,18 @@ namespace DumpAVIHeaders {
             mAviSH.right = br.ReadInt16();
             mAviSH.bottom = br.ReadInt16();
 
-            Console.WriteLine("{0:x12} {1} AviStreamHeader {2} {3}",
+            Console.WriteLine("{0:x12} {1} AviStreamHeader {2}bytes {3} {4}"
+                + " dwFlags={5:x8} wPriority={6} wLanguage={7} dwInitialFrames={8} dwScale={9}"
+                + " dwRate={10} dwStart={11} dwLength={12} dwSuggestedBufferSize={13}"
+                + " dwQuality={14} dwSampleSize={15}",
                 br.BaseStream.Position-64, spc,
-                FourCCToString(mAviSH.fccType), FourCCToString(mAviSH.fccHandler));
+                cb,
+                FourCCToString(mAviSH.fccType), FourCCToString(mAviSH.fccHandler),
+                
+                mAviSH.dwFlags, mAviSH.wPriority, mAviSH.wLanguage,
+                mAviSH.dwInitialFrames, mAviSH.dwScale, mAviSH.dwRate, mAviSH.dwStart,
+                mAviSH.dwLength, mAviSH.dwSuggestedBufferSize, mAviSH.dwQuality,
+                mAviSH.dwSampleSize);
         }
 
         static void ReadBitmapInfoHeader(string spc, BinaryReader br) {
@@ -230,10 +239,12 @@ namespace DumpAVIHeaders {
             mWavFmt.wBitsPerSample = br.ReadUInt16();
             mWavFmt.cbSize = br.ReadUInt16();
 
-            Console.WriteLine("{0:x12} {1} WaveFormatEx {2}Hz {3}bit {4}ch",
+            Console.WriteLine("{0:x12} {1} WaveFormatEx {2}bytes {3}Hz {4}bit {5}ch cbSize={6}",
                 br.BaseStream.Position-22, spc,
+                cb,
                 mWavFmt.nSamplesPerSec,
-                mWavFmt.wBitsPerSample, mWavFmt.nChannels);
+                mWavFmt.wBitsPerSample, mWavFmt.nChannels,
+                mWavFmt.cbSize);
 
             br.BaseStream.Seek(cb - 18, SeekOrigin.Current);
         }

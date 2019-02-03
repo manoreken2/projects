@@ -9,6 +9,10 @@ MLVideoCapture::MLVideoCapture(void)
     m_videoModeIdx = 0;
     m_frameCounter = 0;
     m_callback = nullptr;
+
+    mAudioSampleRate = 48000;
+    mAudioBitsPerSample = 16;
+    mAudioNumChannels = 2;
 }
 
 
@@ -133,9 +137,16 @@ MLVideoCapture::StartCapture(int videoModeIdx)
     m_deckLinkInput->SetCallback(this);
 
     // Set the video input mode
-    if (m_deckLinkInput->EnableVideoInput(m_modeList[m_videoModeIdx]->GetDisplayMode(), bmdFormat8BitYUV, videoInputFlags) != S_OK) {
+    if (S_OK != m_deckLinkInput->EnableVideoInput(m_modeList[m_videoModeIdx]->GetDisplayMode(), bmdFormat8BitYUV, videoInputFlags)) {
         MessageBox(nullptr,
             L"This application was unable to select the chosen video mode. Perhaps, the selected device is currently in-use.",
+            L"Error starting the capture", 0);
+        return false;
+    }
+
+    if (S_OK != m_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, bmdAudioSampleType16bitInteger, 2)) {
+        MessageBox(nullptr,
+            L"This application was unable to select 48kHz 16bit. Perhaps, the selected device is currently in-use.",
             L"Error starting the capture", 0);
         return false;
     }
@@ -223,7 +234,7 @@ bail:
 HRESULT
 MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoFrame, /* in */ IDeckLinkAudioInputPacket* audioPacket)
 {
-    if (videoFrame == nullptr) {
+    if (videoFrame == nullptr && audioPacket == nullptr) {
         return S_OK;
     }
 
@@ -238,7 +249,7 @@ MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoF
     ++m_frameCounter;
 
     if (m_callback) {
-        m_callback->MLVideoCaptureCallback_VideoInputFrameArrived(videoFrame);
+        m_callback->MLVideoCaptureCallback_VideoInputFrameArrived(videoFrame, audioPacket);
     }
 
     return S_OK;
