@@ -18,10 +18,11 @@ MLAviReader::~MLAviReader(void)
 float
 MLAviReader::DurationSec(void) const
 {
-    if (mAviStreamHeader.dwRate <= 0) {
+    if (VideoStreamHeader() == nullptr ||
+        VideoStreamHeader()->dwRate == 0) {
         return 0.0f;
     }
-    return (float)mImages.size() / mAviStreamHeader.dwRate;
+    return (float)mImages.size() / VideoStreamHeader()->dwRate;
 }
 
 bool
@@ -211,6 +212,18 @@ MLAviReader::ReadListHeader(void)
     return true;
 }
 
+const MLAviStreamHeader *
+MLAviReader::VideoStreamHeader(void) const
+{
+    for (int i = 0; i < mAviStreamHeader.size(); ++i) {
+        auto &h = mAviStreamHeader[i];
+        if (h.fccType == MLFOURCC_vids) {
+            return &h;
+        }
+    }
+    return nullptr;
+}
+
 bool
 MLAviReader::ReadAviMainHeader(void)
 {
@@ -227,10 +240,12 @@ bool
 MLAviReader::ReadAviStreamHeader(void)
 {
     assert(mFp);
-
-    if (!ReadHeader(mAviStreamHeader)) {
+    
+    MLAviStreamHeader ash;
+    if (!ReadHeader(ash)) {
         printf("Error: ReadAviStreamHeader() ReadHeader() failed\n");
     }
+    mAviStreamHeader.push_back(ash);
 
     return true;
 }
@@ -246,7 +261,7 @@ MLAviReader::ReadAviStreamFormatHeader(void)
         return false;
     }
 
-    if (mAviStreamHeader.fccType == MLFOURCC_vids
+    if (mAviStreamHeader.back().fccType == MLFOURCC_vids
             && bytes == 40) {
         // BITMAPINFOHEADER
         if (40 != fread(&mImageFormat, 1, 40, mFp)) {

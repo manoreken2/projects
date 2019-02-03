@@ -18,7 +18,10 @@ public:
     const MLBitmapInfoHeader & ImageFormat(void) const { return mImageFormat; }
     int NumFrames(void) const { return (int)mImages.size(); }
 
-    int FramesPerSec(void) const { return mAviStreamHeader.dwRate; }
+    int FramesPerSec(void) const {
+        if (VideoStreamHeader()) { return VideoStreamHeader()->dwRate; }
+        else { return 1; }
+    }
 
     float DurationSec(void) const;
 
@@ -32,8 +35,10 @@ private:
     FILE *mFp;
 
     MLAviMainHeader mAviMainHeader;
-    MLAviStreamHeader mAviStreamHeader;
+    std::vector<MLAviStreamHeader> mAviStreamHeader;
     MLBitmapInfoHeader mImageFormat;
+
+    const MLAviStreamHeader *VideoStreamHeader(void) const;
 
     struct ImagePosBytes {
         int64_t pos;
