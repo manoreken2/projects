@@ -6,18 +6,15 @@ MLDX12VideoCapture project
 
 Video capture program using DirectX12 and Decklink Mini recorder 4K.
 
-Decklink SDK 10.11.4 is necessary to build.
+How to build
 
+Decklink SDK 10.11.4 is necessary to build.
 Copy Blackmagic DeckLink SDK 10.11.4\Win\include\* to MLDecklinkCapture\Decklink directory.
 Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and build.
-
-YUV to RGB conversion is not optimal.
 
 ### About output AVI file of MLDX12VideoCapture 
 
 Currently only YUV 10bit v210 format can be recorded.
-
-Output AVI file does not contain audio data.
 
 Output AVI file does not have index chunk and not completed. Mencoder can fix the index. Example:
 
@@ -26,7 +23,7 @@ Output AVI file does not have index chunk and not completed. Mencoder can fix th
   ![ScreenShot](MLDX12VideoCapture/ScreenShot.png)
   
   
-How to build following projects
+How to build ImageToDng, DngHeaderDump etc.
 --------------
 
 Use cmake-gui to create Visual Studio solution and projects.
