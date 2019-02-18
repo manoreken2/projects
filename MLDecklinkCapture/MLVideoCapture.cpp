@@ -238,13 +238,24 @@ MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoF
         return S_OK;
     }
 
-    /*
+#if 0
     int width = videoFrame->GetWidth();
     int height = videoFrame->GetHeight();
     char s[256];
     sprintf_s(s, "VideoInputFrameArrived %d %dx%d\n", m_frameCounter, width, height);
     OutputDebugStringA(s);
-    */
+#endif
+    
+#if 0
+    int audioSamples = 0;
+    if (audioPacket) {
+        audioSamples = audioPacket->GetSampleFrameCount();
+    }
+    char s[256];
+    sprintf_s(s, "%d ", audioSamples);
+    OutputDebugStringA(s);
+
+#endif
 
     ++m_frameCounter;
 

@@ -44,6 +44,7 @@ namespace BMRawAVIv210ToDng
             try {
                 do {
                     var fcc = FourCCHeader.Read(mBr);
+                    Console.WriteLine("{0}", fcc.fourcc);
                     switch (fcc.fourcc) {
                         case "RIFF":
                             var riffType = Common.ReadFourCC(mBr);
@@ -63,6 +64,8 @@ namespace BMRawAVIv210ToDng
                         case "strf":
                             if (0 == mAviStreamHeader.fccType.CompareTo("vids")) {
                                 mBmpih = BitmapInfoHeader.Read(fcc, mBr);
+                            } else {
+                                SkipUnknownHeader(fcc);
                             }
                             break;
                         case "00db":
