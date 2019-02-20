@@ -6,6 +6,9 @@ MLDX12VideoCapture project
 
 Video capture program using DirectX12 and Decklink Mini recorder 4K.
 
+It can preview Raw SDI stream of Blackmagic Micro Studio Camera 4K.
+Please use BMRawAVIv210ToDng to convert from recorded Raw SDI yuv v210 AVI file to Cinema DNG.
+
 How to build
 
 Decklink SDK 10.11.4 is necessary to build.
