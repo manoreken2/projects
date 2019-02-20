@@ -17,6 +17,9 @@ MLVideoCaptureEnum::Init(void)
 {
     if (nullptr == m_deckLinkDiscovery) {
         CoCreateInstance(CLSID_CDeckLinkDiscovery, nullptr, CLSCTX_ALL, IID_IDeckLinkDiscovery, (void**)&m_deckLinkDiscovery);
+        if (m_deckLinkDiscovery == nullptr) {
+            return;
+        }
         m_deckLinkDiscovery->InstallDeviceNotifications(this);
     }
 }

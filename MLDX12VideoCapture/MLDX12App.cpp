@@ -720,9 +720,8 @@ MLDX12App::ShowCaptureWindow(void) {
             ImGui::RadioButton(name.c_str(), &selectedDeviceIdx, 0);
         }
         if (mVideoCaptureDeviceList.NumOfDevices() == 0) {
-            ImGui::Text("No video capture device found.");
-        }
-        if (ImGui::Button("Start Capture")) {
+            ImGui::TextColored(ImColor(255, 100, 100), "No video capture device found.");
+        } else if (ImGui::Button("Start Capture")) {
             mFrameSkipCount = 0;
 
             IDeckLink *p = mVideoCaptureDeviceList.Device(selectedDeviceIdx);
