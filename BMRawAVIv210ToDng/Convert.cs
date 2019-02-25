@@ -49,7 +49,7 @@ namespace BMRawAVIv210ToDng {
                         Console.WriteLine("Write {0}", toPath);
                     }
 
-                    Console.WriteLine("Done. Please fix DNG file using Adobe DNG Converter.");
+                    Console.WriteLine("Done.");
                 } catch (Exception ex) {
                     Console.WriteLine(ex);
                     result = false;
