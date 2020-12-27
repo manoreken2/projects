@@ -7,9 +7,13 @@
 struct MLImage {
     enum ImageMode {
         IM_RGB,
-        IM_YUV
+        IM_YUV,
+        IM_HALF_RGBA,
     };
 
+    /// <summary>
+    /// new[]Ç≈ämï€ÇµÇƒâ∫Ç≥Ç¢ÅB
+    /// </summary>
     uint8_t *data;
     int bytes;
     int width;

@@ -23,6 +23,7 @@ MLDrawings::AddCrosshair(MLImage &ci, CrosshairType ct)
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
     case MLImage::IM_RGB:
+    case MLImage::IM_HALF_RGBA:
         //        A B G R
         color = 0xffffffff;
         break;
@@ -89,6 +90,7 @@ MLDrawings::AddTitleSafeArea(MLImage &ci)
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
     case MLImage::IM_RGB:
+    case MLImage::IM_HALF_RGBA:
         //        A B G R
         color = 0xffffffff;
         break;
@@ -145,6 +147,7 @@ MLDrawings::AddGrid(MLImage &ci, GridType gt)
     uint32_t color = (0xff << 24) + (254 << 16) + (128 << 8) + 128;
     switch (ci.imgMode) {
     case MLImage::IM_RGB:
+    case MLImage::IM_HALF_RGBA:
         //        A B G R
         color = 0xffffffff;
         break;

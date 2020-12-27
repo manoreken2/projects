@@ -6,6 +6,8 @@
 #include "MLAviCommon.h"
 #include "MLDX12Common.h"
 #include "EnumToStr.h"
+#include "ExrReader.h"
+#include "half.h"
 
 // D3D12HelloFrameBuffering sample
 //*********************************************************
@@ -43,8 +45,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     mPlayDrawMode(MLImage::IM_YUV),
     mIdToShowPlayVideoTex(0)
 {
-    strcpy_s(mWritePath, "c:/data/output.avi");
-    strcpy_s(mReadPath, "c:/data/output.avi");
+    strcpy_s(mReadPath, "c:/data/BMW27_4K.exr");
     mCaptureMsg[0] = 0;
     mPlayMsg[0] = 0;
 
@@ -102,12 +103,12 @@ MLDX12App::OnDestroy(void) {
 
     CloseHandle(mFenceEvent);
 
-    for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
+    for (auto ite = mImagesToUploadToGpu.begin(); ite != mImagesToUploadToGpu.end(); ++ite) {
         auto & item = *ite;
         delete[] item.data;
         item.data = nullptr;
     }
-    mCapturedImages.clear();
+    mImagesToUploadToGpu.clear();
 
     mDx12Imgui.Term();
 }
@@ -389,24 +390,24 @@ MLDX12App::LoadAssets(void) {
     {
         const int texW = 3840;
         const int texH = 2160;
-        const int pixelBytes = sizeof(float) * 4;
-        float *buff = new float[texW * texH * 4];
-
-        // 値。
+        const int pixelBytes = 2 * 4; // 2==sizeof(half), 4==r,g,b,a
+        half *buff = new half[texW * texH * 4];
         for (int y = 0; y < texH; ++y) {
             for (int x = 0; x < texW; ++x) {
-                int pos = (x + y * texW) * 4;
-                buff[pos + 0] = 0.01f; //< R
-                buff[pos + 1] = 0.01f; //< G
-                buff[pos + 2] = 0.01f; //< B
-                buff[pos + 3] = 1.00f; //< A
+                int pos = (x + y * texW) *4;
+                buff[pos + 0] = 0.01f;
+                buff[pos + 1] = 0.01f;
+                buff[pos + 2] = 0.01f;
+                buff[pos + 3] = 1.0f;
             }
         }
 
-        CreateVideoTexture(mTexCapturedVideo[0], TE_CAPVIDEO0, texW, texH, DXGI_FORMAT_R32G32B32A32_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexCapturedVideo[1], TE_CAPVIDEO1, texW, texH, DXGI_FORMAT_R32G32B32A32_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexPlayVideo[0], TE_PLAYVIDEO0, texW, texH, DXGI_FORMAT_R32G32B32A32_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexPlayVideo[1], TE_PLAYVIDEO1, texW, texH, DXGI_FORMAT_R32G32B32A32_FLOAT, pixelBytes, (uint8_t*)buff);
+        memset(buff, 0, pixelBytes);
+
+        CreateVideoTexture(mTexImg[0], TE_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+        CreateVideoTexture(mTexImg[1], TE_IMG1, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+        CreateVideoTexture(mTexPlayVideo[0], TE_PLAYVIDEO0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+        CreateVideoTexture(mTexPlayVideo[1], TE_PLAYVIDEO1, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
 
         delete[] buff;
     }
@@ -569,6 +570,9 @@ MLDX12App::CreateImguiTexture(void) {
 void
 MLDX12App::OnKeyUp(int key) {
     switch (key) {
+    case VK_F7:
+        mShowImGui = !mShowImGui;
+        break;
     case VK_SPACE:
         {
             BOOL fullscreenState;
@@ -660,7 +664,7 @@ MLDX12App::OnRender(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // texture upload
-    bool bUpCap = UpdateCapturedVideoTexture();
+    bool bUpCap = UpdateImgTexture();
     if (!bUpCap) {
         // テクスチャアップロードのための資源が1個しかないので。
         UpdatePlayVideoTexture();
@@ -674,6 +678,7 @@ void
 MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode) {
     switch (drawMode) {
     case MLImage::IM_RGB:
+    case MLImage::IM_HALF_RGBA:
         mCmdList->SetPipelineState(mPipelineStateRGB.Get());
         break;
     case MLImage::IM_YUV:
@@ -725,7 +730,7 @@ MLDX12App::PopulateCommandList(void) {
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
     DrawFullscreenTexture(
-        (TextureEnum)(TE_CAPVIDEO0 + mIdToShowCapVideoTex),
+        (TextureEnum)(TE_IMG0 + mIdToShowCapVideoTex),
         mCaptureDrawMode);
 
     if (0.0f < mPlayAlpha) {
@@ -776,9 +781,7 @@ MLDX12App::WaitForGpu(void) {
 void
 MLDX12App::ShowSettingsWindow(void) {
     ImGui::Begin("Settings");
-    //ImGui::SetWindowSize(ImVec2(400, 300));
 
-    /*
     if (ImGui::BeginPopupModal("ErrorCapturePopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mCaptureMsg);
         if (ImGui::Button("OK", ImVec2(120, 0))) {
@@ -788,28 +791,30 @@ MLDX12App::ShowSettingsWindow(void) {
         ImGui::EndPopup();
     }
 
-    if (ImGui::BeginPopupModal("WriteFlushPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text(mCaptureMsg);
-
-        if (mState != S_WaitRecordEnd) {
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-    */
-
     ImGui::Text("Frames Per Second : %.1f", ImGui::GetIO().Framerate);
-    ImGui::Text("");
+
+    ImGui::Separator();
+
     ImGui::Text("ALT+Enter to toggle fullscreen.");
     ImGui::Text("F7 to show/hide UI.");
-    ImGui::Text("");
-    ImGui::Text("Display name = \"%S\", %d x %d",
-        mDeviceName,
-        mDesktopCoordinates.right-mDesktopCoordinates.left,
-        mDesktopCoordinates.bottom-mDesktopCoordinates.top);
 
-    ImGui::Text("Display is %s, %d bit",
+    switch (mState) {
+    case S_Init:
+        ImGui::Text("Specify image to show.");
+        break;
+    case S_ImageViewing:
+        ImGui::Text("Image loaded.");
+        break;
+    default:
+        assert(0);
+        break;
+    }
+    ImGui::Separator();
+
+    ImGui::Text("Display is %s, %d x %d, %d bit",
         mIsDisplayHDR10 ? "HDR10" : "SDR",
+        mDesktopCoordinates.right - mDesktopCoordinates.left,
+        mDesktopCoordinates.bottom - mDesktopCoordinates.top,
         mBitsPerColor);
 
     ImGui::Text("BackBufferFMT = %s", 
@@ -824,167 +829,6 @@ MLDX12App::ShowSettingsWindow(void) {
 
     ImGui::Text("Display Luminance: min = %f, max = %f, maxFullFrame = %f",
         mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
-
-    static int selectedDeviceIdx = 0;
-
-    switch (mState) {
-    case S_Init:
-        ImGui::Text("Specify image to show.");
-        break;
-    case S_ImageLoading:
-        ImGui::Text("Loading image...");
-        break;
-    case S_ImageViewing:
-        ImGui::Text("Image loaded.");
-        break;
-        /*
-    case S_WaitRecordEnd:
-        {
-            sprintf_s(mCaptureMsg, "Now Writing AVI...\nRemaining %d frames.", mAviWriter.RecQueueSize());
-            mMutex.lock();
-            bool bEnd = mAviWriter.PollThreadEnd();
-            mMutex.unlock();
-            if (bEnd) {
-                mState = S_Previewing;
-            }
-        }
-        break;
-    case S_Recording:
-    case S_Previewing:
-        {
-            int queueSize = 0;
-            mMutex.lock();
-            if (!mCapturedImages.empty()) {
-                queueSize = (int)mCapturedImages.size();
-                auto & front = mCapturedImages.front();
-                ImGui::Text(front.imgFormat.c_str());
-            } else {
-                ImGui::Text("");
-            }
-            mMutex.unlock();
-
-            BMDTimeScale ts = mVideoCapture.FrameRateTS();
-            BMDTimeValue tv = mVideoCapture.FrameRateTV();
-            ImGui::Text("Frame rate : %.1f", (double)ts / tv);
-
-            ImGui::Separator();
-
-            if (mState == S_Previewing) {
-                ImGui::Text("Now Previewing...");
-                BMDPixelFormat pixFmt = mVideoCapture.PixelFormat();
-                if (bmdFormat10BitYUV == pixFmt) {
-                    ImGui::InputText("Record filename", mWritePath, sizeof mWritePath - 1);
-                    if (ImGui::Button("Record", ImVec2(256, 64))) {
-                        wchar_t path[512];
-                        memset(path, 0, sizeof path);
-                        MultiByteToWideChar(CP_UTF8, 0, mWritePath, sizeof mWritePath, path, 511);
-
-                        bool bRv = mAviWriter.Start(path, mVideoCapture.Width(),
-                            mVideoCapture.Height(), (int)(ts / 1000),
-                            MLIF_YUV422v210, true);
-                        if (bRv) {
-                            mState = S_Recording;
-                            mCaptureMsg[0] = 0;
-                        } else {
-                            sprintf_s(mCaptureMsg, "Record Failed.\nFile open error : %s", mWritePath);
-                            ImGui::OpenPopup("ErrorCapturePopup");
-                        }
-                    }
-                }
-
-                if (ImGui::Button("Stop Capture")) {
-
-                    mVideoCapture.StopCapture();
-                    mVideoCapture.Term();
-
-                    mVideoCaptureDeviceList.Term();
-                    mVideoCaptureDeviceList.Init();
-
-                    mState = S_Init;
-                }
-            } else if (mState == S_Recording) {
-                ImGui::Text("Now Recording...");
-                ImGui::Text("Record filename : %s", mWritePath);
-                {
-                    // hour:min:sec:frameを算出。
-                    auto vt = MLFrameNrToTime(mAviWriter.FramesPerSec(), mAviWriter.TotalVideoFrames());
-                    ImGui::Text("%02d:%02d:%02d:%02d",
-                        vt.hour, vt.min, vt.sec, vt.frame);
-                }
-                if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
-                    mState = S_WaitRecordEnd;
-
-                    mMutex.lock();
-                    mAviWriter.StopAsync();
-                    mMutex.unlock();
-
-                    ImGui::OpenPopup("WriteFlushPopup");
-                }
-
-                ImGui::Text("Rec Queue size : %d", mAviWriter.RecQueueSize());
-            }
-
-            if (mVideoCapture.Width() == 3840 && mVideoCapture.Height() == 2160 && mVideoCapture.PixelFormat() == bmdFormat10BitYUV) {
-                // Maybe Blackmagic Micro Studio Camera 4K...
-                ImGui::Checkbox("Raw SDI preview", &mRawSDI);
-                if (mRawSDI) {
-                    ImGui::DragFloat("Preview Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
-                    ImGui::DragFloat("Preview Gain R", &mDrawGainR, 0.01f, 0.5f, 2.0f);
-                    ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
-                    ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
-
-                    mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
-                }
-            }
-
-
-            ImGui::Text("Draw Queue size : %d", queueSize);
-            ImGui::SameLine();
-            if (ImGui::Button("Clear Draw Queue")) {
-                ClearDrawQueue();
-            }
-            ImGui::Text("Frame Draw skip count : %lld", mFrameSkipCount);
-
-            if (ImGui::Button("Flush streams")) {
-                mVideoCapture.FlushStreams();
-            }
-
-            ImGui::BeginGroup();
-            if (ImGui::RadioButton("Center Crosshair", mCrosshairType == MLDrawings::CH_CenterCrosshair)) {
-                mCrosshairType = MLDrawings::CH_CenterCrosshair;
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("4 Crosshairs", mCrosshairType == MLDrawings::CH_4Crosshairs)) {
-                mCrosshairType = MLDrawings::CH_4Crosshairs;
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("CHNone", mCrosshairType == MLDrawings::CH_None)) {
-                mCrosshairType = MLDrawings::CH_None;
-            }
-            ImGui::EndGroup();
-
-            ImGui::Checkbox("Title safe area", &mTitleSafeArea);
-
-            ImGui::BeginGroup();
-            if (ImGui::RadioButton("3x3 Grid", mGridType == MLDrawings::GR_3x3)) {
-                mGridType = MLDrawings::GR_3x3;
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("6x6 Grid", mGridType == MLDrawings::GR_6x6)) {
-                mGridType = MLDrawings::GR_6x6;
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("GRNone", mGridType == MLDrawings::GR_None)) {
-                mGridType = MLDrawings::GR_None;
-            }
-            ImGui::EndGroup();
-        }
-        break;
-        */
-    default:
-        assert(0);
-        break;
-    }
 
     ImGui::End();
 }
@@ -1006,6 +850,19 @@ MLDX12App::ShowPlaybackWindow(void) {
 
     if (mAviReader.NumFrames() <= 0) {
         if (ImGui::Button("Open")) {
+#if 1
+            MLImage img;
+            int rv = ExrRead(mReadPath, img);
+            if (rv < 0) {
+                sprintf_s(mPlayMsg, "Read EXR Failed.\nFile open error : %s", mReadPath);
+                ImGui::OpenPopup("ErrorPlayPopup");
+            } else {
+                mMutex.lock();
+                mImagesToUploadToGpu.push_back(img);
+                mMutex.unlock();
+                mState = S_ImageViewing;
+            }
+#else
             wchar_t path[512];
             memset(path, 0, sizeof path);
             MultiByteToWideChar(CP_UTF8, 0, mReadPath, sizeof mReadPath, path, 511);
@@ -1026,6 +883,7 @@ MLDX12App::ShowPlaybackWindow(void) {
                 sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %s", mReadPath);
                 ImGui::OpenPopup("ErrorPlayPopup");
             }
+#endif
         }
     } else {
         if (ImGui::Button("Close")) {
@@ -1070,121 +928,31 @@ MLDX12App::ShowPlaybackWindow(void) {
 
 void
 MLDX12App::ImGuiCommands(void) {
-    //ImGui::ShowDemoWindow();
-
-    ShowSettingsWindow();
-    ShowPlaybackWindow();
+    if (mShowImGui){
+        //ImGui::ShowDemoWindow();
+        ShowSettingsWindow();
+        ShowPlaybackWindow();
+    }
 
     ImGui::Render();
 }
 
-/*
-void
-MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(
-    IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket) {
-
-    if (audioPacket != nullptr
-        && mState == S_Recording) {
-        // オーディオを記録する。
-        void *audioBuff = nullptr;
-        audioPacket->GetBytes(&audioBuff);
-
-        int audioFrameCount = audioPacket->GetSampleFrameCount();
-        if (0 < audioFrameCount) {
-            mMutex.lock();
-            mAviWriter.AddAudio((const uint8_t*)audioBuff, audioFrameCount);
-            mMutex.unlock();
-        }
-    }
-
-    // Video
-
-    void *buffer = nullptr;
-    videoFrame->GetBytes(&buffer);
-
-    int width = videoFrame->GetWidth();
-    int height = videoFrame->GetHeight();
-    int fmt = videoFrame->GetPixelFormat();
-    int rowBytes = videoFrame->GetRowBytes();
-
-    mMutex.lock();
-    if (mState == S_Recording) {
-        mAviWriter.AddImage((const uint8_t*)buffer, rowBytes*height);
-    }
-    mMutex.unlock();
-
-    mMutex.lock();
-    if (CapturedImageQueueSize <= mCapturedImages.size()) {
-        // 詰まっているときは描画更新をスキップする。
-        ++mFrameSkipCount;
-        mMutex.unlock();
-        return;
-    }
-    mMutex.unlock();
-
-    char s[256];
-    sprintf_s(s, "%dx%d %s", width, height, BMDPixelFormatToStr(fmt));
-    int bytes = width * height * 4;
-
-    MLImage ci;
-    ci.imgFormat = s;
-    ci.bytes = bytes;
-    ci.width = width;
-    ci.height = height;
-    ci.imgMode = MLImage::IM_RGB;
-    ci.data = new uint8_t[bytes];
-
-    uint8_t alpha = 255;
-    uint32_t *pFrom = (uint32_t *)buffer;
-    uint32_t *pTo = (uint32_t *)ci.data;
-    switch (fmt) {
-    case bmdFormat10BitRGB:
-        {
-            MLConverter::Rgb10bitToRGBA(pFrom, pTo, width, height, alpha);
-            ci.imgMode = MLImage::IM_RGB;
-        }
-        break;
-    case bmdFormat10BitYUV:
-        if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, width, height, alpha);
-            ci.imgMode = MLImage::IM_RGB;
-        } else {
-            MLConverter::YuvV210ToYuvA(pFrom, pTo, width, height, alpha);
-            ci.imgMode = MLImage::IM_YUV;
-        }
-        break;
-    default:
-        break;
-    }
-
-    mDrawings.AddCrosshair(ci, mCrosshairType);
-    if (mTitleSafeArea) {
-        mDrawings.AddTitleSafeArea(ci);
-    }
-    mDrawings.AddGrid(ci, mGridType);
-
-    mMutex.lock();
-    mCapturedImages.push_back(ci);
-    mMutex.unlock();
-}
-*/
-
 void
 MLDX12App::ClearDrawQueue(void) {
     mMutex.lock();
-    for (auto ite = mCapturedImages.begin(); ite != mCapturedImages.end(); ++ite) {
+    for (auto ite = mImagesToUploadToGpu.begin(); ite != mImagesToUploadToGpu.end(); ++ite) {
         MLImage &ci = *ite;
         delete[] ci.data;
         ci.data = nullptr;
     }
-    mCapturedImages.clear();
+    mImagesToUploadToGpu.clear();
     mMutex.unlock();
 }
 
 bool
-MLDX12App::UpdateCapturedVideoTexture(void) {
+MLDX12App::UpdateImgTexture(void) {
     mMutex.lock();
-    if (mCapturedImages.empty()) {
+    if (mImagesToUploadToGpu.empty()) {
         mMutex.unlock();
         //OutputDebugString(L"Not Available\n");
         return false;
@@ -1194,13 +962,13 @@ MLDX12App::UpdateCapturedVideoTexture(void) {
     //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
     //OutputDebugStringA(s);
 
-    MLImage ci = mCapturedImages.front();
-    mCapturedImages.pop_front();
+    MLImage ci = mImagesToUploadToGpu.front();
+    mImagesToUploadToGpu.pop_front();
 
     mMutex.unlock();
 
-    UpdateVideoTexture(ci, mTexCapturedVideo[!mIdToShowCapVideoTex],
-        (TextureEnum)(TE_CAPVIDEO0 + !mIdToShowCapVideoTex));
+    UploadImgToGpu(ci, mTexImg[!mIdToShowCapVideoTex],
+        (TextureEnum)(TE_IMG0 + !mIdToShowCapVideoTex));
 
     mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
 
@@ -1251,7 +1019,7 @@ MLDX12App::UpdatePlayVideoTexture(void) {
         return false;
     }
 
-    UpdateVideoTexture(ci, mTexPlayVideo[!mIdToShowPlayVideoTex],
+    UploadImgToGpu(ci, mTexPlayVideo[!mIdToShowPlayVideoTex],
         (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
 
     mPlayDrawMode = ci.imgMode;
@@ -1261,11 +1029,25 @@ MLDX12App::UpdatePlayVideoTexture(void) {
 }
 
 void
-MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) {
+MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) {
     assert(tex.Get());
 
-    DXGI_FORMAT pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    int         pixelBytes = 4;
+    DXGI_FORMAT pixelFormat;
+    int         pixelBytes;
+    switch (ci.imgMode) {
+    case MLImage::IM_HALF_RGBA:
+        pixelFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        pixelBytes = 8;
+        break;
+    case MLImage::IM_RGB:
+    case MLImage::IM_YUV:
+        pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        pixelBytes = 4;
+        break;
+    default:
+        assert(0);
+        break;
+    }
 
     ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
     ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));

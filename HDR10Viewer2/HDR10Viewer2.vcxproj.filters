@@ -1,0 +1,164 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="EnumToStr.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="ExrReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_demo.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_draw.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_win32.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_widgets.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviCommon.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLConverter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDrawings.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDX12.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDX12App.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDX12Common.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLDX12Imgui.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLVideoTime.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="WinApp.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="OpenEXR\include\OpenEXR\OpenEXRConfig.h">
+      <Filter>OpenExr</Filter>
+    </ClInclude>
+    <ClInclude Include="Common.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DXSampleHelper.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="EnumToStr.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ExrReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imconfig.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_win32.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_internal.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_rectpack.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_textedit.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_truetype.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAVICommon.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAviReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAviWriter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLConverter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDrawings.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12App.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12Common.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12Imgui.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLImage.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLVideoTime.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="WinApp.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="OpenEXR\include\OpenEXR\half.h">
+      <Filter>OpenExr</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shadersRGB.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shadersYUV.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="OpenExr">
+      <UniqueIdentifier>{6c78ab83-29ec-4853-94a9-39285dcad4d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{4f0913df-f4d8-4aaa-90d7-cfc1918a8742}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources">
+      <UniqueIdentifier>{22278552-a3b8-4667-bd36-7a1d1f55143f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{ee62fdac-a02b-4c9a-a7e2-3382750ddb58}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

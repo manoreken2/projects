@@ -43,8 +43,8 @@ public:
     };
 
     enum TextureEnum {
-        TE_CAPVIDEO0,
-        TE_CAPVIDEO1,
+        TE_IMG0,
+        TE_IMG1,
         TE_PLAYVIDEO0,
         TE_PLAYVIDEO1,
         TE_IMGUI,
@@ -68,6 +68,7 @@ private:
         XMFLOAT2 uv;
     };
 
+    bool mShowImGui = true;
     UINT mOptions;
     State mState;
     MLImage::ImageMode mCaptureDrawMode;
@@ -100,7 +101,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> mSrvHeap;
     UINT                         mSrvDescSize;
     ComPtr<ID3D12Resource>      mTexImgui;
-    ComPtr<ID3D12Resource>       mTexCapturedVideo[2];
+    ComPtr<ID3D12Resource>       mTexImg[2];
     int mIdToShowCapVideoTex;
 
     UINT mFrameIdx;
@@ -110,11 +111,10 @@ private:
     bool mWindowedMode;
 
     bool mRawSDI;    
-    std::list<MLImage> mCapturedImages;
+    std::list<MLImage> mImagesToUploadToGpu;
     std::mutex mMutex;
     int64_t mFrameSkipCount;
     MLAviWriter mAviWriter;
-    char mWritePath[512];
     char mCaptureMsg[512];
     float mDrawGamma;
     float mDrawGainR;
@@ -150,7 +150,7 @@ private:
 
     void ClearDrawQueue(void);
 
-    bool UpdateCapturedVideoTexture(void);
+    bool UpdateImgTexture(void);
 
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
@@ -160,7 +160,7 @@ private:
     void ShowSettingsWindow(void);
     void ShowPlaybackWindow(void);
     void CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
-    void UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
+    void UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
 
     // HDR10ÇÃê›íËÅB
     void UpdateColorSpace(void);
