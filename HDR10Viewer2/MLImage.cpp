@@ -16,7 +16,7 @@ const char* MLImage::MLImageFileFormatTypeToStr(MLImage::ImageFileFormatType t) 
     switch (t) {
     case IFFT_None: return "None";
     case IFFT_OpenEXR: return "OpenEXR";
-    case IFFT_AVI: return "AVI";
+    case IFFT_PNG: return "PNG";
     }
 }
 

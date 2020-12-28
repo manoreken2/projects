@@ -9,6 +9,7 @@
 #include "ExrReader.h"
 #include "half.h"
 #include "MLImage.h"
+#include "PngReader.h"
 
 
 // D3D12HelloFrameBuffering sample
@@ -1043,10 +1044,14 @@ MLDX12App::ShowFileReadWindow(void) {
     ImGui::InputText("Read filename 0", mImgFilePath, sizeof mImgFilePath - 1);
     if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
-        int rv = ExrRead(mImgFilePath, mShowImg[0]);
+        int rv = PngRead(mImgFilePath, mShowImg[0]);
+        if (rv == 1) {
+            // ファイルは存在するがPNGではなかった場合。
+            rv = ExrRead(mImgFilePath, mShowImg[0]);
+        }
         mMutex.unlock();
         if (rv < 0) {
-            sprintf_s(mErrorFileReadMsg, "Read EXR Failed.\nFile open error : %s", mImgFilePath);
+            sprintf_s(mErrorFileReadMsg, "Read Image Failed.\nFile open error : %s", mImgFilePath);
             ImGui::OpenPopup("ErrorFileReadPopup");
         } else {
             mState = S_ImageViewing;

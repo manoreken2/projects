@@ -64,6 +64,9 @@
     <ClCompile Include="MLImage.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="PngReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="OpenEXR\include\OpenEXR\OpenEXRConfig.h">
@@ -148,6 +151,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MLColorConvShaderConstants.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="PngReader.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

@@ -16,7 +16,7 @@ struct MLImage {
     enum ImageFileFormatType {
         IFFT_None,
         IFFT_OpenEXR,
-        IFFT_AVI,
+        IFFT_PNG,
     };
 
     enum BitFormatType {

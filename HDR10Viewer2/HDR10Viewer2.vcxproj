@@ -38,6 +38,7 @@
     <ClInclude Include="MLVideoTime.h" />
     <ClInclude Include="OpenEXR\include\OpenEXR\half.h" />
     <ClInclude Include="OpenEXR\include\OpenEXR\OpenEXRConfig.h" />
+    <ClInclude Include="PngReader.h" />
     <ClInclude Include="WinApp.h" />
   </ItemGroup>
   <ItemGroup>
@@ -112,6 +113,10 @@
     </ClCompile>
     <ClCompile Include="MLImage.cpp" />
     <ClCompile Include="MLVideoTime.cpp">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="PngReader.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
@@ -221,14 +226,14 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>zlibstaticd.lib;Imath-2_5_static_d.lib;IlmThread-2_5_static_d.lib;IlmImfUtil-2_5_static_d.lib;IlmImf-2_5_static_d.lib;IexMath-2_5_static_d.lib;Iex-2_5_static_d.lib;Half-2_5_static_d.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpng16_staticd.lib;zlibstaticd.lib;Imath-2_5_static_d.lib;IlmThread-2_5_static_d.lib;IlmImfUtil-2_5_static_d.lib;IlmImf-2_5_static_d.lib;IexMath-2_5_static_d.lib;Iex-2_5_static_d.lib;Half-2_5_static_d.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -247,7 +252,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\OpenExr\include;.\OpenExr\include\OpenExr</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -256,7 +261,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>zlibstatic.lib;Imath-2_5_static.lib;IlmThread-2_5_static.lib;IlmImfUtil-2_5_static.lib;IlmImf-2_5_static.lib;IexMath-2_5_static.lib;Iex-2_5_static.lib;Half-2_5_static.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpng16_static.lib;zlibstatic.lib;Imath-2_5_static.lib;IlmThread-2_5_static.lib;IlmImfUtil-2_5_static.lib;IlmImf-2_5_static.lib;IexMath-2_5_static.lib;Iex-2_5_static.lib;Half-2_5_static.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
