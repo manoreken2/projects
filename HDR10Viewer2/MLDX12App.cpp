@@ -8,6 +8,7 @@
 #include "EnumToStr.h"
 #include "ExrReader.h"
 #include "half.h"
+#include "MLImage.h"
 
 // D3D12HelloFrameBuffering sample
 //*********************************************************
@@ -852,7 +853,7 @@ MLDX12App::ShowSettingsWindow(void) {
 
     if (ImGui::BeginPopupModal("ErrorSettingsPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mErrorSettingsMsg);
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
+        if (ImGui::Button("OK ##ESM", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
             mErrorSettingsMsg[0] = 0;
         }
@@ -878,6 +879,27 @@ MLDX12App::ShowSettingsWindow(void) {
         break;
     }
 
+    if (mState == S_ImageViewing) {
+        MLImage& img = mShowImg[0];
+        if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            ImGui::Text("Image is %s, %d x %d, %s",
+                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat),
+                img.width, img.height,
+                MLImage::MLImageModeToStr(img.imgMode));
+        }
+        if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
+
+            int cg = (int)img.colorGamut;
+            ImGui::RadioButton("Rec.709 ##ICG", &cg, 0);
+            ImGui::RadioButton("Adobe RGB ##ICG", &cg, 1);
+            ImGui::RadioButton("Rec.2020 ##ICG", &cg, 2);
+            img.colorGamut = (MLColorGamutType)cg;
+
+            //ImGui::TreePop();
+        }
+    }
+
     if (ImGui::TreeNodeEx("Display Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
         ImGui::Text("Display is %s, %d x %d, %d bit",
             mIsDisplayHDR10 ? "HDR10" : "SDR",
@@ -901,9 +923,9 @@ MLDX12App::ShowSettingsWindow(void) {
 
     if (ImGui::TreeNodeEx("Display Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
         int cg = (int)mDisplayColorGamut;
-        ImGui::RadioButton("Rec.709", &cg, 0);
-        ImGui::RadioButton("Adobe RGB", &cg, 1);
-        ImGui::RadioButton("Rec.2020", &cg, 2);
+        ImGui::RadioButton("Rec.709 ##DCG", &cg, 0);
+        ImGui::RadioButton("Adobe RGB ##DCG", &cg, 1);
+        ImGui::RadioButton("Rec.2020 ##DCG", &cg, 2);
         mDisplayColorGamut = (MLColorGamutType)cg;
         
         //ImGui::TreePop();
@@ -918,7 +940,7 @@ MLDX12App::ShowFileReadWindow(void) {
 
     if (ImGui::BeginPopupModal("ErrorFileReadPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mErrorFileReadMsg);
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
+        if (ImGui::Button("OK ## EFM", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
             mErrorFileReadMsg[0] = 0;
         }
@@ -926,13 +948,13 @@ MLDX12App::ShowFileReadWindow(void) {
     }
 
     ImGui::InputText("Read filename 0", mImgFilePath, sizeof mImgFilePath - 1);
-    if (ImGui::Button("Open")) {
+    if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
         int rv = ExrRead(mImgFilePath, mShowImg[0]);
         mMutex.unlock();
         if (rv < 0) {
             sprintf_s(mErrorFileReadMsg, "Read EXR Failed.\nFile open error : %s", mImgFilePath);
-            ImGui::OpenPopup("ErrorPlayPopup");
+            ImGui::OpenPopup("ErrorFileReadPopup");
         } else {
             mState = S_ImageViewing;
         }

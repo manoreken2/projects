@@ -52,5 +52,11 @@ struct MLImage {
         delete[] data;
         data = nullptr;
     }
+
+    static const char* MLImageModeToStr(ImageModeType t);
+
+    static const char* MLImageFileFormatTypeToStr(ImageFileFormatType t);
+
+    static const char* MLImageBitFormatToStr(BitFormatType t);
 };
 

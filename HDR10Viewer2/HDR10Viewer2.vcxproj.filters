@@ -58,6 +58,12 @@
     <ClCompile Include="WinApp.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="MLColorGamut.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLImage.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="OpenEXR\include\OpenEXR\OpenEXRConfig.h">
