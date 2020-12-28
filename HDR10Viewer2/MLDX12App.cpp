@@ -717,6 +717,22 @@ MLDX12App::OnKeyUp(int key) {
     case VK_F7:
         mShowImGui = !mShowImGui;
         break;
+    case VK_ESCAPE:
+        {
+            BOOL fullscreenState;
+            ThrowIfFailed(mSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+            if (fullscreenState) {
+                // フルスクリーンの時、ウィンドウモードに遷移する。
+                if (FAILED(mSwapChain->SetFullscreenState(!fullscreenState, nullptr))) {
+                    // Transitions to fullscreen mode can fail when running apps over
+                    // terminal services or for some other unexpected reason.  Consider
+                    // notifying the user in some way when this happens.
+                    OutputDebugString(L"Fullscreen to windowed mode transition failed");
+                    assert(false);
+                }
+            }
+        }
+        break;
     case VK_SPACE:
         {
             BOOL fullscreenState;
