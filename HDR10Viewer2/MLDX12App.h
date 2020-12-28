@@ -109,9 +109,14 @@ private:
 
     ComPtr<ID3D12Resource>       mTexImgui;
 
-    MLImage                      mShowImg[2];
-    ComPtr<ID3D12Resource>       mTexImg[2];
 
+    MLImage                      mShowImg;
+    ComPtr<ID3D12Resource>       mTexImg[2];
+    int                          mRenderTexImgIdx = 0;
+
+    /// <summary>
+    /// フェンスイベントの変数。
+    /// </summary>
     UINT mFrameIdx;
     HANDLE mFenceEvent;
     ComPtr<ID3D12Fence> mFence;
@@ -140,8 +145,8 @@ private:
     void LoadSizeDependentResources(void);
     void UpdateViewAndScissor(void);
 
-    void SetDefaultImgTexture(int idx);
-    bool UpdateImgTexture(int idx);
+    void SetDefaultImgTexture(void);
+    bool UpdateImgTexture(void);
 
 
     void CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data);

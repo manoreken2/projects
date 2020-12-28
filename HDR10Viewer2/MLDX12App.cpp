@@ -40,6 +40,8 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
 
     mColorConvShaderConsts.colorConvMat = XMMatrixIdentity();
     mColorConvShaderConsts.imgGammaType = MLImage::MLG_Linear;
+    mColorConvShaderConsts.flags = 0;
+    mColorConvShaderConsts.maxNits = 10000.0f;
 }
 
 MLDX12App::~MLDX12App(void) {
@@ -90,9 +92,7 @@ MLDX12App::OnDestroy(void) {
 
     CloseHandle(mFenceEvent);
 
-    for (int i=0; i<sizeof mShowImg / sizeof mShowImg[0]; ++i) {
-        mShowImg[i].Term();
-    }
+    mShowImg.Term();
 
     mDx12Imgui.Term();
 
@@ -467,11 +467,11 @@ MLDX12App::LoadAssets(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
-    SetDefaultImgTexture(0);
+    SetDefaultImgTexture();
 }
 
 void
-MLDX12App::SetDefaultImgTexture(int idx)
+MLDX12App::SetDefaultImgTexture(void)
 {
     const int texW = 3840;
     const int texH = 2160;
@@ -487,13 +487,13 @@ MLDX12App::SetDefaultImgTexture(int idx)
         }
     }
 
-    delete [] mShowImg[idx].data;
-    mShowImg[idx].data = nullptr;
+    delete [] mShowImg.data;
+    mShowImg.data = nullptr;
 
-    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, pixelBytes, nullptr);
+    mShowImg.Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, pixelBytes, nullptr);
 
-    mTexImg[idx].Reset();
-    CreateTexture(mTexImg[idx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+    mTexImg[mRenderTexImgIdx].Reset();
+    CreateTexture(mTexImg[mRenderTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
 
     delete[] buff;
 }
@@ -819,8 +819,8 @@ MLDX12App::LoadSizeDependentResources(void) {
 void
 MLDX12App::OnUpdate(void)
 {
-    mColorConvShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg[0].colorGamut, mDisplayColorGamut);
-    mColorConvShaderConsts.imgGammaType = mShowImg[0].gamma;
+    mColorConvShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg.colorGamut, mDisplayColorGamut);
+    mColorConvShaderConsts.imgGammaType = mShowImg.gamma;
 
     if (mPCbvDataBegin) {
         memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
@@ -835,7 +835,7 @@ MLDX12App::OnRender(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // texture upload
-    bool bUpCap = UpdateImgTexture(0);
+    bool bUpCap = UpdateImgTexture();
     if (!bUpCap) {
         // todo: テクスチャアップロードのための資源が1個しかないので
         // テクスチャアップロードを順番に処理する。
@@ -865,8 +865,8 @@ MLDX12App::PopulateCommandList(void) {
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
     DrawFullscreenTexture(
-        (TextureEnum)(TCE_TEX_IMG0 + 0),
-        mShowImg[0]);
+        (TextureEnum)(TCE_TEX_IMG0 + mRenderTexImgIdx),
+        mShowImg);
 
     // Start the Dear ImGui frame
     ImGui_ImplWin32_NewFrame();
@@ -992,7 +992,7 @@ MLDX12App::ShowSettingsWindow(void) {
     }
 
     if (mState == S_ImageViewing) {
-        MLImage& img = mShowImg[0];
+        MLImage& img = mShowImg;
         if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             ImGui::Text("Image is %s",
                 MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
@@ -1038,6 +1038,46 @@ MLDX12App::ShowSettingsWindow(void) {
 
         ImGui::Text("Display Luminance: min = %f, max = %f, maxFullFrame = %f",
             mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
+
+        bool outofRange = 0 != (mColorConvShaderConsts.flags & MLColorConvShaderConstants::FLAG_OutOfRangeToBlack);
+        ImGui::Checkbox("Out of range value to Black", &outofRange);
+        if (outofRange) {
+            mColorConvShaderConsts.flags |= MLColorConvShaderConstants::FLAG_OutOfRangeToBlack;
+
+            int cg;
+            if (mColorConvShaderConsts.maxNits == 100.0f) {
+                cg = 0;
+            } else if (mColorConvShaderConsts.maxNits == 1000.0f) {
+                cg = 1;
+            } else if (mColorConvShaderConsts.maxNits == 2000.0f) {
+                cg = 2;
+            } else if (mColorConvShaderConsts.maxNits == 10000.0f) {
+                cg = 3;
+            } else {
+                cg = 3;
+            }
+            ImGui::RadioButton("Max 100 nits ##COR", &cg, 0);
+            ImGui::RadioButton("Max 1000 nits ##COR", &cg, 1);
+            ImGui::RadioButton("Max 2000 nits ##COR", &cg, 2);
+            ImGui::RadioButton("Max 10000 nits ##COR", &cg, 3);
+
+            switch (cg) {
+            case 0:
+                mColorConvShaderConsts.maxNits = 100.0f;
+                break;
+            case 1:
+                mColorConvShaderConsts.maxNits = 1000.0f;
+                break;
+            case 2:
+                mColorConvShaderConsts.maxNits = 2000.0f;
+                break;
+            case 3:
+                mColorConvShaderConsts.maxNits = 10000.0f;
+                break;
+            }
+        } else {
+            mColorConvShaderConsts.flags = mColorConvShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_OutOfRangeToBlack);
+        }
     }
 
     if (ImGui::TreeNodeEx("Display Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
@@ -1069,10 +1109,10 @@ MLDX12App::ShowFileReadWindow(void) {
     ImGui::InputText("Read filename 0", mImgFilePath, sizeof mImgFilePath - 1);
     if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
-        int rv = PngRead(mImgFilePath, mShowImg[0]);
+        int rv = PngRead(mImgFilePath, mShowImg);
         if (rv == 1) {
             // ファイルは存在するがPNGではなかった場合。
-            rv = ExrRead(mImgFilePath, mShowImg[0]);
+            rv = ExrRead(mImgFilePath, mShowImg);
         }
         mMutex.unlock();
         if (rv < 0) {
@@ -1098,8 +1138,8 @@ MLDX12App::ImGuiCommands(void) {
 }
 
 bool
-MLDX12App::UpdateImgTexture(int idx) {
-    MLImage& ci = mShowImg[idx];
+MLDX12App::UpdateImgTexture(void) {
+    MLImage& ci = mShowImg;
 
     mMutex.lock();
     if (ci.data == nullptr) {
@@ -1114,19 +1154,19 @@ MLDX12App::UpdateImgTexture(int idx) {
 
     mMutex.unlock();
 
-    UploadImgToGpu(ci, mTexImg[idx],
-        (TextureEnum)(TCE_TEX_IMG0 + idx));
+    int uploadTexIdx = !mRenderTexImgIdx;
+    UploadImgToGpu(ci, mTexImg[uploadTexIdx],
+        (TextureEnum)(TCE_TEX_IMG0 + uploadTexIdx));
 
     delete[] ci.data;
     ci.data = nullptr;
+    mRenderTexImgIdx = uploadTexIdx;
 
     return true;
 }
 
 void
 MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) {
-    assert(tex.Get());
-
     DXGI_FORMAT pixelFormat;
     int         pixelBytes;
     switch (ci.imgMode) {
@@ -1147,8 +1187,9 @@ MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) 
     ThrowIfFailed(mCmdAllocatorTexUpload->Reset());
     ThrowIfFailed(mCmdListTexUpload->Reset(mCmdAllocatorTexUpload.Get(), mPipelineStateRGB.Get()));
 
-    if (ci.width != tex->GetDesc().Width
-        || ci.height != tex->GetDesc().Height) {
+    if (tex.Get() == nullptr 
+            || ci.width != tex->GetDesc().Width
+            || ci.height != tex->GetDesc().Height) {
         // 中でInternalRelease()される。
         tex = nullptr;
 

@@ -16,11 +16,17 @@
         MLG_G22 = 1,
         MLG_ST2084 = 2,
     };
+
+    enum FlagsType {
+        FLAG_OutOfRangeToBlack = 1,
+    };
 */
 
 cbuffer Consts : register(b0) {
-    matrix mat;
-    int gammaType;
+    matrix c_mat;
+    int    c_gammaType;
+    int    c_flags; //< FlagsType
+    float  c_maxNits;
 };
 
 struct PSInput
@@ -89,20 +95,32 @@ float3 ST2084toLinear(float3 rgb) {
 }
 
 float3 ApplyGamma(float3 rgb) {
-    if (gammaType == 0) {
+    if (c_gammaType == 0) {
         // MLG_Linear
         return rgb;
-    } else if (gammaType == 1) {
+    } else if (c_gammaType == 1) {
         // MLG_G22 
         return SRGBtoLinear(rgb);
-    } else if (gammaType == 2) {
+    } else if (c_gammaType == 2) {
         // MLG_ST2084
         return ST2084toLinear(rgb);
     } else {
         // ? 
         return rgb;
     }
+}
 
+float4 OutOfRangeToBlack(float4 v) {
+    if ((c_flags & 1) != 0) {
+        float maxV = c_maxNits * 0.01f;
+        if (maxV < v.r
+                || maxV < v.g
+                || maxV < v.b) {
+            return float4(0.0f, 0.0f, 0.0f, 1.0f);
+        }
+    }
+    
+    return v;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
@@ -111,10 +129,11 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     rgba.rgb = ApplyGamma(rgba.rgb);
 
-    float4 rgba2 = mul(rgba, mat);
-    //rgba2 = float4(mat[0][0], mat[0][1], mat[0][2], rgba.a);
+    rgba = mul(rgba, c_mat);
 
-    return rgba2;
+    rgba = OutOfRangeToBlack(rgba);
+
+    return rgba;
 }
 
 
