@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <string>
+#include "MLColorGamut.h"
 
 
 struct MLImage {
@@ -31,11 +32,12 @@ struct MLImage {
     int bytes = 0;
     int width = 0;
     int height = 0;
-    ImageModeType imgMode;
-    ImageFileFormatType imgFileFormat;
-    BitFormatType bitFormat;
+    ImageModeType imgMode = IM_None;
+    ImageFileFormatType imgFileFormat = IFFT_None;
+    BitFormatType bitFormat = BFT_None;
+    MLColorGamutType colorGamut = ML_CG_Rec709;
 
-    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, int aBytes, uint8_t *aData) {
+    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, int aBytes, uint8_t *aData) {
         data = aData;
         bytes = aBytes;
         width = aW;
@@ -43,6 +45,7 @@ struct MLImage {
         imgMode = aIm;
         imgFileFormat = iff;
         bitFormat = bf;
+        colorGamut = cg;
     }
 
     void Term(void) {

@@ -45,7 +45,7 @@ MLDX12App::OnInit(void) {
 
     LoadPipeline();
 
-    {
+    {   // mFenceValuesと、mFenceEventを作成。
         ThrowIfFailed(mDevice->CreateFence(mFenceValues[mFrameIdx],
             D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
         NAME_D3D12_OBJECT(mFence);
@@ -62,6 +62,18 @@ MLDX12App::OnInit(void) {
     CreateImguiTexture();
 
     //OutputDebugString(L"OnInit end\n");
+}
+
+/// <summary>
+/// バグっている。使用不可。
+/// </summary>
+void
+MLDX12App::ReInit(void)
+{
+    LoadPipeline();
+    LoadAssets();
+    mDx12Imgui.Init(mDevice.Get());
+    CreateImguiTexture();
 }
 
 void
@@ -100,6 +112,7 @@ MLDX12App::LoadPipeline(void) {
     ComPtr<IDXGIAdapter1> hardwareAdapter;
     GetHardwareAdapter(factory.Get(), &hardwareAdapter);
 
+    mDevice.Reset();
     ThrowIfFailed(D3D12CreateDevice(
         hardwareAdapter.Get(),
         D3D_FEATURE_LEVEL_11_0,
@@ -108,6 +121,7 @@ MLDX12App::LoadPipeline(void) {
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    mCmdQ.Reset();
     ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCmdQ)));
     NAME_D3D12_OBJECT(mCmdQ);
 
@@ -127,7 +141,11 @@ MLDX12App::LoadPipeline(void) {
     scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     scDesc.SampleDesc.Count = 1;
+
     ComPtr<IDXGISwapChain1> swapChain;
+    mSwapChain.Reset();
+
+    // ↓この関数は2回呼べないようだ。
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
         mCmdQ.Get(),
         WinApp::GetHwnd(),
@@ -135,7 +153,6 @@ MLDX12App::LoadPipeline(void) {
         nullptr,
         nullptr,
         &swapChain));
-
     ThrowIfFailed(swapChain.As(&mSwapChain));
 
     mFrameIdx = mSwapChain->GetCurrentBackBufferIndex();
@@ -147,6 +164,7 @@ MLDX12App::LoadPipeline(void) {
         rtvHeapDesc.NumDescriptors = FrameCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        mRtvHeap.Reset();
         ThrowIfFailed(mDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
         mRtvDescSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         NAME_D3D12_OBJECT(mRtvHeap);
@@ -154,6 +172,7 @@ MLDX12App::LoadPipeline(void) {
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT n = 0; n < FrameCount; n++) {
+            mRenderTargets[n].Reset();
             ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(&mRenderTargets[n])));
             mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, mRtvDescSize);
@@ -167,6 +186,7 @@ MLDX12App::LoadPipeline(void) {
         srvHeapDesc.NumDescriptors = TE_NUM;
         srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        mSrvHeap.Reset();
         ThrowIfFailed(mDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
         NAME_D3D12_OBJECT(mSrvHeap);
         mSrvDescSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -174,17 +194,20 @@ MLDX12App::LoadPipeline(void) {
 
     {
         for (UINT n = 0; n < FrameCount; n++) {
+            mCmdAllocators[n].Reset();
             ThrowIfFailed(
                 mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                 IID_PPV_ARGS(&mCmdAllocators[n])));
             NAME_D3D12_OBJECT_INDEXED(mCmdAllocators, n);
         }
 
+        mCmdAllocatorTexUpload.Reset();
         ThrowIfFailed(
             mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
             IID_PPV_ARGS(&mCmdAllocatorTexUpload)));
         NAME_D3D12_OBJECT(mCmdAllocatorTexUpload);
 
+        mCmdListTexUpload.Reset();
         ThrowIfFailed(mDevice->CreateCommandList(
             0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocatorTexUpload.Get(),
             mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdListTexUpload)));
@@ -213,6 +236,10 @@ MLDX12App::UpdateColorSpace(void)
                 if (desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020) {
                     // HDR10ディスプレイに出力している。
                     mIsDisplayHDR10 = true;
+                    mDisplayColorGamut = ML_CG_Rec2020;
+                } else {
+                    mIsDisplayHDR10 = false;
+                    mDisplayColorGamut = ML_CG_Rec709;
                 }
 
                 wcscpy_s(mDeviceName, desc.DeviceName);
@@ -292,16 +319,22 @@ MLDX12App::LoadAssets(void) {
         ComPtr<ID3DBlob> error;
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc,
             featureData.HighestVersion, &signature, &error));
+
+        mRootSignature.Reset();
         ThrowIfFailed(mDevice->CreateRootSignature(0, signature->GetBufferPointer(),
             signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
         NAME_D3D12_OBJECT(mRootSignature);
     }
 
+    mPipelineStateRGB.Reset();
     MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersRGB.hlsl", mPipelineStateRGB);
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", mPipelineStateYUV);
     NAME_D3D12_OBJECT(mPipelineStateRGB);
+
+    mPipelineStateYUV.Reset();
+    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", mPipelineStateYUV);
     NAME_D3D12_OBJECT(mPipelineStateYUV);
 
+    mCmdList.Reset();
     ThrowIfFailed(mDevice->CreateCommandList(
         0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCmdAllocators[mFrameIdx].Get(),
         mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdList)));
@@ -326,6 +359,8 @@ MLDX12App::LoadAssets(void) {
 
         const CD3DX12_HEAP_PROPERTIES heapTypeUpload(D3D12_HEAP_TYPE_UPLOAD);
         const CD3DX12_RESOURCE_DESC resDescvbBytes = CD3DX12_RESOURCE_DESC::Buffer(vbBytes);
+
+        mVertexBuffer.Reset();
         ThrowIfFailed(mDevice->CreateCommittedResource(
             &heapTypeUpload,
             D3D12_HEAP_FLAG_NONE,
@@ -377,8 +412,9 @@ MLDX12App::SetDefaultImgTexture(int idx)
     delete [] mShowImg[idx].data;
     mShowImg[idx].data = nullptr;
 
-    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, pixelBytes, nullptr);
+    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, pixelBytes, nullptr);
 
+    mTexImg[idx].Reset();
     CreateTexture(mTexImg[idx], TE_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
 
     delete[] buff;
@@ -433,7 +469,6 @@ MLDX12App::AdjustFullScreenQuadAspectRatio(int w, int h)
 
         UINT8* pVertexDataBegin;
         CD3DX12_RANGE readRange(0, 0); //< We do not intend to read from this resource on the CPU.
-
 
         ThrowIfFailed(mVertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
         memcpy(pVertexDataBegin, verts, vbBytes);
@@ -539,6 +574,8 @@ MLDX12App::CreateImguiTexture(void) {
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
     const CD3DX12_HEAP_PROPERTIES heapTypeDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    mTexImgui.Reset();
     ThrowIfFailed(mDevice->CreateCommittedResource(
         &heapTypeDefault,
         D3D12_HEAP_FLAG_NONE,
@@ -840,26 +877,37 @@ MLDX12App::ShowSettingsWindow(void) {
         assert(0);
         break;
     }
-    ImGui::Separator();
 
-    ImGui::Text("Display is %s, %d x %d, %d bit",
-        mIsDisplayHDR10 ? "HDR10" : "SDR",
-        mDesktopCoordinates.right - mDesktopCoordinates.left,
-        mDesktopCoordinates.bottom - mDesktopCoordinates.top,
-        mBitsPerColor);
+    if (ImGui::TreeNodeEx("Display Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+        ImGui::Text("Display is %s, %d x %d, %d bit",
+            mIsDisplayHDR10 ? "HDR10" : "SDR",
+            mDesktopCoordinates.right - mDesktopCoordinates.left,
+            mDesktopCoordinates.bottom - mDesktopCoordinates.top,
+            mBitsPerColor);
 
-    ImGui::Text("BackBufferFMT = %s", 
-        DxgiFormatToStr(mBackBufferFmt));
+        ImGui::Text("BackBufferFMT = %s",
+            DxgiFormatToStr(mBackBufferFmt));
 
-    ImGui::Text("ColorSpace = %s",
-        DxgiColorSpaceToStr(mColorSpace));
+        ImGui::Text("ColorSpace = %s",
+            DxgiColorSpaceToStr(mColorSpace));
 
-    ImGui::Text("AttachedToDesktop = %s, Rotation = %s",
-        mAttachedToDesktop ? "True" : "False",
-        DxgiModeRotationToStr(mRotation));
+        ImGui::Text("AttachedToDesktop = %s, Rotation = %s",
+            mAttachedToDesktop ? "True" : "False",
+            DxgiModeRotationToStr(mRotation));
 
-    ImGui::Text("Display Luminance: min = %f, max = %f, maxFullFrame = %f",
-        mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
+        ImGui::Text("Display Luminance: min = %f, max = %f, maxFullFrame = %f",
+            mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
+    }
+
+    if (ImGui::TreeNodeEx("Display Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+        int cg = (int)mDisplayColorGamut;
+        ImGui::RadioButton("Rec.709", &cg, 0);
+        ImGui::RadioButton("Adobe RGB", &cg, 1);
+        ImGui::RadioButton("Rec.2020", &cg, 2);
+        mDisplayColorGamut = (MLColorGamutType)cg;
+        
+        //ImGui::TreePop();
+    }
 
     ImGui::End();
 }
@@ -896,7 +944,7 @@ MLDX12App::ShowFileReadWindow(void) {
 void
 MLDX12App::ImGuiCommands(void) {
     if (mShowImGui){
-        //ImGui::ShowDemoWindow();
+        ImGui::ShowDemoWindow();
         ShowSettingsWindow();
         ShowFileReadWindow();
     }

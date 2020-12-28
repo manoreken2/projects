@@ -138,6 +138,9 @@
     <ClInclude Include="OpenEXR\include\OpenEXR\half.h">
       <Filter>OpenExr</Filter>
     </ClInclude>
+    <ClInclude Include="MLColorGamut.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shadersRGB.hlsl">

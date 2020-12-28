@@ -99,6 +99,7 @@ void MLDX12Imgui::SetupRootSig(void)
     ComPtr<ID3DBlob> blob;
     ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, nullptr));
 
+    mRootSig.Reset();
     ThrowIfFailed(mDevice->CreateRootSignature(0, blob->GetBufferPointer(),
         blob->GetBufferSize(), IID_PPV_ARGS(&mRootSig)));
     NAME_D3D12_OBJECT(mRootSig);
@@ -234,6 +235,7 @@ void MLDX12Imgui::SetupPso(void)
         desc.BackFace = desc.FrontFace;
     }
 
+    mPso.Reset();
     ThrowIfFailed(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPso)));
     NAME_D3D12_OBJECT(mPso);
 }

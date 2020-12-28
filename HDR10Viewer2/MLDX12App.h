@@ -19,6 +19,7 @@
 #include "MLImage.h"
 #include "MLDrawings.h"
 #include "MLAviReader.h"
+#include "MLColorGamut.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -87,7 +88,6 @@ private:
     MLDX12Imgui mDx12Imgui;
     ComPtr<ID3D12GraphicsCommandList> mCmdList;
 
-
     UINT mRtvDescSize;
     int mNumVertices;
 
@@ -143,6 +143,7 @@ private:
     void ShowFileReadWindow(void);
     void UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
     void AdjustFullScreenQuadAspectRatio(int w, int h);
+    void ReInit(void);
 
     // HDR10ÇÃê›íËÅB
     void UpdateColorSpace(void);
@@ -157,4 +158,5 @@ private:
     FLOAT mMinLuminance = 0;
     FLOAT mMaxLuminance = 0;
     FLOAT mMaxFullFrameLuminance = 0;
+    MLColorGamutType mDisplayColorGamut = ML_CG_Rec709;
  };

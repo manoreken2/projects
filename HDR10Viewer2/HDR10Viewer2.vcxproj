@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="MLColorGamut.h" />
     <ClInclude Include="EnumToStr.h" />
     <ClInclude Include="ExrReader.h" />
     <ClInclude Include="MLAVICommon.h" />
