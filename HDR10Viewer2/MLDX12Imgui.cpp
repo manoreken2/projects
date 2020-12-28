@@ -241,7 +241,7 @@ void MLDX12Imgui::SetupPso(void)
 }
 
 void
-MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int frameIdx)
+MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* cl, int frameIdx)
 {
     // FIXME: I'm assuming that this only gets called once per frame!
     // If not, we can't just re-allocate the IB or VB, we'll have to do a proper allocator.
@@ -348,7 +348,7 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     vp.TopLeftX = vp.TopLeftY = 0.0f;
-    ctx->RSSetViewports(1, &vp);
+    cl->RSSetViewports(1, &vp);
 
     // Bind shader and vertex buffers
     unsigned int stride = sizeof(ImDrawVert);
@@ -358,21 +358,21 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
     vbv.BufferLocation = pVB->GetGPUVirtualAddress() + offset;
     vbv.SizeInBytes = vbSize * stride;
     vbv.StrideInBytes = stride;
-    ctx->IASetVertexBuffers(0, 1, &vbv);
+    cl->IASetVertexBuffers(0, 1, &vbv);
     D3D12_INDEX_BUFFER_VIEW ibv;
     memset(&ibv, 0, sizeof(D3D12_INDEX_BUFFER_VIEW));
     ibv.BufferLocation = pIB->GetGPUVirtualAddress();
     ibv.SizeInBytes = ibSize * sizeof(ImDrawIdx);
     ibv.Format = sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-    ctx->IASetIndexBuffer(&ibv);
-    ctx->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    ctx->SetPipelineState(mPso.Get());
-    ctx->SetGraphicsRootSignature(mRootSig.Get());
-    ctx->SetGraphicsRoot32BitConstants(0, 16, &vertex_constant_buffer, 0);
+    cl->IASetIndexBuffer(&ibv);
+    cl->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cl->SetPipelineState(mPso.Get());
+    cl->SetGraphicsRootSignature(mRootSig.Get());
+    cl->SetGraphicsRoot32BitConstants(0, 16, &vertex_constant_buffer, 0);
 
     // Setup render state
     const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
-    ctx->OMSetBlendFactor(blend_factor);
+    cl->OMSetBlendFactor(blend_factor);
 
     // Render command lists
     int vtx_offset = 0;
@@ -386,9 +386,9 @@ MLDX12Imgui::Render(ImDrawData* draw_data, ID3D12GraphicsCommandList* ctx, int f
                 pcmd->UserCallback(cmd_list, pcmd);
             } else {
                 const D3D12_RECT r = { (LONG)(pcmd->ClipRect.x - pos.x), (LONG)(pcmd->ClipRect.y - pos.y), (LONG)(pcmd->ClipRect.z - pos.x), (LONG)(pcmd->ClipRect.w - pos.y) };
-                ctx->SetGraphicsRootDescriptorTable(1, *(D3D12_GPU_DESCRIPTOR_HANDLE*)&pcmd->TextureId);
-                ctx->RSSetScissorRects(1, &r);
-                ctx->DrawIndexedInstanced(pcmd->ElemCount, 1, idx_offset, vtx_offset, 0);
+                cl->SetGraphicsRootDescriptorTable(1, *(D3D12_GPU_DESCRIPTOR_HANDLE*)&pcmd->TextureId);
+                cl->RSSetScissorRects(1, &r);
+                cl->DrawIndexedInstanced(pcmd->ElemCount, 1, idx_offset, vtx_offset, 0);
             }
             idx_offset += pcmd->ElemCount;
         }

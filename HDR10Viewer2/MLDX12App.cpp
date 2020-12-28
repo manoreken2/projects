@@ -10,6 +10,7 @@
 #include "half.h"
 #include "MLImage.h"
 
+
 // D3D12HelloFrameBuffering sample
 //*********************************************************
 // Copyright (c) Microsoft. All rights reserved.
@@ -35,6 +36,8 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     strcpy_s(mImgFilePath, "c:/data/BMW27_4K.exr");
 
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
+
+    mColorConvShaderConsts.colorConvMat = XMMatrixIdentity();
 }
 
 MLDX12App::~MLDX12App(void) {
@@ -90,6 +93,9 @@ MLDX12App::OnDestroy(void) {
     }
 
     mDx12Imgui.Term();
+
+    mConstantBuffer->Unmap(0, nullptr);
+    mPCbvDataBegin = nullptr;
 }
 
 void
@@ -175,23 +181,59 @@ MLDX12App::LoadPipeline(void) {
         for (UINT n = 0; n < FrameCount; n++) {
             mRenderTargets[n].Reset();
             ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(&mRenderTargets[n])));
+
+#if 1
             mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), nullptr, rtvHandle);
+#else
+            D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+            rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+            rtvDesc.Texture2D.MipSlice = 0;
+            rtvDesc.Texture2D.PlaneSlice = 0;
+
+            mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), &rtvDesc, rtvHandle);
+#endif
             rtvHandle.Offset(1, mRtvDescSize);
             NAME_D3D12_OBJECT_INDEXED(mRenderTargets, n);
         }
     }
 
+    mDescHandleIncrementSz = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
     {
-        // Describe and create a shader resource view (SRV) heap for the texture.
-        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-        srvHeapDesc.NumDescriptors = TE_NUM;
-        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        mSrvHeap.Reset();
-        ThrowIfFailed(mDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
-        NAME_D3D12_OBJECT(mSrvHeap);
-        mSrvDescSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        // Describe and create a shader resource view (SRV)
+
+        /* SRVヒープ。 t0, t1, t2, ...
+           ディスクリプタは1個あたりmCbvSrvHandleIncrementSzバイト。
+           ディスクリプタはTCE_TEX_NUM個。以下の順で並んでいる。
+            0: TCE_TEX_IMG0,
+            1: TCE_TEX_IMG1,
+            2: TCE_TEX_PLAYVIDEO0,
+            3: TCE_TEX_PLAYVIDEO1,
+            4: TCE_TEX_IMGUI,
+            5: constant b0
+        */
+        D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
+        cbvSrvHeapDesc.NumDescriptors = TCE_TEX_NUM + 1;
+        cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        mSrvDescHeap.Reset();
+        ThrowIfFailed(mDevice->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&mSrvDescHeap)));
+        NAME_D3D12_OBJECT(mSrvDescHeap);
     }
+
+    /*
+    {
+        // CBVヒープ。 b0。
+        D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
+        cbvSrvHeapDesc.NumDescriptors = 1;
+        cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        mCbvDescHeap.Reset();
+        ThrowIfFailed(mDevice->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&mCbvDescHeap)));
+        NAME_D3D12_OBJECT(mCbvDescHeap);
+    }
+    */
 
     {
         for (UINT n = 0; n < FrameCount; n++) {
@@ -291,11 +333,14 @@ MLDX12App::LoadAssets(void) {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        // ピクセルシェーダーから、テクスチャが1個、定数バッファが1個見える。
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[2];
         rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -328,11 +373,11 @@ MLDX12App::LoadAssets(void) {
     }
 
     mPipelineStateRGB.Reset();
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersRGB.hlsl", mPipelineStateRGB);
+    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shaderVS.hlsl", L"shaderColorConvPS.hlsl", mPipelineStateRGB);
     NAME_D3D12_OBJECT(mPipelineStateRGB);
 
     mPipelineStateYUV.Reset();
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", mPipelineStateYUV);
+    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", L"shadersYUV.hlsl", mPipelineStateYUV);
     NAME_D3D12_OBJECT(mPipelineStateYUV);
 
     mCmdList.Reset();
@@ -385,6 +430,36 @@ MLDX12App::LoadAssets(void) {
 
     UpdateViewAndScissor();
 
+    {
+        // 定数バッファ。
+        const CD3DX12_HEAP_PROPERTIES heapTypeUpload(D3D12_HEAP_TYPE_UPLOAD);
+        const CD3DX12_RESOURCE_DESC resDescBytes = CD3DX12_RESOURCE_DESC::Buffer(1024 * 64);
+        mConstantBuffer.Reset();
+        ThrowIfFailed(mDevice->CreateCommittedResource(
+            &heapTypeUpload,
+            D3D12_HEAP_FLAG_NONE,
+            &resDescBytes,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&mConstantBuffer)));
+
+        // 定数バッファービュー。
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(mSrvDescHeap->GetCPUDescriptorHandleForHeapStart());
+        cbvHandle.Offset(TCE_TEX_NUM, mDescHandleIncrementSz);
+
+        // Describe and create a constant buffer view.
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+        cbvDesc.BufferLocation = mConstantBuffer->GetGPUVirtualAddress();
+        cbvDesc.SizeInBytes = (sizeof mColorConvShaderConsts + 255) & ~255;    // CB size is required to be 256-byte aligned.
+        mDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
+
+        // Map and initialize the constant buffer. We don't unmap this until the
+        // app closes. Keeping things mapped for the lifetime of the resource is okay.
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed(mConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mPCbvDataBegin)));
+        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof(mColorConvShaderConsts));
+    }
+
     ThrowIfFailed(mCmdList->Close());
     ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
@@ -416,7 +491,7 @@ MLDX12App::SetDefaultImgTexture(int idx)
     mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, pixelBytes, nullptr);
 
     mTexImg[idx].Reset();
-    CreateTexture(mTexImg[idx], TE_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+    CreateTexture(mTexImg[idx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
 
     delete[] buff;
 }
@@ -528,8 +603,9 @@ MLDX12App::CreateTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, 
             D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         mCmdList->ResourceBarrier(1, &barrierTransitionCopyToPS);
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
-        srvHandle.Offset(texIdx, mSrvDescSize);
+        // texIdx番目のディスクリプタを更新。
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvDescHeap->GetCPUDescriptorHandleForHeapStart());
+        srvHandle.Offset(texIdx, mDescHandleIncrementSz);
 
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -614,9 +690,9 @@ MLDX12App::CreateImguiTexture(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
-    // Create font texture view
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
-    srvCpuHandle.Offset(TE_IMGUI, mSrvDescSize);
+    // IMGUIのテクスチャー用SRVの位置srvCpuHandle。
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvCpuHandle(mSrvDescHeap->GetCPUDescriptorHandleForHeapStart());
+    srvCpuHandle.Offset(TCE_TEX_IMGUI, mDescHandleIncrementSz);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     ZeroMemory(&srvDesc, sizeof(srvDesc));
@@ -628,8 +704,8 @@ MLDX12App::CreateImguiTexture(void) {
     mDevice->CreateShaderResourceView(mTexImgui.Get(), &srvDesc, srvCpuHandle);
 
     // Store our identifier
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
-    srvGpuHandle.Offset(TE_IMGUI, mSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvGpuHandle(mSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+    srvGpuHandle.Offset(TCE_TEX_IMGUI, mDescHandleIncrementSz);
     io.Fonts->TexID = (ImTextureID)srvGpuHandle.ptr;
 }
 
@@ -723,7 +799,18 @@ MLDX12App::LoadSizeDependentResources(void) {
 }
 
 void
-MLDX12App::OnUpdate(void) {}
+MLDX12App::OnUpdate(void)
+{
+    /* 青になった。
+    mColorConvShaderConsts.colorConvMat.r[0].m128_f32[0] = 0.0f;
+    mColorConvShaderConsts.colorConvMat.r[1].m128_f32[0] = 0.0f;
+    mColorConvShaderConsts.colorConvMat.r[2].m128_f32[0] = 1.0f;
+    */
+
+    if (mPCbvDataBegin) {
+        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
+    }
+}
 
 void
 MLDX12App::OnRender(void) {
@@ -735,54 +822,12 @@ MLDX12App::OnRender(void) {
     // texture upload
     bool bUpCap = UpdateImgTexture(0);
     if (!bUpCap) {
-        // テクスチャアップロードのための資源が1個しかないので
+        // todo: テクスチャアップロードのための資源が1個しかないので
         // テクスチャアップロードを順番に処理する。
     }
 
     ThrowIfFailed(mSwapChain->Present(1, 0));
     MoveToNextFrame();
-}
-
-void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage & img) {
-    switch (img.imgMode) {
-    case MLImage::IM_None:
-        // 描画するものが無い。
-        assert(0);
-        return;
-    case MLImage::IM_RGB:
-    case MLImage::IM_HALF_RGBA:
-        mCmdList->SetPipelineState(mPipelineStateRGB.Get());
-        break;
-    case MLImage::IM_YUV:
-        mCmdList->SetPipelineState(mPipelineStateYUV.Get());
-        break;
-    default:
-        assert(0);
-        break;
-    }
-
-    AdjustFullScreenQuadAspectRatio(img.width, img.height);
-
-    mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
-
-    ID3D12DescriptorHeap* ppHeaps[] = {mSrvHeap.Get()};
-    mCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE dh(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
-    dh.Offset(texId, mSrvDescSize);
-    mCmdList->SetGraphicsRootDescriptorTable(0, dh);
-
-    mCmdList->RSSetViewports(1, &mViewport);
-    mCmdList->RSSetScissorRects(1, &mScissorRect);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
-        mFrameIdx, mRtvDescSize);
-    mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
-    mCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    mCmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
-    mCmdList->DrawInstanced(mNumVertices, 1, 0, 0);
 }
 
 void
@@ -805,7 +850,7 @@ MLDX12App::PopulateCommandList(void) {
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
     DrawFullscreenTexture(
-        (TextureEnum)(TE_IMG0 + 0),
+        (TextureEnum)(TCE_TEX_IMG0 + 0),
         mShowImg[0]);
 
     // Start the Dear ImGui frame
@@ -822,6 +867,58 @@ MLDX12App::PopulateCommandList(void) {
     mCmdList->ResourceBarrier(1, &barrier_Transition_RenderTarget_to_Present);
 
     ThrowIfFailed(mCmdList->Close());
+}
+
+void
+MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img) {
+    switch (img.imgMode) {
+    case MLImage::IM_None:
+        // 描画するものが無い。
+        assert(0);
+        return;
+    case MLImage::IM_RGB:
+    case MLImage::IM_HALF_RGBA:
+        mCmdList->SetPipelineState(mPipelineStateRGB.Get());
+        break;
+    case MLImage::IM_YUV:
+        mCmdList->SetPipelineState(mPipelineStateYUV.Get());
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
+    AdjustFullScreenQuadAspectRatio(img.width, img.height);
+
+    mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+    ID3D12DescriptorHeap* ppHeaps[] = { mSrvDescHeap.Get() };
+    mCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+    {
+        // 定数バッファをセット。
+        CD3DX12_GPU_DESCRIPTOR_HANDLE dhC(mSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+        dhC.Offset(TCE_TEX_NUM, mDescHandleIncrementSz);
+        mCmdList->SetGraphicsRootDescriptorTable(0, dhC);
+    }
+
+    {
+        // 使用するテクスチャを選ぶ。
+        CD3DX12_GPU_DESCRIPTOR_HANDLE dhTex(mSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+        dhTex.Offset(texId, mDescHandleIncrementSz);
+        mCmdList->SetGraphicsRootDescriptorTable(1, dhTex);
+    }
+
+    mCmdList->RSSetViewports(1, &mViewport);
+    mCmdList->RSSetScissorRects(1, &mScissorRect);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart(),
+        mFrameIdx, mRtvDescSize);
+    mCmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+    mCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    mCmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
+    mCmdList->DrawInstanced(mNumVertices, 1, 0, 0);
 }
 
 void
@@ -992,7 +1089,7 @@ MLDX12App::UpdateImgTexture(int idx) {
     mMutex.unlock();
 
     UploadImgToGpu(ci, mTexImg[idx],
-        (TextureEnum)(TE_IMG0 + idx));
+        (TextureEnum)(TCE_TEX_IMG0 + idx));
 
     delete[] ci.data;
     ci.data = nullptr;
@@ -1051,8 +1148,8 @@ MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) 
             IID_PPV_ARGS(&tex)));
         NAME_D3D12_OBJECT(tex);
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
-        srvHandle.Offset(texIdx, mSrvDescSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvDescHeap->GetCPUDescriptorHandleForHeapStart());
+        srvHandle.Offset(texIdx, mDescHandleIncrementSz);
 
         // Describe and create a SRV for the texture.
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

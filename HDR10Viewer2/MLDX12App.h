@@ -20,6 +20,8 @@
 #include "MLDrawings.h"
 #include "MLAviReader.h"
 #include "MLColorGamut.h"
+#include <stdint.h>
+#include "MLColorConvShaderConstants.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -44,12 +46,12 @@ public:
     };
 
     enum TextureEnum {
-        TE_IMG0,
-        TE_IMG1,
-        TE_PLAYVIDEO0,
-        TE_PLAYVIDEO1,
-        TE_IMGUI,
-        TE_NUM
+        TCE_TEX_IMG0,
+        TCE_TEX_IMG1,
+        TCE_TEX_PLAYVIDEO0,
+        TCE_TEX_PLAYVIDEO1,
+        TCE_TEX_IMGUI,
+        TCE_TEX_NUM,
     };
 
 private:
@@ -94,8 +96,17 @@ private:
     ComPtr<ID3D12Resource> mVertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
-    ComPtr<ID3D12DescriptorHeap> mSrvHeap;
-    UINT                         mSrvDescSize;
+    ComPtr<ID3D12Resource> mConstantBuffer;
+    /// <summary>
+    /// 定数バッファをmapしっぱなしにする。
+    /// </summary>
+    uint8_t* mPCbvDataBegin = nullptr;
+    MLColorConvShaderConstants mColorConvShaderConsts;
+
+    ComPtr<ID3D12DescriptorHeap> mSrvDescHeap;
+    //ComPtr<ID3D12DescriptorHeap> mCbvDescHeap;
+    UINT                         mDescHandleIncrementSz;
+
     ComPtr<ID3D12Resource>       mTexImgui;
 
     MLImage                      mShowImg[2];

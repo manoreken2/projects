@@ -147,12 +147,21 @@
     <ClInclude Include="MLColorGamut.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="MLColorConvShaderConstants.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shadersRGB.hlsl">
       <Filter>Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shadersYUV.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaderColorConvPS.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaderVS.hlsl">
       <Filter>Shaders</Filter>
     </CustomBuild>
   </ItemGroup>

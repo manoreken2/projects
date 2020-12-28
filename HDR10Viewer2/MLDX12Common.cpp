@@ -6,7 +6,7 @@ std::wstring GetAssetFullPath(const std::wstring & assetsPath, const wchar_t * a
 }
 
 void
-MLDX12Common::SetupPSO(ID3D12Device *device, ID3D12RootSignature * rootSignature, const wchar_t *shaderName, ComPtr<ID3D12PipelineState> & pso) {
+MLDX12Common::SetupPSO(ID3D12Device *device, ID3D12RootSignature * rootSignature, const wchar_t* vsShaderName, const wchar_t *psShaderName, ComPtr<ID3D12PipelineState> & pso) {
     WCHAR s[512];
     GetAssetsPath(s, _countof(s));
     std::wstring assetsPath = assetsPath;
@@ -21,8 +21,21 @@ MLDX12Common::SetupPSO(ID3D12Device *device, ID3D12RootSignature * rootSignature
     UINT compileFlags = 0;
 #endif
 
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(assetsPath, shaderName).c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(assetsPath, shaderName).c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+    ComPtr<ID3DBlob> vsCompileMsg;
+    ComPtr<ID3DBlob> psCompileMsg;
+    HRESULT hr;
+    hr = D3DCompileFromFile(GetAssetFullPath(assetsPath, vsShaderName).c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &vsCompileMsg);
+    if (FAILED(hr)) {
+        char *s = (char*)vsCompileMsg->GetBufferPointer();
+        OutputDebugStringA(s);
+        ThrowIfFailed(hr);
+    }
+    hr = D3DCompileFromFile(GetAssetFullPath(assetsPath, psShaderName).c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &psCompileMsg);
+    if (FAILED(hr)) {
+        char* s = (char*)psCompileMsg->GetBufferPointer();
+        OutputDebugStringA(s);
+        ThrowIfFailed(hr);
+    }
 
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
