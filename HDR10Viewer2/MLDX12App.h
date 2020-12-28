@@ -170,4 +170,6 @@ private:
     FLOAT mMaxLuminance = 0;
     FLOAT mMaxFullFrameLuminance = 0;
     MLColorGamutType mDisplayColorGamut = ML_CG_Rec709;
+
+    MLColorGamutConv mGamutConv;
  };

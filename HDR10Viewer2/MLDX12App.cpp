@@ -801,11 +801,7 @@ MLDX12App::LoadSizeDependentResources(void) {
 void
 MLDX12App::OnUpdate(void)
 {
-    /* 青になった。
-    mColorConvShaderConsts.colorConvMat.r[0].m128_f32[0] = 0.0f;
-    mColorConvShaderConsts.colorConvMat.r[1].m128_f32[0] = 0.0f;
-    mColorConvShaderConsts.colorConvMat.r[2].m128_f32[0] = 1.0f;
-    */
+    mColorConvShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg[0].colorGamut, mDisplayColorGamut);
 
     if (mPCbvDataBegin) {
         memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
