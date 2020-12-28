@@ -28,6 +28,8 @@ ExrRead(const char* exrFilePath, MLImage& img_return)
     img_return.imgFileFormat = MLImage::IFFT_OpenEXR;
     img_return.bitFormat = MLImage::BFT_HalfFloat;
     img_return.bytes = w * h * 4 * 2; // 4==numCh, 2== sizeof(half)
+    img_return.gamma = MLImage::MLG_Linear;
+    img_return.originalBitDepth = 16;
     img_return.data = new uint8_t[w * h * 4 * 2]; 
 
     in.setFrameBuffer(ComputeBasePointer((Rgba*)&img_return.data[0], dw), 1, w);

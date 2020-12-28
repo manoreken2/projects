@@ -39,6 +39,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 
     mColorConvShaderConsts.colorConvMat = XMMatrixIdentity();
+    mColorConvShaderConsts.imgGammaType = MLImage::MLG_Linear;
 }
 
 MLDX12App::~MLDX12App(void) {
@@ -489,7 +490,7 @@ MLDX12App::SetDefaultImgTexture(int idx)
     delete [] mShowImg[idx].data;
     mShowImg[idx].data = nullptr;
 
-    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, pixelBytes, nullptr);
+    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, pixelBytes, nullptr);
 
     mTexImg[idx].Reset();
     CreateTexture(mTexImg[idx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
@@ -803,6 +804,7 @@ void
 MLDX12App::OnUpdate(void)
 {
     mColorConvShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg[0].colorGamut, mDisplayColorGamut);
+    mColorConvShaderConsts.imgGammaType = mShowImg[0].gamma;
 
     if (mPCbvDataBegin) {
         memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
@@ -976,10 +978,10 @@ MLDX12App::ShowSettingsWindow(void) {
     if (mState == S_ImageViewing) {
         MLImage& img = mShowImg[0];
         if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-            ImGui::Text("Image is %s, %d x %d, %s",
-                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat),
-                img.width, img.height,
-                MLImage::MLImageModeToStr(img.imgMode));
+            ImGui::Text("Image is %s",
+                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
+            ImGui::Text("%d x %d, %d bit",
+                img.width, img.height, img.originalBitDepth);
         }
         if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
@@ -991,6 +993,13 @@ MLDX12App::ShowSettingsWindow(void) {
             img.colorGamut = (MLColorGamutType)cg;
 
             //ImGui::TreePop();
+        }
+        if (ImGui::TreeNodeEx("Image Gamma curve", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            int cg = (int)img.gamma;
+            ImGui::RadioButton("Linear ##IGC", &cg, 0);
+            ImGui::RadioButton("Gamma 2.2 ##IGC", &cg, 1);
+            ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
+            img.gamma = (MLImage::GammaType)cg;
         }
     }
 
@@ -1064,7 +1073,7 @@ MLDX12App::ShowFileReadWindow(void) {
 void
 MLDX12App::ImGuiCommands(void) {
     if (mShowImGui){
-        ImGui::ShowDemoWindow();
+        //ImGui::ShowDemoWindow();
         ShowSettingsWindow();
         ShowFileReadWindow();
     }

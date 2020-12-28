@@ -93,6 +93,8 @@ int PngRead(const char* pngFilePath, MLImage& img_return)
     img_return.imgFileFormat = MLImage::IFFT_PNG;
     img_return.bitFormat = MLImage::BFT_HalfFloat;
     img_return.bytes = width * height * 4 * 2; // 4==numCh, 2== sizeof(half)
+    img_return.gamma = MLImage::MLG_G22;
+    img_return.originalBitDepth = bit_depth;
     img_return.data = new uint8_t[width * height * 4 * 2];
 
     uint8_t* image_data = new uint8_t[width * height * num_channels *  bit_depth / 8];

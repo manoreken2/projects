@@ -25,6 +25,12 @@ struct MLImage {
         BFT_UInt8,
     };
 
+    enum GammaType {
+        MLG_Linear,
+        MLG_G22,
+        MLG_ST2084,
+    };
+
     /// <summary>
     /// new[]Ç≈ämï€ÇµÇƒâ∫Ç≥Ç¢ÅB
     /// </summary>
@@ -36,8 +42,10 @@ struct MLImage {
     ImageFileFormatType imgFileFormat = IFFT_None;
     BitFormatType bitFormat = BFT_None;
     MLColorGamutType colorGamut = ML_CG_Rec709;
+    GammaType gamma = MLG_G22;
+    int originalBitDepth = 8;
 
-    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, int aBytes, uint8_t *aData) {
+    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, GammaType ga, int aOriginalBitDepth, int aBytes, uint8_t *aData) {
         data = aData;
         bytes = aBytes;
         width = aW;
@@ -46,6 +54,8 @@ struct MLImage {
         imgFileFormat = iff;
         bitFormat = bf;
         colorGamut = cg;
+        gamma = ga;
+        originalBitDepth = aOriginalBitDepth;
     }
 
     void Term(void) {
@@ -58,5 +68,7 @@ struct MLImage {
     static const char* MLImageFileFormatTypeToStr(ImageFileFormatType t);
 
     static const char* MLImageBitFormatToStr(BitFormatType t);
+
+    static const char* GammaTypeToStr(GammaType t);
 };
 
