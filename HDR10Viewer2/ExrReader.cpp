@@ -8,6 +8,8 @@ using namespace std;
 int
 ExrRead(const char* exrFilePath, MLImage& img_return)
 {
+    img_return.data = nullptr;
+
     RgbaInputFile in(exrFilePath);
 
     Box2i dw = in.dataWindow();
@@ -23,7 +25,8 @@ ExrRead(const char* exrFilePath, MLImage& img_return)
     img_return.width = w;
     img_return.height = h;
     img_return.imgMode = MLImage::IM_HALF_RGBA;
-    img_return.imgFormat = "";
+    img_return.imgFileFormat = MLImage::IFFT_OpenEXR;
+    img_return.bitFormat = MLImage::BFT_HalfFloat;
     img_return.bytes = w * h * 4 * 2; // 4==numCh, 2== sizeof(half)
     img_return.data = new uint8_t[w * h * 4 * 2]; 
 

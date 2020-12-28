@@ -23,51 +23,20 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     MLDX12(width, height),
     mOptions(options),
     mState(S_Init),
-    mCaptureDrawMode(MLImage::IM_RGB),
-    mCrosshairType(MLDrawings::CH_None),
-    mGridType(MLDrawings::GR_None),
-    mTitleSafeArea(false),
     mFrameIdx(0),
-    mIdToShowCapVideoTex(0),
     mViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     mScissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     mFenceValues{},
     mRtvDescSize(0),
     mNumVertices(0),
-    mWindowedMode(true),
-    mFrameSkipCount(0),
-    mDrawGamma(2.2f),
-    mDrawGainR(1.0f),
-    mDrawGainG(1.0f),
-    mDrawGainB(1.0f),
-    mPlayFrameNr(0),
-    mPlayAlpha(0.0f),
-    mPlayDrawMode(MLImage::IM_YUV),
-    mIdToShowPlayVideoTex(0)
+    mWindowedMode(true)
 {
-    strcpy_s(mReadPath, "c:/data/BMW27_4K.exr");
-    mCaptureMsg[0] = 0;
-    mPlayMsg[0] = 0;
+    strcpy_s(mImgFilePath, "c:/data/BMW27_4K.exr");
 
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
-
-    // YUV 10bit v210
-    mPlayBufferBytes = 3840 * 2160 * 8 / 3;
-    mPlayBuffer = new uint8_t[mPlayBufferBytes];
-
-    {
-        const int imgBytes = 3840 * 2160 * 4;
-        uint8_t *buff = new uint8_t[imgBytes];
-        memset(buff, 0, imgBytes);
-        mPlayImage.Init(3840, 2160, MLImage::IM_RGB, "", imgBytes, buff);
-    }
 }
 
 MLDX12App::~MLDX12App(void) {
-    mPlayImage.Term();
-
-    delete[] mPlayBuffer;
-    mPlayBuffer = nullptr;
 }
 
 void
@@ -103,12 +72,9 @@ MLDX12App::OnDestroy(void) {
 
     CloseHandle(mFenceEvent);
 
-    for (auto ite = mImagesToUploadToGpu.begin(); ite != mImagesToUploadToGpu.end(); ++ite) {
-        auto & item = *ite;
-        delete[] item.data;
-        item.data = nullptr;
+    for (int i=0; i<sizeof mShowImg / sizeof mShowImg[0]; ++i) {
+        mShowImg[i].Term();
     }
-    mImagesToUploadToGpu.clear();
 
     mDx12Imgui.Term();
 }
@@ -341,15 +307,16 @@ MLDX12App::LoadAssets(void) {
         mPipelineStateRGB.Get(), IID_PPV_ARGS(&mCmdList)));
     NAME_D3D12_OBJECT(mCmdList);
 
-    {
+    {   // 画面全体を覆う矩形を作成。
+        // 後で形状を調整する。AdjustFullScreenQuadAspectRatio()参照。
         Vertex verts[] =
         {
             {{-1.0f, +1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-        {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
-        {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{+1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+            {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+            {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+            {{+1.0f, +1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{+1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
         };
 
         int numTriangles = 2;
@@ -387,34 +354,95 @@ MLDX12App::LoadAssets(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     WaitForGpu();
 
-    {
-        const int texW = 3840;
-        const int texH = 2160;
-        const int pixelBytes = 2 * 4; // 2==sizeof(half), 4==r,g,b,a
-        half *buff = new half[texW * texH * 4];
-        for (int y = 0; y < texH; ++y) {
-            for (int x = 0; x < texW; ++x) {
-                int pos = (x + y * texW) *4;
-                buff[pos + 0] = 0.01f;
-                buff[pos + 1] = 0.01f;
-                buff[pos + 2] = 0.01f;
-                buff[pos + 3] = 1.0f;
-            }
+    SetDefaultImgTexture(0);
+}
+
+void
+MLDX12App::SetDefaultImgTexture(int idx)
+{
+    const int texW = 3840;
+    const int texH = 2160;
+    const int pixelBytes = 2 * 4; // 2==sizeof(half), 4==r,g,b,a
+    half* buff = new half[texW * texH * 4];
+    for (int y = 0; y < texH; ++y) {
+        for (int x = 0; x < texW; ++x) {
+            int pos = (x + y * texW) * 4;
+            buff[pos + 0] = 0.01f;
+            buff[pos + 1] = 0.01f;
+            buff[pos + 2] = 0.01f;
+            buff[pos + 3] = 1.0f;
         }
+    }
 
-        memset(buff, 0, pixelBytes);
+    delete [] mShowImg[idx].data;
+    mShowImg[idx].data = nullptr;
 
-        CreateVideoTexture(mTexImg[0], TE_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexImg[1], TE_IMG1, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexPlayVideo[0], TE_PLAYVIDEO0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
-        CreateVideoTexture(mTexPlayVideo[1], TE_PLAYVIDEO1, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+    mShowImg[idx].Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, pixelBytes, nullptr);
 
-        delete[] buff;
+    CreateTexture(mTexImg[idx], TE_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+
+    delete[] buff;
+}
+
+void
+MLDX12App::AdjustFullScreenQuadAspectRatio(int w, int h)
+{
+    assert(0 < w);
+    assert(0 < h);
+
+    double windowAR = (double)Width() / Height();
+    double imgAR = (double)w / h;
+
+    float xP = 1.0f;
+    float yP = 1.0f;
+    if (imgAR < windowAR) {
+        // 画面よりも表示画像が縦長の場合、Vertsの横の長さを短くする。
+        xP = (float)(imgAR / windowAR);
+    }
+    if (windowAR < imgAR) {
+        // 画面よりも表示画像が横長。
+        yP = (float)(windowAR / imgAR);
+    }
+
+    {   // 3d vtx is x+:right, y+:up
+        // UV     is x+:right, y+:down
+        //
+        // 0 1
+        //  □
+        // 2
+        //
+        //   4
+        //  □
+        // 3 5
+        //
+        Vertex verts[] =
+        {
+            {{-xP, +yP, 0.0f}, {0.0f, 0.0f}},
+            {{+xP, +yP, 0.0f}, {1.0f, 0.0f}},
+            {{-xP, -yP, 0.0f}, {0.0f, 1.0f}},
+            {{-xP, -yP, 0.0f}, {0.0f, 1.0f}},
+            {{+xP, +yP, 0.0f}, {1.0f, 0.0f}},
+            {{+xP, -yP, 0.0f}, {1.0f, 1.0f}},
+        };
+
+        int numTriangles = 2;
+        mNumVertices = 3 * numTriangles;
+
+        const UINT vbBytes = sizeof verts;
+        assert(mVertexBuffer.Get());
+
+        UINT8* pVertexDataBegin;
+        CD3DX12_RANGE readRange(0, 0); //< We do not intend to read from this resource on the CPU.
+
+
+        ThrowIfFailed(mVertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+        memcpy(pVertexDataBegin, verts, vbBytes);
+        mVertexBuffer->Unmap(0, nullptr);
     }
 }
 
 void
-MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data) {
+MLDX12App::CreateTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data) {
     ThrowIfFailed(mCmdAllocators[mFrameIdx].Get()->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
@@ -641,6 +669,9 @@ void
 MLDX12App::LoadSizeDependentResources(void) {
     UpdateViewAndScissor();
 
+    // 画像サイズに合わせて全画面描画矩形の形状を調整。
+    //AdjustFullScreenQuadAspectRatio(ci.width, ci.height);
+
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT n = 0; n < FrameCount; n++) {
@@ -664,10 +695,10 @@ MLDX12App::OnRender(void) {
     mCmdQ->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // texture upload
-    bool bUpCap = UpdateImgTexture();
+    bool bUpCap = UpdateImgTexture(0);
     if (!bUpCap) {
-        // テクスチャアップロードのための資源が1個しかないので。
-        UpdatePlayVideoTexture();
+        // テクスチャアップロードのための資源が1個しかないので
+        // テクスチャアップロードを順番に処理する。
     }
 
     ThrowIfFailed(mSwapChain->Present(1, 0));
@@ -675,8 +706,12 @@ MLDX12App::OnRender(void) {
 }
 
 void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode) {
-    switch (drawMode) {
+MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage & img) {
+    switch (img.imgMode) {
+    case MLImage::IM_None:
+        // 描画するものが無い。
+        assert(0);
+        return;
     case MLImage::IM_RGB:
     case MLImage::IM_HALF_RGBA:
         mCmdList->SetPipelineState(mPipelineStateRGB.Get());
@@ -688,6 +723,8 @@ MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode)
         assert(0);
         break;
     }
+
+    AdjustFullScreenQuadAspectRatio(img.width, img.height);
 
     mCmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
@@ -730,14 +767,8 @@ MLDX12App::PopulateCommandList(void) {
 
     // 全クライアント領域を覆う矩形にテクスチャを貼って描画。
     DrawFullscreenTexture(
-        (TextureEnum)(TE_IMG0 + mIdToShowCapVideoTex),
-        mCaptureDrawMode);
-
-    if (0.0f < mPlayAlpha) {
-        DrawFullscreenTexture(
-            (TextureEnum)(TE_PLAYVIDEO0 + mIdToShowPlayVideoTex),
-            mPlayDrawMode);
-    }
+        (TextureEnum)(TE_IMG0 + 0),
+        mShowImg[0]);
 
     // Start the Dear ImGui frame
     ImGui_ImplWin32_NewFrame();
@@ -782,11 +813,11 @@ void
 MLDX12App::ShowSettingsWindow(void) {
     ImGui::Begin("Settings");
 
-    if (ImGui::BeginPopupModal("ErrorCapturePopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text(mCaptureMsg);
+    if (ImGui::BeginPopupModal("ErrorSettingsPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(mErrorSettingsMsg);
         if (ImGui::Button("OK", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
-            mCaptureMsg[0] = 0;
+            mErrorSettingsMsg[0] = 0;
         }
         ImGui::EndPopup();
     }
@@ -834,92 +865,28 @@ MLDX12App::ShowSettingsWindow(void) {
 }
 
 void
-MLDX12App::ShowPlaybackWindow(void) {
-    ImGui::Begin("Playback Control");
+MLDX12App::ShowFileReadWindow(void) {
+    ImGui::Begin("File Read");
 
-    if (ImGui::BeginPopupModal("ErrorPlayPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text(mPlayMsg);
+    if (ImGui::BeginPopupModal("ErrorFileReadPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(mErrorFileReadMsg);
         if (ImGui::Button("OK", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
-            mPlayMsg[0] = 0;
+            mErrorFileReadMsg[0] = 0;
         }
         ImGui::EndPopup();
     }
 
-    ImGui::InputText("Read filename", mReadPath, sizeof mReadPath - 1);
-
-    if (mAviReader.NumFrames() <= 0) {
-        if (ImGui::Button("Open")) {
-#if 1
-            MLImage img;
-            int rv = ExrRead(mReadPath, img);
-            if (rv < 0) {
-                sprintf_s(mPlayMsg, "Read EXR Failed.\nFile open error : %s", mReadPath);
-                ImGui::OpenPopup("ErrorPlayPopup");
-            } else {
-                mMutex.lock();
-                mImagesToUploadToGpu.push_back(img);
-                mMutex.unlock();
-                mState = S_ImageViewing;
-            }
-#else
-            wchar_t path[512];
-            memset(path, 0, sizeof path);
-            MultiByteToWideChar(CP_UTF8, 0, mReadPath, sizeof mReadPath, path, 511);
-            if (mAviReader.Open(path)) {
-                const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
-
-                if (bi.biCompression != MLFOURCC_v210) {
-                    sprintf_s(mPlayMsg, "Error: Not supported AVI format : %s", mReadPath);
-                    ImGui::OpenPopup("ErrorPlayPopup");
-                    mAviReader.Close();
-                } else {
-                    // success
-                    mPlayMsg[0] = 0;
-                    mPlayAlpha = 1.0f;
-                    mPlayFrameNr = 0;
-                }
-            } else {
-                sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %s", mReadPath);
-                ImGui::OpenPopup("ErrorPlayPopup");
-            }
-#endif
-        }
-    } else {
-        if (ImGui::Button("Close")) {
-            mAviReader.Close();
-            mPlayAlpha = 0.0f;
-        }
-        ImGui::Text("%d x %d, %d fps, %.1f sec",
-            mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
-            mAviReader.FramesPerSec(), mAviReader.DurationSec());
-
-        {
-            // hour:min:sec:frameを算出。
-            auto vt = MLFrameNrToTime(mAviReader.FramesPerSec(), mPlayFrameNr);
-
-            ImGui::Text("%02d:%02d:%02d:%02d",
-                vt.hour, vt.min, vt.sec, vt.frame);
-        }
-
-        // シークバー。
-        ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1);
-
-        ImGui::DragFloat("Alpha", &mPlayAlpha, 0.01f, 0.0f, 1.0f);
-
-        const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
-
-        if (bi.biWidth == 3840 && bi.biHeight == 2160 && bi.biCompression == MLFOURCC_v210) {
-            // Maybe Blackmagic Micro Studio Camera 4K...
-            ImGui::Checkbox("Raw SDI preview", &mRawSDI);
-            if (mRawSDI) {
-                ImGui::DragFloat("Preview Gamma", &mDrawGamma, 0.01f, 0.4f, 4.0f);
-                ImGui::DragFloat("Preview Gain R", &mDrawGainR, 0.01f, 0.5f, 2.0f);
-                ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
-                ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
-
-                mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
-            }
+    ImGui::InputText("Read filename 0", mImgFilePath, sizeof mImgFilePath - 1);
+    if (ImGui::Button("Open")) {
+        mMutex.lock();
+        int rv = ExrRead(mImgFilePath, mShowImg[0]);
+        mMutex.unlock();
+        if (rv < 0) {
+            sprintf_s(mErrorFileReadMsg, "Read EXR Failed.\nFile open error : %s", mImgFilePath);
+            ImGui::OpenPopup("ErrorPlayPopup");
+        } else {
+            mState = S_ImageViewing;
         }
     }
 
@@ -931,28 +898,18 @@ MLDX12App::ImGuiCommands(void) {
     if (mShowImGui){
         //ImGui::ShowDemoWindow();
         ShowSettingsWindow();
-        ShowPlaybackWindow();
+        ShowFileReadWindow();
     }
 
     ImGui::Render();
 }
 
-void
-MLDX12App::ClearDrawQueue(void) {
-    mMutex.lock();
-    for (auto ite = mImagesToUploadToGpu.begin(); ite != mImagesToUploadToGpu.end(); ++ite) {
-        MLImage &ci = *ite;
-        delete[] ci.data;
-        ci.data = nullptr;
-    }
-    mImagesToUploadToGpu.clear();
-    mMutex.unlock();
-}
-
 bool
-MLDX12App::UpdateImgTexture(void) {
+MLDX12App::UpdateImgTexture(int idx) {
+    MLImage& ci = mShowImg[idx];
+
     mMutex.lock();
-    if (mImagesToUploadToGpu.empty()) {
+    if (ci.data == nullptr) {
         mMutex.unlock();
         //OutputDebugString(L"Not Available\n");
         return false;
@@ -962,69 +919,14 @@ MLDX12App::UpdateImgTexture(void) {
     //sprintf_s(s, "Available %d\n", (int)m_capturedImages.size());
     //OutputDebugStringA(s);
 
-    MLImage ci = mImagesToUploadToGpu.front();
-    mImagesToUploadToGpu.pop_front();
-
     mMutex.unlock();
 
-    UploadImgToGpu(ci, mTexImg[!mIdToShowCapVideoTex],
-        (TextureEnum)(TE_IMG0 + !mIdToShowCapVideoTex));
+    UploadImgToGpu(ci, mTexImg[idx],
+        (TextureEnum)(TE_IMG0 + idx));
 
-    mIdToShowCapVideoTex = !mIdToShowCapVideoTex;
-
-    mCaptureDrawMode = ci.imgMode;
     delete[] ci.data;
     ci.data = nullptr;
 
-    return true;
-}
-
-bool
-MLDX12App::UpdatePlayVideoTexture(void) {
-    if (mAviReader.NumFrames() == 0) {
-        return false;
-    }
-
-    if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
-        return false;
-    }
-
-    int bytes = mAviReader.GetImage(mPlayFrameNr, mPlayBufferBytes, mPlayBuffer);
-    if (bytes < 0) {
-        return false;
-    }
-
-    const MLBitmapInfoHeader &bi = mAviReader.ImageFormat();
-
-    MLImage &ci = mPlayImage;
-    ci.width = bi.biWidth;
-    ci.height = bi.biHeight;
-    ci.bytes = bi.biWidth * bi.biHeight * 4;
-    ci.imgFormat = "";
-    ci.imgMode = MLImage::IM_RGB;
-
-    uint8_t alpha = (uint8_t)(mPlayAlpha * 255.0f + 0.5f);
-
-    uint32_t *pFrom = (uint32_t *)mPlayBuffer;
-    uint32_t *pTo = (uint32_t *)ci.data;
-    if (bi.biCompression == MLFOURCC_v210) {
-        if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
-            ci.imgMode = MLImage::IM_RGB;
-        } else {
-            MLConverter::YuvV210ToYuvA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
-            ci.imgMode = MLImage::IM_YUV;
-        }
-    } else {
-        return false;
-    }
-
-    UploadImgToGpu(ci, mTexPlayVideo[!mIdToShowPlayVideoTex],
-        (TextureEnum)(TE_PLAYVIDEO0 + !mIdToShowPlayVideoTex));
-
-    mPlayDrawMode = ci.imgMode;
-
-    mIdToShowPlayVideoTex = !mIdToShowPlayVideoTex;
     return true;
 }
 

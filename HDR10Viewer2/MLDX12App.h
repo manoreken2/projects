@@ -71,10 +71,6 @@ private:
     bool mShowImGui = true;
     UINT mOptions;
     State mState;
-    MLImage::ImageMode mCaptureDrawMode;
-    MLDrawings::CrosshairType mCrosshairType;
-    bool mTitleSafeArea;
-    MLDrawings::GridType mGridType;
 
     CD3DX12_VIEWPORT mViewport;
     CD3DX12_RECT mScissorRect;
@@ -100,9 +96,10 @@ private:
 
     ComPtr<ID3D12DescriptorHeap> mSrvHeap;
     UINT                         mSrvDescSize;
-    ComPtr<ID3D12Resource>      mTexImgui;
+    ComPtr<ID3D12Resource>       mTexImgui;
+
+    MLImage                      mShowImg[2];
     ComPtr<ID3D12Resource>       mTexImg[2];
-    int mIdToShowCapVideoTex;
 
     UINT mFrameIdx;
     HANDLE mFenceEvent;
@@ -110,29 +107,13 @@ private:
     UINT64 mFenceValues[FrameCount];
     bool mWindowedMode;
 
-    bool mRawSDI;    
-    std::list<MLImage> mImagesToUploadToGpu;
+    bool mRawSDI;
     std::mutex mMutex;
-    int64_t mFrameSkipCount;
-    MLAviWriter mAviWriter;
-    char mCaptureMsg[512];
-    float mDrawGamma;
-    float mDrawGainR;
-    float mDrawGainG;
-    float mDrawGainB;
 
-    ComPtr<ID3D12Resource> mTexPlayVideo[2];
-    MLImage mPlayImage;
-    uint8_t *mPlayBuffer;
-    int mPlayBufferBytes;
-    int mPlayFrameNr;
-    float mPlayAlpha;
-    char mReadPath[512];
-    char mPlayMsg[512];
-    MLAviReader mAviReader;
-    MLImage::ImageMode mPlayDrawMode;
-    int mIdToShowPlayVideoTex;
-    bool UpdatePlayVideoTexture(void);
+    char mErrorSettingsMsg[512] = {};
+    char mErrorFileReadMsg[512] = {};
+
+    char mImgFilePath[512];
 
     MLConverter mConverter;
     MLDrawings mDrawings;
@@ -148,19 +129,20 @@ private:
     void LoadSizeDependentResources(void);
     void UpdateViewAndScissor(void);
 
-    void ClearDrawQueue(void);
+    void SetDefaultImgTexture(int idx);
+    bool UpdateImgTexture(int idx);
 
-    bool UpdateImgTexture(void);
 
+    void CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data);
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
 
-    void DrawFullscreenTexture(TextureEnum texId, MLImage::ImageMode drawMode);
+    void DrawFullscreenTexture(TextureEnum texId, MLImage & drawMode);
 
     void ShowSettingsWindow(void);
-    void ShowPlaybackWindow(void);
-    void CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t *data);
+    void ShowFileReadWindow(void);
     void UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
+    void AdjustFullScreenQuadAspectRatio(int w, int h);
 
     // HDR10ÇÃê›íËÅB
     void UpdateColorSpace(void);
