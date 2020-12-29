@@ -17,12 +17,8 @@
     <ClInclude Include="MLColorGamut.h" />
     <ClInclude Include="EnumToStr.h" />
     <ClInclude Include="ExrReader.h" />
-    <ClInclude Include="MLAVICommon.h" />
-    <ClInclude Include="MLAviReader.h" />
-    <ClInclude Include="MLAviWriter.h" />
     <ClInclude Include="MLDX12Common.h" />
     <ClInclude Include="MLImage.h" />
-    <ClInclude Include="MLConverter.h" />
     <ClInclude Include="MLDrawings.h" />
     <ClInclude Include="MLDX12.h" />
     <ClInclude Include="MLDX12App.h" />
@@ -36,7 +32,6 @@
     <ClInclude Include="imstb_textedit.h" />
     <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="MLSaveSettings.h" />
-    <ClInclude Include="MLVideoTime.h" />
     <ClInclude Include="Contrib\include\OpenEXR\half.h" />
     <ClInclude Include="Contrib\include\OpenEXR\OpenEXRConfig.h" />
     <ClInclude Include="PngReader.h" />
@@ -51,23 +46,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
-    <ClCompile Include="MLAviCommon.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="MLAviReader.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="MLAviWriter.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
     <ClCompile Include="MLColorGamut.cpp" />
-    <ClCompile Include="MLConverter.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
     <ClCompile Include="MLDrawings.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
@@ -114,10 +93,6 @@
     </ClCompile>
     <ClCompile Include="MLImage.cpp" />
     <ClCompile Include="MLSaveSettings.cpp" />
-    <ClCompile Include="MLVideoTime.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
     <ClCompile Include="PngReader.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
