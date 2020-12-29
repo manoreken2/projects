@@ -1,6 +1,17 @@
 Manoretimedia Kenkyuujyo project files
 ==============
 
+HDR10Viewer2 project
+--------------
+
+Sends HDR10 image to HDR10 display.
+
+How to build
+
+Open HDR10Viewer2.sln with Visual Studio 2019 and build.
+
+  ![ScreenShot](HDR10Viewer2/HDR10Viewer2_100_Screenshot.png)
+
 MLDX12VideoCapture project
 --------------
 
