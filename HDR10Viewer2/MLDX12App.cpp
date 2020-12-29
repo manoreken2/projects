@@ -91,7 +91,7 @@ MLDX12App::OnInit(void) {
 
     LoadAssets();
 
-    mDx12Imgui.Init(mDevice.Get());
+    mDx12Imgui.Init(mDevice.Get(), mBackBufferFmt);
     CreateImguiTexture();
 
     //OutputDebugString(L"OnInit end\n");
@@ -105,7 +105,7 @@ MLDX12App::ReInit(void)
 {
     LoadPipeline();
     LoadAssets();
-    mDx12Imgui.Init(mDevice.Get());
+    mDx12Imgui.Init(mDevice.Get(), mBackBufferFmt);
     CreateImguiTexture();
 }
 
@@ -387,7 +387,7 @@ MLDX12App::LoadAssets(void) {
     }
 
     mPipelineState.Reset();
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shaderVS.hlsl", L"shaderColorConvPS.hlsl", mPipelineState);
+    MLDX12Common::SetupPSO(mDevice.Get(), mBackBufferFmt, mRootSignature.Get(), L"shaderVS.hlsl", L"shaderColorConvPS.hlsl", mPipelineState);
     NAME_D3D12_OBJECT(mPipelineState);
 
     mCmdList.Reset();

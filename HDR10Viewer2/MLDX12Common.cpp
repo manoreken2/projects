@@ -6,7 +6,7 @@ std::wstring GetAssetFullPath(const std::wstring & assetsPath, const wchar_t * a
 }
 
 void
-MLDX12Common::SetupPSO(ID3D12Device *device, ID3D12RootSignature * rootSignature, const wchar_t* vsShaderName, const wchar_t *psShaderName, ComPtr<ID3D12PipelineState> & pso) {
+MLDX12Common::SetupPSO(ID3D12Device *device, DXGI_FORMAT rtvFormat, ID3D12RootSignature * rootSignature, const wchar_t* vsShaderName, const wchar_t *psShaderName, ComPtr<ID3D12PipelineState> & pso) {
     WCHAR s[512];
     GetAssetsPath(s, _countof(s));
     std::wstring assetsPath = assetsPath;
@@ -73,7 +73,7 @@ MLDX12Common::SetupPSO(ID3D12Device *device, ID3D12RootSignature * rootSignature
     psoDesc.SampleMask = UINT_MAX;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.RTVFormats[0] = rtvFormat;
     psoDesc.SampleDesc.Count = 1;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 }

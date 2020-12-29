@@ -16,9 +16,10 @@ struct VERTEX_CONSTANT_BUFFER
     float   mvp[4][4];
 };
 
-void MLDX12Imgui::Init(ID3D12Device *device)
+void MLDX12Imgui::Init(ID3D12Device *device, DXGI_FORMAT rtvFmt)
 {
     mDevice = device;
+    mRtvFmt = rtvFmt;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -116,7 +117,7 @@ void MLDX12Imgui::SetupPso(void)
     psoDesc.pRootSignature = mRootSig.Get();
     psoDesc.SampleMask = UINT_MAX;
     psoDesc.NumRenderTargets = 1;
-    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.RTVFormats[0] = mRtvFmt;
     psoDesc.SampleDesc.Count = 1;
     psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
