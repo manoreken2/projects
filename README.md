@@ -10,8 +10,8 @@ How to build
 
 Open HDR10Viewer2.sln with Visual Studio 2019 and build.
 
-Note 1: The following screenshot image is SDR, brighter part is saturated to white.
-Note 2: The OpenEXR image is generated with Blender, the scene file is "Class room By Christophe Seux" https://www.blender.org/download/demo-files/#cycles
+  * Note 1: The following screenshot image is converted to SDR and brighter part is saturated to white.
+  * Note 2: The OpenEXR image is generated with Blender, the scene file is "Class room By Christophe Seux" https://www.blender.org/download/demo-files/#cycles
   ![ScreenShot](HDR10Viewer2/HDR10Viewer2_100_Screenshot.png)
 
 MLDX12VideoCapture project
