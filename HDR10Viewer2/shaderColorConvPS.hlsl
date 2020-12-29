@@ -27,7 +27,7 @@ cbuffer Consts : register(b0) {
     float4 c_outOfRangeColor;
     int    c_gammaType;
     int    c_flags; //< FlagsType
-    float  c_maxNits;
+    float  c_outOfRangeNits;
 };
 
 struct PSInput
@@ -113,7 +113,7 @@ float3 ApplyGamma(float3 rgb) {
 
 float4 HighlightOutOfRange(float4 v) {
     if ((c_flags & 1) != 0) {
-        float maxV = c_maxNits * 0.01f;
+        float maxV = c_outOfRangeNits * 0.01f;
         if (maxV < v.r
             || maxV < v.g
             || maxV < v.b) {

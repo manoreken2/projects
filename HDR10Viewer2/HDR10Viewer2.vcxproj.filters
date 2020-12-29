@@ -164,9 +164,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="shadersYUV.hlsl">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
     <CustomBuild Include="shaderColorConvPS.hlsl">
       <Filter>Shaders</Filter>
     </CustomBuild>

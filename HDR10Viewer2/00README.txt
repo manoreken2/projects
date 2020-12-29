@@ -1,5 +1,5 @@
 How to run the program:
-Extract all and run MLDX12VideoCapture.exe
+Extract all and run HDR10Viewer2.exe
 
 Version 1.0
 

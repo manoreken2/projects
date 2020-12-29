@@ -35,6 +35,16 @@ MLSaveSettings::LoadInt(const char* key, int defaultValue) {
 }
 
 void
+MLSaveSettings::SaveDouble(const char* key, double v) {
+    mIni.SetDoubleValue(gSectionName, key, v);
+}
+
+double
+MLSaveSettings::LoadDouble(const char* key, double defaultValue) {
+    return mIni.GetDoubleValue(gSectionName, key, defaultValue);
+}
+
+void
 MLSaveSettings::SaveStringA(const char* key, const char* name) {
     mIni.SetValue(gSectionName, key, name);
 }

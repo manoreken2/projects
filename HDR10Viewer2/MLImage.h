@@ -9,7 +9,6 @@ struct MLImage {
     enum ImageModeType {
         IM_None,
         IM_RGB,
-        IM_YUV,
         IM_HALF_RGBA,
     };
 

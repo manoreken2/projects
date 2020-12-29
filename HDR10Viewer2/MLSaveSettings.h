@@ -7,11 +7,17 @@ public:
     MLSaveSettings(const char *settingsFileName);
     ~MLSaveSettings(void);
 
-    void SaveStringA(const char* key, const char* name);
     void SaveInt(const char* key, int v);
 
     // –³‚¢‚Æ‚«‚ÍdefaultValue‚ª–ß‚éB
     int LoadInt(const char* key, int defaultValue);
+
+    void SaveDouble(const char* key, double v);
+
+    // –³‚¢‚Æ‚«‚ÍdefaultValue‚ª–ß‚éB
+    double LoadDouble(const char* key, double defaultValue);
+
+    void SaveStringA(const char* key, const char* name);
 
     // –³‚¢‚Æ‚«‚Í‹ó•¶š—ñ‚ª–ß‚éB
     const std::string LoadStringA(const char* key);

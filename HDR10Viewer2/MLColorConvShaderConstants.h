@@ -9,7 +9,7 @@ struct MLColorConvShaderConstants {
     DirectX::XMFLOAT4 outOfRangeColor;
     int imgGammaType; //< MLImage::GammaType
     int flags; //< FlagsType
-    float maxNits;
+    float outOfRangeNits;
 
     enum FlagsType {
         FLAG_OutOfRangeColor = 1,

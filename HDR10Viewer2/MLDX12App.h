@@ -14,11 +14,8 @@
 #include "MLDX12Imgui.h"
 #include <mutex>
 #include <list>
-#include "MLAviWriter.h"
-#include "MLConverter.h"
 #include "MLImage.h"
 #include "MLDrawings.h"
-#include "MLAviReader.h"
 #include "MLColorGamut.h"
 #include <stdint.h>
 #include "MLColorConvShaderConstants.h"
@@ -57,7 +54,7 @@ public:
     };
 
 private:
-    static const UINT FrameCount = 2;
+    static const UINT FenceCount = 2;
 
     static const int CapturedImageQueueSize = 30;
 
@@ -76,6 +73,7 @@ private:
     MLSaveSettings mSettings;
 
     bool mShowImGui = true;
+
     UINT mOptions;
     State mState;
 
@@ -83,13 +81,12 @@ private:
     CD3DX12_RECT mScissorRect;
     ComPtr<IDXGISwapChain3> mSwapChain;
     ComPtr<ID3D12Device> mDevice;
-    ComPtr<ID3D12Resource> mRenderTargets[FrameCount];
-    ComPtr<ID3D12CommandAllocator> mCmdAllocators[FrameCount];
+    ComPtr<ID3D12Resource> mRenderTargets[FenceCount];
+    ComPtr<ID3D12CommandAllocator> mCmdAllocators[FenceCount];
     ComPtr<ID3D12CommandQueue> mCmdQ;
     ComPtr<ID3D12RootSignature> mRootSignature;
     ComPtr<ID3D12DescriptorHeap> mRtvHeap;
-    ComPtr<ID3D12PipelineState> mPipelineStateRGB;
-    ComPtr<ID3D12PipelineState> mPipelineStateYUV;
+    ComPtr<ID3D12PipelineState> mPipelineState;
 
     MLDX12Imgui mDx12Imgui;
     ComPtr<ID3D12GraphicsCommandList> mCmdList;
@@ -107,27 +104,37 @@ private:
     uint8_t* mPCbvDataBegin = nullptr;
     MLColorConvShaderConstants mColorConvShaderConsts;
 
-    ComPtr<ID3D12DescriptorHeap> mSrvDescHeap;
-    //ComPtr<ID3D12DescriptorHeap> mCbvDescHeap;
+    ComPtr<ID3D12DescriptorHeap> mCbvSrvDescHeap;
     UINT                         mDescHandleIncrementSz;
 
     ComPtr<ID3D12Resource>       mTexImgui;
 
 
     MLImage                      mShowImg;
+
+    /// <summary>
+    /// 描画中テクスチャをアップロードするとクラッシュするので。
+    /// 描画中テクスチャとアップロード用テクスチャを別にする。
+    /// </summary>
     ComPtr<ID3D12Resource>       mTexImg[2];
+
+    /// <summary>
+    /// mTexImg[]の要素番号。
+    /// 描画中テクスチャが0番の場合、アップロード用テクスチャは1番。
+    /// 描画中テクスチャが1番の場合、アップロード用テクスチャは0番。
+    /// </summary>
     int                          mRenderTexImgIdx = 0;
 
     /// <summary>
-    /// フェンスイベントの変数。
+    /// 使用中のmFenceValues[]要素番号。
     /// </summary>
-    UINT mFrameIdx;
+    UINT mFenceIdx;
     HANDLE mFenceEvent;
     ComPtr<ID3D12Fence> mFence;
-    UINT64 mFenceValues[FrameCount];
+    UINT64 mFenceValues[FenceCount];
+
     bool mWindowedMode;
 
-    bool mRawSDI;
     std::mutex mMutex;
 
     char mErrorSettingsMsg[512] = {};
@@ -135,7 +142,6 @@ private:
 
     char mImgFilePath[512];
 
-    MLConverter mConverter;
     MLDrawings mDrawings;
 
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;

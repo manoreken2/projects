@@ -7,7 +7,6 @@ const char* MLImage::MLImageModeToStr(MLImage::ImageModeType t)
     switch (t){
     case IM_None: return "None";
     case IM_RGB: return "R8G8B8";
-    case IM_YUV: return "YUV";
     case IM_HALF_RGBA: return "R16G16B16A16";
     default:
         assert(0);
