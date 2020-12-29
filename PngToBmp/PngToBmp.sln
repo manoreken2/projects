@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PngToBmp", "PngToBmp.vcxproj", "{794D3702-B5A5-447E-A659-4C9C447B7A5B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{794D3702-B5A5-447E-A659-4C9C447B7A5B}.Debug|x64.ActiveCfg = Debug|x64
+		{794D3702-B5A5-447E-A659-4C9C447B7A5B}.Debug|x64.Build.0 = Debug|x64
+		{794D3702-B5A5-447E-A659-4C9C447B7A5B}.Release|x64.ActiveCfg = Release|x64
+		{794D3702-B5A5-447E-A659-4C9C447B7A5B}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3445164E-FAF6-4A04-AB2C-CF94603207B2}
+	EndGlobalSection
+EndGlobal
