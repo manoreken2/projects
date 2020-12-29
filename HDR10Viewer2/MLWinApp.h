@@ -5,10 +5,10 @@
 
 class MLDX12;
 
-class WinApp {
+class MLWinApp {
 public:
-    WinApp(void) { }
-    virtual ~WinApp(void) { }
+    MLWinApp(void) { }
+    virtual ~MLWinApp(void) { }
     static int Run(MLDX12* pSample, HINSTANCE hInstance, int nCmdShow,
             const wchar_t *title = nullptr);
     static HWND GetHwnd() { return mHwnd; }

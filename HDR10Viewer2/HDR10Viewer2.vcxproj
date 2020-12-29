@@ -11,12 +11,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MLBmpReader.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="MLColorConvShaderConstants.h" />
     <ClInclude Include="MLColorGamut.h" />
-    <ClInclude Include="EnumToStr.h" />
-    <ClInclude Include="ExrReader.h" />
+    <ClInclude Include="MLEnumToStr.h" />
+    <ClInclude Include="MLExrReader.h" />
     <ClInclude Include="MLDX12Common.h" />
     <ClInclude Include="MLImage.h" />
     <ClInclude Include="MLDrawings.h" />
@@ -34,15 +35,16 @@
     <ClInclude Include="MLSaveSettings.h" />
     <ClInclude Include="Contrib\include\OpenEXR\half.h" />
     <ClInclude Include="Contrib\include\OpenEXR\OpenEXRConfig.h" />
-    <ClInclude Include="PngReader.h" />
-    <ClInclude Include="WinApp.h" />
+    <ClInclude Include="MLPngReader.h" />
+    <ClInclude Include="MLWinApp.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EnumToStr.cpp">
+    <ClCompile Include="MLBmpReader.cpp" />
+    <ClCompile Include="MLEnumToStr.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
-    <ClCompile Include="ExrReader.cpp">
+    <ClCompile Include="MLExrReader.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
@@ -93,11 +95,11 @@
     </ClCompile>
     <ClCompile Include="MLImage.cpp" />
     <ClCompile Include="MLSaveSettings.cpp" />
-    <ClCompile Include="PngReader.cpp">
+    <ClCompile Include="MLPngReader.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
-    <ClCompile Include="WinApp.cpp">
+    <ClCompile Include="MLWinApp.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>

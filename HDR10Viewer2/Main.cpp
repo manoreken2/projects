@@ -10,7 +10,7 @@
 #include <memory.h>
 #include <tchar.h>
 #include "MLDX12App.h"
-#include "WinApp.h"
+#include "MLWinApp.h"
 
 int APIENTRY
 wWinMain(
@@ -30,7 +30,7 @@ wWinMain(
 
     MLDX12App app(1920, 1080, MLDX12App::OE_HDR10);
 
-    int rv = WinApp::Run(&app, hInstance, nCmdShow, L"HDRViewer2");
+    int rv = MLWinApp::Run(&app, hInstance, nCmdShow, L"HDRViewer2");
 
     if (coInitialized) {
         CoUninitialize();

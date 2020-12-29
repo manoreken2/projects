@@ -1,6 +1,6 @@
 ﻿#include "MLDX12Imgui.h"
 #include "DXSampleHelper.h"
-#include "WinApp.h"
+#include "MLWinApp.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 
@@ -23,7 +23,7 @@ void MLDX12Imgui::Init(ID3D12Device *device)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui_ImplWin32_Init(WinApp::GetHwnd());
+    ImGui_ImplWin32_Init(MLWinApp::GetHwnd());
 
     for (int i = 0; i < 2; i++) {
         mFrameResources[i].IB = nullptr;

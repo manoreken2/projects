@@ -1,14 +1,14 @@
 ﻿#include "MLDX12App.h"
 #include "DXSampleHelper.h"
-#include "WinApp.h"
+#include "MLWinApp.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "MLDX12Common.h"
-#include "EnumToStr.h"
-#include "ExrReader.h"
+#include "MLEnumToStr.h"
+#include "MLExrReader.h"
 #include "half.h"
 #include "MLImage.h"
-#include "PngReader.h"
+#include "MLPngReader.h"
 
 
 // D3D12HelloFrameBuffering sample
@@ -181,7 +181,7 @@ MLDX12App::LoadPipeline(void) {
     // ↓この関数は2回呼べないようだ。
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
         mCmdQ.Get(),
-        WinApp::GetHwnd(),
+        MLWinApp::GetHwnd(),
         &scDesc,
         nullptr,
         nullptr,
@@ -1118,10 +1118,10 @@ MLDX12App::ShowFileReadWindow(void) {
     ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
     if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
-        int rv = PngRead(mImgFilePath, mShowImg);
+        int rv = MLPngRead(mImgFilePath, mShowImg);
         if (rv == 1) {
             // ファイルは存在するがPNGではなかった場合。
-            rv = ExrRead(mImgFilePath, mShowImg);
+            rv = MLExrRead(mImgFilePath, mShowImg);
         }
         mMutex.unlock();
         if (rv < 0) {

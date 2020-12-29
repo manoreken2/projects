@@ -9,16 +9,16 @@
 //
 //*********************************************************
 
-#include "WinApp.h"
+#include "MLWinApp.h"
 #include "MLDX12.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 
-HWND WinApp::mHwnd = nullptr;
-std::wstring WinApp::mTitle = L"WinApp";
+HWND MLWinApp::mHwnd = nullptr;
+std::wstring MLWinApp::mTitle = L"WinApp";
 
 int
-WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow, const wchar_t *title)
+MLWinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow, const wchar_t *title)
 {
     if (title) {
         mTitle = title;
@@ -68,7 +68,7 @@ WinApp::Run(MLDX12* pDX12, HINSTANCE hInstance, int nCmdShow, const wchar_t *tit
 }
 
 LRESULT CALLBACK
-WinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+MLWinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     MLDX12* pDX12 = reinterpret_cast<MLDX12*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 

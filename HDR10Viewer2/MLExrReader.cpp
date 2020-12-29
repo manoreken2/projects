@@ -1,4 +1,4 @@
-#include "ExrReader.h"
+#include "MLExrReader.h"
 #include <OpenEXRConfig.h>
 #include <ImfRgbaFile.h>
 using namespace OPENEXR_IMF_NAMESPACE;
@@ -6,7 +6,7 @@ using namespace IMATH_NAMESPACE;
 using namespace std;
 
 int
-ExrRead(const char* exrFilePath, MLImage& img_return)
+MLExrRead(const char* exrFilePath, MLImage& img_return)
 {
     img_return.data = nullptr;
 

@@ -1,12 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="EnumToStr.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="ExrReader.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="imgui.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -40,36 +34,36 @@
     <ClCompile Include="MLDX12Imgui.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="WinApp.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="MLColorGamut.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="MLImage.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="PngReader.cpp">
+    <ClCompile Include="MLSaveSettings.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLSaveSettings.cpp">
+    <ClCompile Include="MLExrReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLBmpReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLPngReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLEnumToStr.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLWinApp.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Common.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="d3dx12.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="DXSampleHelper.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="EnumToStr.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="ExrReader.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="imconfig.h">
@@ -111,16 +105,10 @@
     <ClInclude Include="MLImage.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="WinApp.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="MLColorGamut.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MLColorConvShaderConstants.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="PngReader.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Contrib\include\OpenEXR\half.h">
@@ -130,6 +118,24 @@
       <Filter>Contrib</Filter>
     </ClInclude>
     <ClInclude Include="MLSaveSettings.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLBmpReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLExrReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLPngReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLEnumToStr.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Common.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLWinApp.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

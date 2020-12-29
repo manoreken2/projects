@@ -1,11 +1,11 @@
-#include "PngReader.h"
+#include "MLPngReader.h"
 #include <png.h>
 #include <stdio.h>
 #include <Windows.h>
 #include <half.h>
 #include <assert.h>
 
-const char* PngColorTypeToStr(int t) {
+static const char* PngColorTypeToStr(int t) {
     switch (t) {
     case PNG_COLOR_TYPE_GRAY: return "GRAY";
     case PNG_COLOR_TYPE_PALETTE: return "PALETTE";
@@ -22,7 +22,7 @@ const char* PngColorTypeToStr(int t) {
 /// PNGファイルを読む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。1:PNGファイルでは無かった。</returns>
-int PngRead(const char* pngFilePath, MLImage& img_return)
+int MLPngRead(const char* pngFilePath, MLImage& img_return)
 {
     FILE* fp = nullptr;
     int ercd = fopen_s(&fp, pngFilePath, "rb");
