@@ -10,6 +10,7 @@ How to build
 
 Open HDR10Viewer2.sln with Visual Studio 2019 and build.
 
+Note: the following screenshot image is SDR, brighter part is saturated to white.
   ![ScreenShot](HDR10Viewer2/HDR10Viewer2_100_Screenshot.png)
 
 MLDX12VideoCapture project
