@@ -63,22 +63,22 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
 
     png_read_info(png_ptr, info_ptr);
     png_uint_32 width, height;
-    int bit_depth, color_type, interlace_type;
-    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, nullptr, nullptr);
+    int orig_bit_depth, color_type, interlace_type;
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &orig_bit_depth, &color_type, &interlace_type, nullptr, nullptr);
 
-    if (bit_depth != 8 && bit_depth != 16) {
+    if (orig_bit_depth != 8 && orig_bit_depth != 16) {
         png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)nullptr);
-        printf("Error: PngRead unsupported bit depth %d.\n", bit_depth);
+        printf("Error: PngRead unsupported bit depth %d.\n", orig_bit_depth);
         return E_FAIL;
     }
 
-    int num_channels = 3;
+    int orig_num_channels = 3;
     switch (color_type) {
     case PNG_COLOR_TYPE_RGB:
-        num_channels = 3;
+        orig_num_channels = 3;
         break;
     case PNG_COLOR_TYPE_RGB_ALPHA:
-        num_channels = 4;
+        orig_num_channels = 4;
         break;
     default:
         png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)nullptr);
@@ -87,11 +87,11 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
         return E_FAIL;
     }
 
-    uint8_t* image_data = new uint8_t[width * height * num_channels *  bit_depth / 8];
+    uint8_t* image_data = new uint8_t[width * height * orig_num_channels *  orig_bit_depth / 8];
 
     png_bytepp row_pointers = (png_bytepp)png_malloc(png_ptr, sizeof(png_bytepp) * height);
     for (uint32_t y = 0; y < height; y++) {
-        row_pointers[y] = (png_bytep)&image_data[y*(width * num_channels * bit_depth / 8)];
+        row_pointers[y] = (png_bytep)&image_data[y*(width * orig_num_channels * orig_bit_depth / 8)];
     }
     png_set_rows(png_ptr, info_ptr, row_pointers);
     png_read_image(png_ptr, row_pointers);
@@ -111,16 +111,16 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
         MLImage::BFT_HalfFloat,
         ML_CG_Rec709,     //< すぐ後で変更する場合有り。
         MLImage::MLG_G22, //< すぐ後で変更する場合有り。
-        bit_depth,
-        num_channels,
+        orig_bit_depth,
+        orig_num_channels,
         width * height * 4 * 2, // 4==numCh, 2== sizeof(half)
         new uint8_t[width * height * 4 * 2]);
 
     half* imgTo = (half*)img_return.data;
-    if (bit_depth == 8) {
+    if (orig_bit_depth == 8) {
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
-                int readP = (x + y * width) * num_channels;
+                int readP = (x + y * width) * orig_num_channels;
                 int writeP = (x + y * width) * 4;
 
                 int r = image_data[readP + 0];
@@ -133,13 +133,13 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
                 imgTo[writeP + 3] = half(a / 255.0f);
             }
         }
-    } else if (bit_depth == 16) {
+    } else if (orig_bit_depth == 16) {
         img_return.colorGamut = ML_CG_Rec2020;
         img_return.gamma = MLImage::MLG_ST2084;
 
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
-                int readP = (x + y * width) * num_channels * 2;
+                int readP = (x + y * width) * orig_num_channels * 2;
                 int writeP = (x + y * width) * 4;
 
                 int r = (image_data[readP + 0] << 8) + image_data[readP + 1];

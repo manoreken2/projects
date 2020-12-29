@@ -19,6 +19,7 @@ const char* MLImage::MLImageFileFormatTypeToStr(MLImage::ImageFileFormatType t) 
     case IFFT_None: return "None";
     case IFFT_OpenEXR: return "OpenEXR";
     case IFFT_PNG: return "PNG";
+    case IFFT_BMP: return "BMP";
     default:
         assert(0);
         return "";

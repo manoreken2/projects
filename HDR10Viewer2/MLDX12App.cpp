@@ -9,6 +9,7 @@
 #include "half.h"
 #include "MLImage.h"
 #include "MLPngReader.h"
+#include "MLBmpReader.h"
 
 
 // D3D12HelloFrameBuffering sample
@@ -1118,10 +1119,14 @@ MLDX12App::ShowFileReadWindow(void) {
     ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
     if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
-        int rv = MLPngRead(mImgFilePath, mShowImg);
+        int rv = MLBmpRead(mImgFilePath, mShowImg);
         if (rv == 1) {
-            // ファイルは存在するがPNGではなかった場合。
-            rv = MLExrRead(mImgFilePath, mShowImg);
+            // ファイルは存在するがBMPではなかった場合。
+            rv = MLPngRead(mImgFilePath, mShowImg);
+            if (rv == 1) {
+                // ファイルは存在するがPNGではなかった場合。
+                rv = MLExrRead(mImgFilePath, mShowImg);
+            }
         }
         mMutex.unlock();
         if (rv < 0) {
