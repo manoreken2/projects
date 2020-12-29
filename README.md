@@ -4,7 +4,7 @@ Manoretimedia Kenkyuujyo project files
 HDR10Viewer2 project
 --------------
 
-Sends HDR10 image to HDR10 display.
+Sends HDR10 image to HDR10 display using DirectX12 API.
 
 How to build
 
