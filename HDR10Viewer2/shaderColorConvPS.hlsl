@@ -18,12 +18,13 @@
     };
 
     enum FlagsType {
-        FLAG_OutOfRangeToBlack = 1,
+        FLAG_OutOfRangeColor = 1,
     };
 */
 
 cbuffer Consts : register(b0) {
     matrix c_mat;
+    float4 c_outOfRangeColor;
     int    c_gammaType;
     int    c_flags; //< FlagsType
     float  c_maxNits;
@@ -110,13 +111,13 @@ float3 ApplyGamma(float3 rgb) {
     }
 }
 
-float4 OutOfRangeToBlack(float4 v) {
+float4 HighlightOutOfRange(float4 v) {
     if ((c_flags & 1) != 0) {
         float maxV = c_maxNits * 0.01f;
         if (maxV < v.r
-                || maxV < v.g
-                || maxV < v.b) {
-            return float4(0.0f, 0.0f, 0.0f, 1.0f);
+            || maxV < v.g
+            || maxV < v.b) {
+            return c_outOfRangeColor;
         }
     }
     
@@ -131,7 +132,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     rgba = mul(rgba, c_mat);
 
-    rgba = OutOfRangeToBlack(rgba);
+    rgba = HighlightOutOfRange(rgba);
 
     return rgba;
 }

@@ -22,6 +22,8 @@
 #include "MLColorGamut.h"
 #include <stdint.h>
 #include "MLColorConvShaderConstants.h"
+#include "MLSaveSettings.h"
+
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
@@ -70,6 +72,8 @@ private:
         XMFLOAT3 position;
         XMFLOAT2 uv;
     };
+
+    MLSaveSettings mSettings;
 
     bool mShowImGui = true;
     UINT mOptions;

@@ -24,6 +24,7 @@
 
 MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     MLDX12(width, height),
+    mSettings("Settings.ini"),
     mOptions(options),
     mState(S_Init),
     mFrameIdx(0),
@@ -34,17 +35,43 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
     mNumVertices(0),
     mWindowedMode(true)
 {
-    strcpy_s(mImgFilePath, "c:/data/BMW27_4K.exr");
+    // 設定を読み出します。
+    std::string imgFilePath = mSettings.LoadStringA("ImgFilePath");
+    if (imgFilePath.empty()) {
+        strcpy_s(mImgFilePath, "c:/data/OpenEXR_HDR10_test1.exr");
+    } else {
+        strcpy_s(mImgFilePath, imgFilePath.c_str());
+    }
+    int outOfRangeR = mSettings.LoadInt("OutOfRangeR", 255);
+    int outOfRangeG = mSettings.LoadInt("OutOfRangeG", 0);
+    int outOfRangeB = mSettings.LoadInt("OutOfRangeB", 255);
+
+    mDisplayColorGamut = (MLColorGamutType)mSettings.LoadInt("DisplayColorGamut", ML_CG_Rec709);
 
     mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
 
     mColorConvShaderConsts.colorConvMat = XMMatrixIdentity();
+
+
+    mColorConvShaderConsts.outOfRangeColor = XMFLOAT4(outOfRangeR/255.0f, outOfRangeG / 255.0f, outOfRangeB / 255.0f, 1.0f);
     mColorConvShaderConsts.imgGammaType = MLImage::MLG_Linear;
     mColorConvShaderConsts.flags = 0;
     mColorConvShaderConsts.maxNits = 10000.0f;
 }
 
 MLDX12App::~MLDX12App(void) {
+    mSettings.SaveStringA("ImgFilePath", mImgFilePath);
+    
+    int outOfRangeR = (int)(mColorConvShaderConsts.outOfRangeColor.x * 255.0f);
+    int outOfRangeG = (int)(mColorConvShaderConsts.outOfRangeColor.y * 255.0f);
+    int outOfRangeB = (int)(mColorConvShaderConsts.outOfRangeColor.z * 255.0f);
+    mSettings.SaveInt("OutOfRangeR", outOfRangeR);
+    mSettings.SaveInt("OutOfRangeG", outOfRangeG);
+    mSettings.SaveInt("OutOfRangeB", outOfRangeB);
+
+    mSettings.SaveInt("DisplayColorGamut", mDisplayColorGamut);
+
+    mSettings.WriteToFile();
 }
 
 void
@@ -281,10 +308,10 @@ MLDX12App::UpdateColorSpace(void)
                 if (desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020) {
                     // HDR10ディスプレイに出力している。
                     mIsDisplayHDR10 = true;
-                    mDisplayColorGamut = ML_CG_Rec2020;
+                    //mDisplayColorGamut = ML_CG_Rec2020;
                 } else {
                     mIsDisplayHDR10 = false;
-                    mDisplayColorGamut = ML_CG_Rec709;
+                    //mDisplayColorGamut = ML_CG_Rec709;
                 }
 
                 wcscpy_s(mDeviceName, desc.DeviceName);
@@ -331,7 +358,7 @@ MLDX12App::LoadAssets(void) {
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-        if (FAILED(mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
+        if (FAILED(mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof featureData))) {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
@@ -459,7 +486,7 @@ MLDX12App::LoadAssets(void) {
         // app closes. Keeping things mapped for the lifetime of the resource is okay.
         CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(mConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mPCbvDataBegin)));
-        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof(mColorConvShaderConsts));
+        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
     }
 
     ThrowIfFailed(mCmdList->Close());
@@ -490,7 +517,7 @@ MLDX12App::SetDefaultImgTexture(void)
     delete [] mShowImg.data;
     mShowImg.data = nullptr;
 
-    mShowImg.Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, pixelBytes, nullptr);
+    mShowImg.Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
 
     mTexImg[mRenderTexImgIdx].Reset();
     CreateTexture(mTexImg[mRenderTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
@@ -697,7 +724,7 @@ MLDX12App::CreateImguiTexture(void) {
     srvCpuHandle.Offset(TCE_TEX_IMGUI, mDescHandleIncrementSz);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    ZeroMemory(&srvDesc, sizeof(srvDesc));
+    ZeroMemory(&srvDesc, sizeof srvDesc);
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
@@ -1039,10 +1066,10 @@ MLDX12App::ShowSettingsWindow(void) {
         ImGui::Text("Display Luminance: min = %f, max = %f, maxFullFrame = %f",
             mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
 
-        bool outofRange = 0 != (mColorConvShaderConsts.flags & MLColorConvShaderConstants::FLAG_OutOfRangeToBlack);
-        ImGui::Checkbox("Out of range value to Black", &outofRange);
+        bool outofRange = 0 != (mColorConvShaderConsts.flags & MLColorConvShaderConstants::FLAG_OutOfRangeColor);
+        ImGui::Checkbox("Fill Color to Out of Range Data", &outofRange);
         if (outofRange) {
-            mColorConvShaderConsts.flags |= MLColorConvShaderConstants::FLAG_OutOfRangeToBlack;
+            mColorConvShaderConsts.flags |= MLColorConvShaderConstants::FLAG_OutOfRangeColor;
 
             int cg;
             if (mColorConvShaderConsts.maxNits == 100.0f) {
@@ -1075,8 +1102,16 @@ MLDX12App::ShowSettingsWindow(void) {
                 mColorConvShaderConsts.maxNits = 10000.0f;
                 break;
             }
+
+            float c[3] = { mColorConvShaderConsts.outOfRangeColor.x,
+                           mColorConvShaderConsts.outOfRangeColor.y,
+                           mColorConvShaderConsts.outOfRangeColor.z };
+            ImGui::ColorPicker3("Fill color", c);
+            mColorConvShaderConsts.outOfRangeColor.x = c[0];
+            mColorConvShaderConsts.outOfRangeColor.y = c[1];
+            mColorConvShaderConsts.outOfRangeColor.z = c[2];
         } else {
-            mColorConvShaderConsts.flags = mColorConvShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_OutOfRangeToBlack);
+            mColorConvShaderConsts.flags = mColorConvShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_OutOfRangeColor);
         }
     }
 
@@ -1106,7 +1141,7 @@ MLDX12App::ShowFileReadWindow(void) {
         ImGui::EndPopup();
     }
 
-    ImGui::InputText("Read filename 0", mImgFilePath, sizeof mImgFilePath - 1);
+    ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
     if (ImGui::Button("Open ##RF0")) {
         mMutex.lock();
         int rv = PngRead(mImgFilePath, mShowImg);

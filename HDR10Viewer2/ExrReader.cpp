@@ -22,15 +22,10 @@ ExrRead(const char* exrFilePath, MLImage& img_return)
         return -1;
     }
 
-    img_return.width = w;
-    img_return.height = h;
-    img_return.imgMode = MLImage::IM_HALF_RGBA;
-    img_return.imgFileFormat = MLImage::IFFT_OpenEXR;
-    img_return.bitFormat = MLImage::BFT_HalfFloat;
-    img_return.bytes = w * h * 4 * 2; // 4==numCh, 2== sizeof(half)
-    img_return.gamma = MLImage::MLG_Linear;
-    img_return.originalBitDepth = 16;
-    img_return.data = new uint8_t[w * h * 4 * 2]; 
+    img_return.Init(w, h, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat,
+        ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4,
+        w * h * 4 * 2, // 4==numCh, 2== sizeof(half)
+        new uint8_t[w * h * 4 * 2]);
 
     in.setFrameBuffer(ComputeBasePointer((Rgba*)&img_return.data[0], dw), 1, w);
     in.readPixels(dw.min.y, dw.max.y);

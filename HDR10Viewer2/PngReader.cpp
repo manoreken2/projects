@@ -87,16 +87,6 @@ int PngRead(const char* pngFilePath, MLImage& img_return)
         return E_FAIL;
     }
 
-    img_return.width = width;
-    img_return.height = height;
-    img_return.imgMode = MLImage::IM_HALF_RGBA;
-    img_return.imgFileFormat = MLImage::IFFT_PNG;
-    img_return.bitFormat = MLImage::BFT_HalfFloat;
-    img_return.bytes = width * height * 4 * 2; // 4==numCh, 2== sizeof(half)
-    img_return.gamma = MLImage::MLG_G22;
-    img_return.originalBitDepth = bit_depth;
-    img_return.data = new uint8_t[width * height * 4 * 2];
-
     uint8_t* image_data = new uint8_t[width * height * num_channels *  bit_depth / 8];
 
     png_bytepp row_pointers = (png_bytepp)png_malloc(png_ptr, sizeof(png_bytepp) * height);
@@ -115,6 +105,17 @@ int PngRead(const char* pngFilePath, MLImage& img_return)
     info_ptr = nullptr;
 
     // img_return.dataに値を詰めます。
+    img_return.Init(width, height,
+        MLImage::IM_HALF_RGBA,
+        MLImage::IFFT_PNG,
+        MLImage::BFT_HalfFloat,
+        ML_CG_Rec709,     //< すぐ後で変更する場合有り。
+        MLImage::MLG_G22, //< すぐ後で変更する場合有り。
+        bit_depth,
+        num_channels,
+        width * height * 4 * 2, // 4==numCh, 2== sizeof(half)
+        new uint8_t[width * height * 4 * 2]);
+
     half* imgTo = (half*)img_return.data;
     if (bit_depth == 8) {
         for (uint32_t y = 0; y < height; ++y) {
@@ -133,6 +134,9 @@ int PngRead(const char* pngFilePath, MLImage& img_return)
             }
         }
     } else if (bit_depth == 16) {
+        img_return.colorGamut = ML_CG_Rec2020;
+        img_return.gamma = MLImage::MLG_ST2084;
+
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
                 int readP = (x + y * width) * num_channels * 2;
@@ -152,6 +156,9 @@ int PngRead(const char* pngFilePath, MLImage& img_return)
         // ここには来ない。
         assert(0);
     }
+
+    delete[] image_data;
+    image_data = nullptr;
 
     return 0;
 }

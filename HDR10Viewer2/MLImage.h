@@ -44,8 +44,9 @@ struct MLImage {
     MLColorGamutType colorGamut = ML_CG_Rec709;
     GammaType gamma = MLG_G22;
     int originalBitDepth = 8;
+    int originalNumChannels = 3;
 
-    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, GammaType ga, int aOriginalBitDepth, int aBytes, uint8_t *aData) {
+    void Init(int aW, int aH, ImageModeType aIm, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, GammaType ga, int aOriginalBitDepth, int aOriginalNumChannels, int aBytes, uint8_t *aData) {
         data = aData;
         bytes = aBytes;
         width = aW;
@@ -56,6 +57,7 @@ struct MLImage {
         colorGamut = cg;
         gamma = ga;
         originalBitDepth = aOriginalBitDepth;
+        originalNumChannels = aOriginalNumChannels;
     }
 
     void Term(void) {
