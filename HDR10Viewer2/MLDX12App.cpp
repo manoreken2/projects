@@ -49,23 +49,23 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options):
 
     mDisplayColorGamut = (MLColorGamutType)mSettings.LoadInt("DisplayColorGamut", ML_CG_Rec709);
 
-    mColorConvShaderConsts.colorConvMat = XMMatrixIdentity();
-    mColorConvShaderConsts.outOfRangeColor = XMFLOAT4(outOfRangeR/255.0f, outOfRangeG / 255.0f, outOfRangeB / 255.0f, 1.0f);
-    mColorConvShaderConsts.imgGammaType = MLImage::MLG_Linear;
-    mColorConvShaderConsts.flags = 0;
-    mColorConvShaderConsts.outOfRangeNits = (float)outOfRangeNits;
+    mShaderConsts.colorConvMat = XMMatrixIdentity();
+    mShaderConsts.outOfRangeColor = XMFLOAT4(outOfRangeR/255.0f, outOfRangeG / 255.0f, outOfRangeB / 255.0f, 1.0f);
+    mShaderConsts.imgGammaType = MLImage::MLG_Linear;
+    mShaderConsts.flags = 0;
+    mShaderConsts.outOfRangeNits = (float)outOfRangeNits;
 }
 
 MLDX12App::~MLDX12App(void) {
     mSettings.SaveStringA("ImgFilePath", mImgFilePath);
     
-    int outOfRangeR = (int)(mColorConvShaderConsts.outOfRangeColor.x * 255.0f);
-    int outOfRangeG = (int)(mColorConvShaderConsts.outOfRangeColor.y * 255.0f);
-    int outOfRangeB = (int)(mColorConvShaderConsts.outOfRangeColor.z * 255.0f);
+    int outOfRangeR = (int)(mShaderConsts.outOfRangeColor.x * 255.0f);
+    int outOfRangeG = (int)(mShaderConsts.outOfRangeColor.y * 255.0f);
+    int outOfRangeB = (int)(mShaderConsts.outOfRangeColor.z * 255.0f);
     mSettings.SaveInt("OutOfRangeR", outOfRangeR);
     mSettings.SaveInt("OutOfRangeG", outOfRangeG);
     mSettings.SaveInt("OutOfRangeB", outOfRangeB);
-    mSettings.SaveDouble("OutOfRangeNits", mColorConvShaderConsts.outOfRangeNits);
+    mSettings.SaveDouble("OutOfRangeNits", mShaderConsts.outOfRangeNits);
 
     mSettings.SaveInt("DisplayColorGamut", mDisplayColorGamut);
 
@@ -460,14 +460,14 @@ MLDX12App::LoadAssets(void) {
         // Describe and create a constant buffer view.
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = mConstantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = (sizeof mColorConvShaderConsts + 255) & ~255;    //< CB size is required to be 256-byte aligned.
+        cbvDesc.SizeInBytes = (sizeof mShaderConsts + 255) & ~255;    //< CB size is required to be 256-byte aligned.
         mDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
 
         // Map and initialize the constant buffer. We don't unmap this until the
         // app closes. Keeping things mapped for the lifetime of the resource is okay.
         CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(mConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mPCbvDataBegin)));
-        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
+        memcpy(mPCbvDataBegin, &mShaderConsts, sizeof mShaderConsts);
     }
 
     ThrowIfFailed(mCmdList->Close());
@@ -821,11 +821,11 @@ MLDX12App::LoadSizeDependentResources(void) {
 void
 MLDX12App::OnUpdate(void)
 {
-    mColorConvShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg.colorGamut, mDisplayColorGamut);
-    mColorConvShaderConsts.imgGammaType = mShowImg.gamma;
+    mShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg.colorGamut, mDisplayColorGamut);
+    mShaderConsts.imgGammaType = mShowImg.gamma;
 
     if (mPCbvDataBegin) {
-        memcpy(mPCbvDataBegin, &mColorConvShaderConsts, sizeof mColorConvShaderConsts);
+        memcpy(mPCbvDataBegin, &mShaderConsts, sizeof mShaderConsts);
     }
 }
 
@@ -988,6 +988,16 @@ MLDX12App::ShowSettingsWindow(void) {
                 MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
             ImGui::Text("%d x %d, %d ch",
                 img.width, img.height, img.originalNumChannels);
+            {
+                bool b = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_SwapRedBlue);
+                ImGui::Checkbox("Swap Red and Blue", &b);
+                if (b) {
+                    mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_SwapRedBlue;
+                } else {
+                    mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_SwapRedBlue);
+                }
+            }
+
         }
         if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
@@ -1007,6 +1017,7 @@ MLDX12App::ShowSettingsWindow(void) {
             ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
             img.gamma = (MLImage::GammaType)cg;
         }
+
     }
 
     if (ImGui::TreeNodeEx("Display Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
@@ -1039,19 +1050,19 @@ MLDX12App::ShowSettingsWindow(void) {
     }
 
     if (ImGui::TreeNodeEx("Out of Range Data", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-        bool outofRange = 0 != (mColorConvShaderConsts.flags & MLColorConvShaderConstants::FLAG_OutOfRangeColor);
+        bool outofRange = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_OutOfRangeColor);
         ImGui::Checkbox("Fill Color ##OR", &outofRange);
         if (outofRange) {
-            mColorConvShaderConsts.flags |= MLColorConvShaderConstants::FLAG_OutOfRangeColor;
+            mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_OutOfRangeColor;
 
             int cg;
-            if (mColorConvShaderConsts.outOfRangeNits == 100.0f) {
+            if (mShaderConsts.outOfRangeNits == 100.0f) {
                 cg = 0;
-            } else if (mColorConvShaderConsts.outOfRangeNits == 1000.0f) {
+            } else if (mShaderConsts.outOfRangeNits == 1000.0f) {
                 cg = 1;
-            } else if (mColorConvShaderConsts.outOfRangeNits == 2000.0f) {
+            } else if (mShaderConsts.outOfRangeNits == 2000.0f) {
                 cg = 2;
-            } else if (mColorConvShaderConsts.outOfRangeNits == 10000.0f) {
+            } else if (mShaderConsts.outOfRangeNits == 10000.0f) {
                 cg = 3;
             } else {
                 cg = 3;
@@ -1063,28 +1074,28 @@ MLDX12App::ShowSettingsWindow(void) {
 
             switch (cg) {
             case 0:
-                mColorConvShaderConsts.outOfRangeNits = 100.0f;
+                mShaderConsts.outOfRangeNits = 100.0f;
                 break;
             case 1:
-                mColorConvShaderConsts.outOfRangeNits = 1000.0f;
+                mShaderConsts.outOfRangeNits = 1000.0f;
                 break;
             case 2:
-                mColorConvShaderConsts.outOfRangeNits = 2000.0f;
+                mShaderConsts.outOfRangeNits = 2000.0f;
                 break;
             case 3:
-                mColorConvShaderConsts.outOfRangeNits = 10000.0f;
+                mShaderConsts.outOfRangeNits = 10000.0f;
                 break;
             }
 
-            float c[3] = { mColorConvShaderConsts.outOfRangeColor.x,
-                           mColorConvShaderConsts.outOfRangeColor.y,
-                           mColorConvShaderConsts.outOfRangeColor.z };
+            float c[3] = { mShaderConsts.outOfRangeColor.x,
+                           mShaderConsts.outOfRangeColor.y,
+                           mShaderConsts.outOfRangeColor.z };
             ImGui::ColorPicker3("Fill color ##CP", c);
-            mColorConvShaderConsts.outOfRangeColor.x = c[0];
-            mColorConvShaderConsts.outOfRangeColor.y = c[1];
-            mColorConvShaderConsts.outOfRangeColor.z = c[2];
+            mShaderConsts.outOfRangeColor.x = c[0];
+            mShaderConsts.outOfRangeColor.y = c[1];
+            mShaderConsts.outOfRangeColor.z = c[2];
         } else {
-            mColorConvShaderConsts.flags = mColorConvShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_OutOfRangeColor);
+            mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_OutOfRangeColor);
         }
     }
 
@@ -1191,7 +1202,9 @@ MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) 
 
     if (tex.Get() == nullptr 
             || ci.width != tex->GetDesc().Width
-            || ci.height != tex->GetDesc().Height) {
+            || ci.height != tex->GetDesc().Height
+            || pixelFormat != tex->GetDesc().Format) {
+        // テクスチャの種類が違うので、作り直します。
         // 中でInternalRelease()される。
         tex = nullptr;
 
@@ -1233,6 +1246,7 @@ MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) 
         mCmdListTexUpload->ResourceBarrier(1, &barrier_Transision_PS_to_CopyDest);
     }
 
+    // GPUテクスチャメモリに画像をアップロードします。
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
     ComPtr<ID3D12Resource> texUploadHeap;
     {

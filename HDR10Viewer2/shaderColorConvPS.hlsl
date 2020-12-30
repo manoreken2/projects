@@ -19,6 +19,7 @@
 
     enum FlagsType {
         FLAG_OutOfRangeColor = 1,
+        FLAG_SwapRedBlue     = 2,
     };
 */
 
@@ -124,9 +125,18 @@ float4 HighlightOutOfRange(float4 v) {
     return v;
 }
 
+float4 SwapRedBlue(float4 v) {
+    if ((c_flags & 2) != 0) {
+        return v.bgra;
+    }
+    return v;
+}
+
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 rgba = g_texture.Sample(g_sampler, input.uv);
+
+    rgba = SwapRedBlue(rgba);
 
     rgba.rgb = ApplyGamma(rgba.rgb);
 

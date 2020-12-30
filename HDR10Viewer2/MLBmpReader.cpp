@@ -45,7 +45,7 @@ int MLBmpRead(const char* filePath, MLImage& img_return) {
 
     const int width = bmpih.biWidth;
     const int height = bmpih.biHeight;
-    const int bytes = width * height * bmpih.biBitCount /8;
+    const int64_t bytes = (int64_t)width * height * bmpih.biBitCount /8;
     int orig_bit_depth = 8;
     int orig_num_channels = 3;
     MLColorGamutType colorGamut = ML_CG_Rec709;

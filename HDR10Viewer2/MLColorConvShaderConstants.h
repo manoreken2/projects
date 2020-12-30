@@ -13,6 +13,7 @@ struct MLColorConvShaderConstants {
 
     enum FlagsType {
         FLAG_OutOfRangeColor = 1,
+        FLAG_SwapRedBlue     = 2,
     };
 };
 

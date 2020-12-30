@@ -101,7 +101,7 @@ private:
     /// 定数バッファをmapしっぱなしにする。
     /// </summary>
     uint8_t* mPCbvDataBegin = nullptr;
-    MLColorConvShaderConstants mColorConvShaderConsts;
+    MLColorConvShaderConstants mShaderConsts;
 
     ComPtr<ID3D12DescriptorHeap> mCbvSrvDescHeap;
     UINT                         mDescHandleIncrementSz;
