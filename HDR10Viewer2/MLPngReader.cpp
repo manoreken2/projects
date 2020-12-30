@@ -104,52 +104,60 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
     png_ptr = nullptr;
     info_ptr = nullptr;
 
-    // img_return.dataに値を詰めます。
-    img_return.Init(width, height,
-        MLImage::IM_HALF_RGBA,
-        MLImage::IFFT_PNG,
-        MLImage::BFT_HalfFloat,
-        ML_CG_Rec709,     //< すぐ後で変更する場合有り。
-        MLImage::MLG_G22, //< すぐ後で変更する場合有り。
-        orig_bit_depth,
-        orig_num_channels,
-        width * height * 4 * 2, // 4==numCh, 2== sizeof(half)
-        new uint8_t[width * height * 4 * 2]);
+    fclose(fp);
+    fp = nullptr;
 
-    half* imgTo = (half*)img_return.data;
     if (orig_bit_depth == 8) {
+        img_return.Init(width, height,
+            MLImage::IFFT_PNG,
+            MLImage::BFT_UInt8,
+            ML_CG_Rec709, 
+            MLImage::MLG_G22, 
+            orig_bit_depth,
+            orig_num_channels,
+            width * height * 4 * sizeof(uint8_t), // 4==numCh
+            new uint8_t[width * height * 4 * sizeof(uint8_t)]);
+        // img_return.dataに値を詰めます。
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
                 int readP = (x + y * width) * orig_num_channels;
                 int writeP = (x + y * width) * 4;
 
-                int r = image_data[readP + 0];
-                int g = image_data[readP + 1];
-                int b = image_data[readP + 2];
-                int a = 255;
-                imgTo[writeP + 0] = half(r / 255.0f);
-                imgTo[writeP + 1] = half(g / 255.0f);
-                imgTo[writeP + 2] = half(b / 255.0f);
-                imgTo[writeP + 3] = half(a / 255.0f);
+                uint8_t r = image_data[readP + 0];
+                uint8_t g = image_data[readP + 1];
+                uint8_t b = image_data[readP + 2];
+                uint8_t a = 255;
+                img_return.data[writeP + 0] = r;
+                img_return.data[writeP + 1] = g;
+                img_return.data[writeP + 2] = b;
+                img_return.data[writeP + 3] = a;
             }
         }
     } else if (orig_bit_depth == 16) {
-        img_return.colorGamut = ML_CG_Rec2020;
-        img_return.gamma = MLImage::MLG_ST2084;
-
+        img_return.Init(width, height,
+            MLImage::IFFT_PNG,
+            MLImage::BFT_UInt16,
+            ML_CG_Rec2020, 
+            MLImage::MLG_ST2084, 
+            orig_bit_depth,
+            orig_num_channels,
+            width * height * 4 * sizeof(uint16_t), // 4==numCh
+            new uint8_t[width * height * 4 * sizeof(uint16_t)]);
+        // img_return.dataに値を詰めます。
+        uint16_t* imgTo = (uint16_t*)img_return.data;
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
                 int readP = (x + y * width) * orig_num_channels * 2;
                 int writeP = (x + y * width) * 4;
 
-                int r = (image_data[readP + 0] << 8) + image_data[readP + 1];
-                int g = (image_data[readP + 2] << 8) + image_data[readP + 3];
-                int b = (image_data[readP + 4] << 8) + image_data[readP + 5];
-                int a = 65535;
-                imgTo[writeP + 0] = half(r / 65535.0f);
-                imgTo[writeP + 1] = half(g / 65535.0f);
-                imgTo[writeP + 2] = half(b / 65535.0f);
-                imgTo[writeP + 3] = half(a / 65535.0f);
+                uint16_t r = (uint16_t)((image_data[readP + 0] << 8) + image_data[readP + 1]);
+                uint16_t g = (uint16_t)((image_data[readP + 2] << 8) + image_data[readP + 3]);
+                uint16_t b = (uint16_t)((image_data[readP + 4] << 8) + image_data[readP + 5]);
+                uint16_t a = 65535;
+                imgTo[writeP + 0] = r;
+                imgTo[writeP + 1] = g;
+                imgTo[writeP + 2] = b;
+                imgTo[writeP + 3] = a;
             }
         }
     } else {

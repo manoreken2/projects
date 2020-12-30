@@ -15,7 +15,6 @@
 #include <mutex>
 #include <list>
 #include "MLImage.h"
-#include "MLDrawings.h"
 #include "MLColorGamut.h"
 #include <stdint.h>
 #include "MLColorConvShaderConstants.h"
@@ -141,8 +140,6 @@ private:
     char mErrorFileReadMsg[512] = {};
 
     char mImgFilePath[512];
-
-    MLDrawings mDrawings;
 
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
     ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;

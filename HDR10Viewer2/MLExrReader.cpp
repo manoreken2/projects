@@ -22,7 +22,7 @@ MLExrRead(const char* exrFilePath, MLImage& img_return)
         return -1;
     }
 
-    img_return.Init(w, h, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat,
+    img_return.Init(w, h, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat,
         ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4,
         w * h * 4 * 2, // 4==numCh, 2== sizeof(half)
         new uint8_t[w * h * 4 * 2]);

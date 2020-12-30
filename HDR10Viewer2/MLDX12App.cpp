@@ -498,7 +498,7 @@ MLDX12App::SetDefaultImgTexture(void)
     delete [] mShowImg.data;
     mShowImg.data = nullptr;
 
-    mShowImg.Init(texW, texH, MLImage::IM_HALF_RGBA, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
+    mShowImg.Init(texW, texH, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloat, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
 
     mTexImg[mRenderTexImgIdx].Reset();
     CreateTexture(mTexImg[mRenderTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
@@ -890,19 +890,7 @@ MLDX12App::PopulateCommandList(void) {
 void
 MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img) {
     // シェーダーの選択。
-    switch (img.imgMode) {
-    case MLImage::IM_None:
-        // 描画するものが無い。
-        assert(0);
-        return;
-    case MLImage::IM_RGB:
-    case MLImage::IM_HALF_RGBA:
-        mCmdList->SetPipelineState(mPipelineState.Get());
-        break;
-    default:
-        assert(0);
-        break;
-    }
+    mCmdList->SetPipelineState(mPipelineState.Get());
 
     AdjustFullScreenQuadAspectRatio(img.width, img.height);
 
@@ -1180,14 +1168,18 @@ void
 MLDX12App::UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx) {
     DXGI_FORMAT pixelFormat;
     int         pixelBytes;
-    switch (ci.imgMode) {
-    case MLImage::IM_HALF_RGBA:
-        pixelFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-        pixelBytes = 8;
-        break;
-    case MLImage::IM_RGB:
+    switch (ci.bitFormat) {
+    case MLImage::BFT_UInt8:
         pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
         pixelBytes = 4;
+        break;
+    case MLImage::BFT_UInt16:
+        pixelFormat = DXGI_FORMAT_R16G16B16A16_UNORM;
+        pixelBytes = 8;
+        break;
+    case MLImage::BFT_HalfFloat:
+        pixelFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        pixelBytes = 8;
         break;
     default:
         assert(0);

@@ -20,7 +20,6 @@
     <ClInclude Include="MLExrReader.h" />
     <ClInclude Include="MLDX12Common.h" />
     <ClInclude Include="MLImage.h" />
-    <ClInclude Include="MLDrawings.h" />
     <ClInclude Include="MLDX12.h" />
     <ClInclude Include="MLDX12App.h" />
     <ClInclude Include="MLDX12Imgui.h" />
@@ -49,10 +48,6 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="MLColorGamut.cpp" />
-    <ClCompile Include="MLDrawings.cpp">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
-    </ClCompile>
     <ClCompile Include="MLDX12.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\Contrib\include;.\Contrib\include\OpenExr</AdditionalIncludeDirectories>

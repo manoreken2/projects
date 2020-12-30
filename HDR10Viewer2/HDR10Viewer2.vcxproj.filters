@@ -19,9 +19,6 @@
     <ClCompile Include="Main.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLDrawings.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="MLDX12.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -85,9 +82,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="imstb_truetype.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLDrawings.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MLDX12.h">
