@@ -132,6 +132,9 @@
     <ClInclude Include="MLWinApp.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaderColorConvPS.hlsl">
@@ -154,5 +157,13 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{ee62fdac-a02b-4c9a-a7e2-3382750ddb58}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{09eab052-331c-4f64-bb7c-2973ff6c1094}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
