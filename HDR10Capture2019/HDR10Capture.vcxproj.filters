@@ -61,6 +61,9 @@
     <ClCompile Include="MLConverter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="MLPngWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h">
@@ -145,6 +148,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MLConverter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLPngWriter.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

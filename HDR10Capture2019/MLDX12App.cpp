@@ -9,6 +9,7 @@
 #include "half.h"
 #include "MLImage.h"
 #include "MLPngReader.h"
+#include "MLPngWriter.h"
 #include "MLBmpReader.h"
 #include "MLVideoCaptureEnumToStr.h"
 
@@ -1212,10 +1213,11 @@ MLDX12App::ShowSettingsWindow(void) {
 }
 
 void
-MLDX12App::ShowFileReadWindow(void) {
-    ImGui::Begin("File Read");
+MLDX12App::ShowImageFileRWWindow(void) {
+    int hr = S_OK;
+    ImGui::Begin("File Read / Write");
 
-    if (ImGui::BeginPopupModal("ErrorFileReadPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("ErrorImageFileRWPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mErrorFileReadMsg);
         if (ImGui::Button("OK ## EFM", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
@@ -1224,24 +1226,39 @@ MLDX12App::ShowFileReadWindow(void) {
         ImGui::EndPopup();
     }
 
-    ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
-    if (ImGui::Button("Open ##RF0")) {
-        mMutex.lock();
-        int rv = MLBmpRead(mImgFilePath, mShowImg);
-        if (rv == 1) {
-            // ファイルは存在するがBMPではなかった場合。
-            rv = MLPngRead(mImgFilePath, mShowImg);
-            if (rv == 1) {
-                // ファイルは存在するがPNGではなかった場合。
-                rv = MLExrRead(mImgFilePath, mShowImg);
+    if (mState == S_Capturing) {
+        // キャプチャー中。
+        ImGui::InputText("PNG Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
+        if (ImGui::Button("Write PNG ##RF0")) {
+            mMutex.lock();
+            hr = MLPngWrite(mImgFilePath, mShowImg);
+            mMutex.unlock();
+
+            if (FAILED(hr)) {
+                sprintf_s(mErrorFileReadMsg, "Write PNG Image Failed.\nFile Write error : %s", mImgFilePath);
+                ImGui::OpenPopup("ErrorImageFileRWPopup");
             }
         }
-        mMutex.unlock();
-        if (rv < 0) {
-            sprintf_s(mErrorFileReadMsg, "Read Image Failed.\nFile open error : %s", mImgFilePath);
-            ImGui::OpenPopup("ErrorFileReadPopup");
-        } else {
-            mState = S_ImageViewing;
+    } else {
+        ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
+        if (ImGui::Button("Read ##RF0")) {
+            mMutex.lock();
+            hr = MLBmpRead(mImgFilePath, mShowImg);
+            if (hr == 1) {
+                // ファイルは存在するがBMPではなかった場合。
+                hr = MLPngRead(mImgFilePath, mShowImg);
+                if (hr == 1) {
+                    // ファイルは存在するがPNGではなかった場合。
+                    hr = MLExrRead(mImgFilePath, mShowImg);
+                }
+            }
+            mMutex.unlock();
+            if (hr < 0) {
+                sprintf_s(mErrorFileReadMsg, "Read Image Failed.\nFile open error : %s", mImgFilePath);
+                ImGui::OpenPopup("ErrorImageFileRWPopup");
+            } else {
+                mState = S_ImageViewing;
+            }
         }
     }
 
@@ -1252,9 +1269,10 @@ void
 MLDX12App::ImGuiCommands(void) {
     if (mShowImGui) {
         //ImGui::ShowDemoWindow();
-        ShowSettingsWindow();
-        ShowFileReadWindow();
+        // 順番が重要。キャプチャー画像を保存するため。
         ShowVideoCaptureWindow();
+        ShowImageFileRWWindow();
+        ShowSettingsWindow();
     }
 
     ImGui::Render();

@@ -163,7 +163,7 @@ private:
     void DrawFullscreenTexture(TextureEnum texId, MLImage & drawMode);
 
     void ShowSettingsWindow(void);
-    void ShowFileReadWindow(void);
+    void ShowImageFileRWWindow(void);
 
     void UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
     void AdjustFullScreenQuadAspectRatio(int w, int h);
