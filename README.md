@@ -1,12 +1,35 @@
 Manoretimedia Kenkyuujyo project files
 ==============
 
+HDR10Capture project
+--------------
+
+HDR10 PQ Video capture program using DirectX12 and Decklink devices.
+
+Captured video is saved as Uncompressed RGB10bit r210 AVI.
+Tested on DeckLink Mini recorder 4K.
+
+### About output AVI file of HDR10Capture
+
+Currently only RGB 10bit r210 or RGB 12bit R12B format can be recorded. Video data is saved as r210.
+
+Output AVI file does not have index chunk and not completed. Mencoder can fix the index. Example:
+
+> mencoder -idx output.avi -ovc copy -oac copy -o fixed.avi
+
+## How to build
+
+Decklink SDK 11.7 is necessary to build.
+Copy Blackmagic DeckLink SDK 11.7\Win\include\* to MLDecklinkCapture\Decklink directory.
+Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2019 and build.
+
+
 HDR10Viewer2 project
 --------------
 
 Sends HDR10 image to HDR10 display using DirectX12 API.
 
-How to build
+## How to build
 
 Open HDR10Viewer2.sln with Visual Studio 2019 and build.
 
