@@ -18,11 +18,22 @@ Output AVI file does not have index chunk and not completed. Mencoder can fix th
 
 > mencoder -idx output.avi -ovc copy -oac copy -o fixed.avi
 
+Output AVI can be converted to OpenEXR image sequence using AviToExrSequence.
+
 ### How to build
 
 Decklink SDK 11.7 is necessary to build.
 Copy Blackmagic DeckLink SDK 11.7\Win\include\* to MLDecklinkCapture\Decklink directory.
 Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2019 and build.
+
+AviToExrSequence project
+--------------
+
+Read Uncompressed RGB 10bit "r210" AVI, extract HDR10 image and write OpenEXR image sequence.
+
+### How to build
+
+Open AviToExrSequence.sln using Visual Studio 2019 and build.
 
 
 HDR10Viewer2 project
