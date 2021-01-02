@@ -41,7 +41,7 @@ HDR10Viewer2 project
 
 Sends HDR10 image to HDR10 display using DirectX12 API.
 
-## How to build
+### How to build
 
 Open HDR10Viewer2.sln with Visual Studio 2019 and build.
 
