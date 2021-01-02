@@ -20,6 +20,7 @@
 #include "MLColorConvShaderConstants.h"
 #include "MLSaveSettings.h"
 #include "MLVideoCapUser.h"
+#include "MLExrWriter.h"
 
 
 using namespace DirectX;
@@ -212,4 +213,6 @@ private:
     /// mVCUから表示用キャプチャー画像を取り出し、mRenderImgとmWriteImgにセットする。
     /// </summary>
     void UpdateCaptureImg(void);
+
+    MLExrWriter mExrWriter;
  };

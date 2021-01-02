@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <string>
 
+uint32_t MLStringToFourCC(const char* s);
+
+const std::string MLFourCCtoString(uint32_t fourcc);
+
 enum MLAviImageFormat {
     MLIF_Unknown,
     MLIF_YUV422_v210,
@@ -126,8 +130,4 @@ struct MLStreamDataHeader {
     uint32_t fcc;
     uint32_t bytes;
 };
-
-uint32_t MLStringToFourCC(const char *s);
-
-const std::string MLFourCCtoString(uint32_t fourcc);
 

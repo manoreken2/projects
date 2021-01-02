@@ -1380,7 +1380,7 @@ MLDX12App::ShowImageFileRWWindow(void) {
                 break;
             case ET_EXR:
                 if (ImGui::Button("Write EXR Image ##RF0", ImVec2(256, 48))) {
-                    hr = MLExrWrite(mImgFilePath, mWriteImg);
+                    hr = mExrWriter.Write(mImgFilePath, mWriteImg);
 
                     if (FAILED(hr)) {
                         sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);

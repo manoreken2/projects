@@ -1,4 +1,4 @@
-#include "MLExrReader.h"
+#include "MLExrWriter.h"
 #include <OpenEXRConfig.h>
 #include <ImfRgbaFile.h>
 #include "MLConverter.h"
@@ -8,11 +8,13 @@ using namespace OPENEXR_IMF_NAMESPACE;
 using namespace IMATH_NAMESPACE;
 using namespace std;
 
+/// <summary>
+/// OpenEXRファイルを書く。
+/// </summary>
+/// <returns>0:成功。負の数:失敗。</returns>
 int
-MLExrWrite(const char* exrFilePath, const MLImage& img)
+MLExrWriter::Write(const char* exrFilePath, const MLImage& img)
 {
-    MLConverter conv;
-
     MLConverter::GammaType gamma = MLConverter::GT_SDR_22;
     switch (img.gamma) {
     case MLImage::MLG_G22:
@@ -33,7 +35,7 @@ MLExrWrite(const char* exrFilePath, const MLImage& img)
     switch (img.bitFormat) {
     case MLImage::BFT_UIntR10G10B10A2:
         buff = new uint8_t[buffBytes];
-        conv.R10G10B10A2ToExrHalfFloat((uint32_t*)img.data, (uint16_t*)buff, img.width, img.height, 0xff, gamma);
+        mConv.R10G10B10A2ToExrHalfFloat((uint32_t*)img.data, (uint16_t*)buff, img.width, img.height, 0xff, gamma);
         break;
     default:
         // 作ってない。

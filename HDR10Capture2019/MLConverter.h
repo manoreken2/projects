@@ -6,7 +6,7 @@
 class MLConverter {
 public:
     MLConverter(void);
-    ~MLConverter(void);
+    ~MLConverter(void) { }
 
     /// <summary>
     /// bmdFormat8BitARGB Å® DXGI_FORMAT_R8G8B8A8_UNORM

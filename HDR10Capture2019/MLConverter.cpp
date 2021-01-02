@@ -68,10 +68,6 @@ MLConverter::MLConverter(void)
     }
 }
 
-MLConverter::~MLConverter(void)
-{
-}
-
 void
 MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
