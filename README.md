@@ -8,6 +8,7 @@ HDR10 PQ Video capture program using DirectX12 and DeckLink devices.
 Tested on DeckLink Mini recorder 4K.
 Captured video is saved as Uncompressed RGB10bit r210 AVI.
 
+Enable HDR on Windows Display Settings window to preview video in HDR10.
 
 ### About output AVI file of HDR10Capture
 
