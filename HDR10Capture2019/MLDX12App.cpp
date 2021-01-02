@@ -1097,7 +1097,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
 
                 if (MLIF_Unknown != aviIF) {
                     ImGui::InputText("Record AVI filename ##VCS", mAviFilePath, sizeof mAviFilePath - 1);
-                    if (ImGui::Button("Record ## VCS", ImVec2(256, 64))) {
+                    if (ImGui::Button("Record ## VCS", ImVec2(256, 48))) {
                         wchar_t path[512];
                         memset(path, 0, sizeof path);
                         MultiByteToWideChar(CP_UTF8, 0, mAviFilePath, sizeof mAviFilePath, path, 511);
@@ -1316,6 +1316,35 @@ MLDX12App::ShowSettingsWindow(void) {
     ImGui::End();
 }
 
+enum ExtensionType {
+    ET_PNG,
+    ET_EXR,
+    ET_BMP,
+    ET_Other,
+};
+
+static ExtensionType
+PathNameToExtensionType(const char* path)
+{
+    assert(path);
+
+    int len = (int)strlen(path);
+    if (len < 5) {
+        return ET_Other;
+    }
+
+    if (0 == _stricmp(&path[len - 4], ".PNG")) {
+        return ET_PNG;
+    }
+    if (0 == _stricmp(&path[len - 4], ".EXR")) {
+        return ET_EXR;
+    }
+    if (0 == _stricmp(&path[len - 4], ".BMP")) {
+        return ET_BMP;
+    }
+    return ET_Other;
+}
+
 void
 MLDX12App::ShowImageFileRWWindow(void) {
     int hr = S_OK;
@@ -1332,21 +1361,43 @@ MLDX12App::ShowImageFileRWWindow(void) {
 
     if (mState == S_Capturing) {
         // キャプチャー中。
-        ImGui::InputText("OpenEXR Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
+        ImGui::InputText("PNG / EXR Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
 
         if (mWriteImg.data != nullptr) {
-            if (ImGui::Button("Write OpenEXR ##RF0")) {
-                hr = MLExrWrite(mImgFilePath, mWriteImg);
+            // 静止画をファイルに保存する。
 
-                if (FAILED(hr)) {
-                    sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
-                    ImGui::OpenPopup("ErrorImageFileRWPopup");
+            ExtensionType et = PathNameToExtensionType(mImgFilePath);
+            switch (et) {
+            case ET_PNG:
+                if (ImGui::Button("Write PNG Image ##RF0", ImVec2(256, 48))) {
+                    hr = MLPngWrite(mImgFilePath, mWriteImg);
+
+                    if (FAILED(hr)) {
+                        sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                        ImGui::OpenPopup("ErrorImageFileRWPopup");
+                    }
                 }
+                break;
+            case ET_EXR:
+                if (ImGui::Button("Write EXR Image ##RF0", ImVec2(256, 48))) {
+                    hr = MLExrWrite(mImgFilePath, mWriteImg);
+
+                    if (FAILED(hr)) {
+                        sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                        ImGui::OpenPopup("ErrorImageFileRWPopup");
+                    }
+                }
+                break;
+            default:
+                ImGui::Text("Cannot save image file: Unknown file extension.");
+                break;
             }
         }
     } else {
         ImGui::InputText("EXR/PNG/BMP Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
-        if (ImGui::Button("Read ##RF0")) {
+
+        if (ImGui::Button("Read Image ##RF0", ImVec2(256, 48))) {
+
             mMutex.lock();
             hr = MLBmpRead(mImgFilePath, mRenderImg);
             if (hr == 1) {
@@ -1374,6 +1425,7 @@ void
 MLDX12App::ImGuiCommands(void) {
     if (mShowImGui) {
         //ImGui::ShowDemoWindow();
+
         // 順番が重要。キャプチャー画像を保存するため。
         ShowVideoCaptureWindow();
         ShowImageFileRWWindow();

@@ -2,6 +2,7 @@
 #include <ctgmath>
 #include <assert.h>
 #include <algorithm>
+#include <Windows.h>
 
 static uint32_t
 NtoHL(uint32_t v)
@@ -36,7 +37,7 @@ static const float pq_c3 = 18.6875f; // ( 2392.0 / 4096.0 ) * 32.0;
 static const float pq_C = 10000.0f;
 
 static float
-ST2084toLinear(float v) {
+ST2084toExrLinear(float v) {
     float Np = pow(v, 1.0f / pq_m2);
     float L = Np - pq_c1;
     if (L < 0.0f) {
@@ -51,13 +52,19 @@ MLConverter::MLConverter(void)
 {
     // ガンマ変換テーブル作成。
     for (int i = 0; i < 1024; ++i) {
-        float v = (float)i / 1023;
+        float v = (float)i / 1023.0f;
         
         float g22 = v < 0.04045f ? v / 12.92f : pow(abs(v + 0.055f) / 1.055f, 2.4f);
         mGammaInv22_10bit[i] = g22;
 
-        float st2084 = ST2084toLinear(v);
+        float st2084 = ST2084toExrLinear(v);
         mGammaInvST2084_10bit[i] = st2084;
+
+        /*
+        char s[256];
+        sprintf_s(s, "%d, %f, %f\n", i, g22, st2084);
+        OutputDebugStringA(s);
+        */
     }
 }
 
@@ -149,10 +156,9 @@ MLConverter::Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
 void
 MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, const int width, const int height, const uint8_t alpha, GammaType gamma)
 {
-    uint32_t a = alpha << 2;
-    if (alpha == 0xff) {
-        a = 0x3ff;
-    }
+    // アルファチャンネルは別の計算式。
+    // 0.0～1.0の範囲の値。
+    half aF = (float)(alpha /255.0f);
 
     int readPos = 0;
     int writePos = 0;
@@ -163,6 +169,7 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
             // XXRRRRRR RRRRGGGG GGGGGGBB BBBBBBBB
             // --987654 32109876 54321098 76543210
 
+            // 10bit RGB値。
             const uint32_t r = (v >> 20) & 0x3ff;
             const uint32_t g = (v >> 10) & 0x3ff;
             const uint32_t b = (v >> 0) & 0x3ff;
@@ -170,10 +177,10 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
             switch (gamma){
             case GT_SDR_22:
                 {
-                    const half rF = mGammaInv22_10bit[r];
-                    const half gF = mGammaInv22_10bit[g];
-                    const half bF = mGammaInv22_10bit[b];
-                    const half aF = mGammaInv22_10bit[a];
+                    const half& rF = mGammaInv22_10bit[r];
+                    const half& gF = mGammaInv22_10bit[g];
+                    const half& bF = mGammaInv22_10bit[b];
+                    // アルファチャンネルは別の計算式。
                     pTo[writePos + 0] = bF.bits();
                     pTo[writePos + 1] = gF.bits();
                     pTo[writePos + 2] = rF.bits();
@@ -182,10 +189,10 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
                 break;
             case GT_HDR_PQ:
                 {
-                    const half rF = mGammaInvST2084_10bit[r];
-                    const half gF = mGammaInvST2084_10bit[g];
-                    const half bF = mGammaInvST2084_10bit[b];
-                    const half aF = mGammaInvST2084_10bit[a];
+                    const half& rF = mGammaInvST2084_10bit[r];
+                    const half& gF = mGammaInvST2084_10bit[g];
+                    const half& bF = mGammaInvST2084_10bit[b];
+                    // アルファチャンネルは別の計算式。
                     pTo[writePos + 0] = bF.bits();
                     pTo[writePos + 1] = gF.bits();
                     pTo[writePos + 2] = rF.bits();
