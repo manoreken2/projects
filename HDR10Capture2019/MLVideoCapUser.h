@@ -42,11 +42,14 @@ public:
         return mVC.CurrentVideoFormat();
     }
 
-    const int CapturedImageQueueSize = 1;
-
     int FrameSkipCount(void) const {
         return mFrameSkipCount;
     }
+
+    /// <summary>
+    /// キューされている表示用キャプチャー画像の数。
+    /// </summary>
+    int CapturedImageCount(void);
 
     HRESULT PopCapturedImg(MLImage& img_return);
     HRESULT CreateCopyOfCapturedImg(MLImage& img_return);
@@ -56,9 +59,8 @@ public:
     }
     MLAviWriter & AviWriter(void) { return mAviWriter; }
 
-    HRESULT FlushStreams(void) {
-        return mVC.FlushStreams();
-    }
+    HRESULT FlushStreams(void);
+    void ClearCapturedImageList(void);
 
 private:
     std::mutex* mMutex = nullptr;
@@ -70,4 +72,7 @@ private:
 
     MLConverter mConv;
     MLAviWriter mAviWriter;
+
+    const int CapturedImageQueueSize = 2;
+
 };

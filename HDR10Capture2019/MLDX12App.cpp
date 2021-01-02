@@ -130,7 +130,7 @@ MLDX12App::OnDestroy(void) {
 
     CloseHandle(mFenceEvent);
 
-    mShowImg.Term();
+    mRenderImg.Term();
     mWriteImg.Term();
 
     mDx12Imgui.Term();
@@ -511,10 +511,12 @@ MLDX12App::SetDefaultImgTexture(void)
         }
     }
 
-    delete[] mShowImg.data;
-    mShowImg.data = nullptr;
+    mMutex.lock();
 
-    mShowImg.Init(texW, texH, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloatR16G16B16A16, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
+    mRenderImg.Term();
+    mRenderImg.Init(texW, texH, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloatR16G16B16A16, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
+
+    mMutex.unlock();
 
     mTexImg[mRenderTexImgIdx].Reset();
     CreateTexture(mTexImg[mRenderTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
@@ -837,8 +839,8 @@ MLDX12App::LoadSizeDependentResources(void) {
 void
 MLDX12App::OnUpdate(void)
 {
-    mShaderConsts.colorConvMat = mGamutConv.ConvMat(mShowImg.colorGamut, mDisplayColorGamut);
-    mShaderConsts.imgGammaType = mShowImg.gamma;
+    mShaderConsts.colorConvMat = mGamutConv.ConvMat(mRenderImg.colorGamut, mDisplayColorGamut);
+    mShaderConsts.imgGammaType = mRenderImg.gamma;
 
     if (mPCbvDataBegin) {
         memcpy(mPCbvDataBegin, &mShaderConsts, sizeof mShaderConsts);
@@ -885,7 +887,7 @@ MLDX12App::PopulateCommandList(void) {
     // 全クライアント領域に画像を描画。
     DrawFullscreenTexture(
         (TextureEnum)(TCE_TEX_IMG0 + mRenderTexImgIdx),
-        mShowImg);
+        mRenderImg);
 
     // Start the Dear ImGui frame
     ImGui_ImplWin32_NewFrame();
@@ -978,6 +980,30 @@ BMDPixelFormatToMLAviImageFormat(BMDPixelFormat t)
 }
 
 void
+MLDX12App::UpdateCaptureImg(void)
+{
+    HRESULT hr = S_OK;
+
+    if (mRenderImg.data == nullptr) {
+        // mRenderImgをGPUに送り終えるとdata == nullptrになる。
+
+        MLImage newImg;
+        hr = mVCU.PopCapturedImg(newImg);
+        if (SUCCEEDED(hr)) {
+            // 新しい表示用キャプチャー画像がある場合、GPUに送り出す。
+            // 表示用キャプチャー画像を静止画書き込み用バッファーにコピー。
+
+            mWriteImg.Term();
+            mWriteImg.DeepCopyFrom(newImg);
+
+            mMutex.lock();
+            mRenderImg = newImg;
+            mMutex.unlock();
+        }
+    }
+}
+
+void
 MLDX12App::ShowVideoCaptureWindow(void)
 {
     HRESULT hr = S_OK;
@@ -1045,6 +1071,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
 
                 if (ImGui::Button("Flush Streams ##VCS")) {
                     mVCU.FlushStreams();
+                    mVCU.ClearCapturedImageList();
                 }
 
                 ImGui::Text("Input Signal: %s, %d x %d, %.2f fps, %s, %s, %s, %s",
@@ -1089,19 +1116,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
                     }
                 }
 
-                if (mShowImg.data == nullptr) {
-                    // ここで、キャプチャーデータがポップされ描画に渡される。
-                    MLImage newImg;
-                    hr = mVCU.PopCapturedImg(newImg);
-                    if (SUCCEEDED(hr)) {
-                        mWriteImg.Term();
-                        mWriteImg.DeepCopyFrom(newImg);
-
-                        mShowImg.Term();
-                        mShowImg = newImg;
-
-                    }
-                }
+                UpdateCaptureImg();
             }
         }
         break;
@@ -1114,6 +1129,10 @@ MLDX12App::ShowVideoCaptureWindow(void)
             ImGui::Text("%02d:%02d:%02d:%02d",
                 vt.hour, vt.min, vt.sec, vt.frame);
         }
+
+        ImGui::Text("Display Queue size : %d", mVCU.CapturedImageCount());
+        ImGui::Text("Rec Queue size : %d", mVCU.AviWriter().RecQueueSize());
+
         if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
             mVCState = VCS_WaitRecordEnd;
 
@@ -1122,7 +1141,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
             ImGui::OpenPopup("WriteFlushPopup");
         }
 
-        ImGui::Text("Rec Queue size : %d", mVCU.AviWriter().RecQueueSize());
+        UpdateCaptureImg();
         break;
     case VCS_WaitRecordEnd:
         {
@@ -1253,7 +1272,7 @@ MLDX12App::ShowSettingsWindow(void) {
     }
 
     if (mState == S_ImageViewing && mVCState == VCS_PreInit) {
-        MLImage& img = mShowImg;
+        MLImage& img = mRenderImg;
 
         if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             ImGui::Text("Original is %d bit %d ch %s",
@@ -1329,13 +1348,13 @@ MLDX12App::ShowImageFileRWWindow(void) {
         ImGui::InputText("EXR/PNG/BMP Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
         if (ImGui::Button("Read ##RF0")) {
             mMutex.lock();
-            hr = MLBmpRead(mImgFilePath, mShowImg);
+            hr = MLBmpRead(mImgFilePath, mRenderImg);
             if (hr == 1) {
                 // ファイルは存在するがBMPではなかった場合。
-                hr = MLPngRead(mImgFilePath, mShowImg);
+                hr = MLPngRead(mImgFilePath, mRenderImg);
                 if (hr == 1) {
                     // ファイルは存在するがPNGではなかった場合。
-                    hr = MLExrRead(mImgFilePath, mShowImg);
+                    hr = MLExrRead(mImgFilePath, mRenderImg);
                 }
             }
             mMutex.unlock();
@@ -1366,10 +1385,10 @@ MLDX12App::ImGuiCommands(void) {
 
 bool
 MLDX12App::UpdateImgTexture(void) {
-    MLImage& si = mShowImg;
 
     mMutex.lock();
-    if (si.data == nullptr) {
+
+    if (mRenderImg.data == nullptr) {
         // GPUにアップロードするテクスチャが無い。
         //OutputDebugString(L"Upload Image Not Available\n");
         mMutex.unlock();
@@ -1379,12 +1398,12 @@ MLDX12App::UpdateImgTexture(void) {
     mMutex.unlock();
 
     int uploadTexIdx = !mRenderTexImgIdx;
-    UploadImgToGpu(si, mTexImg[uploadTexIdx],
+    UploadImgToGpu(mRenderImg, mTexImg[uploadTexIdx],
         (TextureEnum)(TCE_TEX_IMG0 + uploadTexIdx));
 
-    delete[] si.data;
-    si.data = nullptr;
+    mRenderImg.DeleteData();
     mRenderTexImgIdx = uploadTexIdx;
+
 
     return true;
 }

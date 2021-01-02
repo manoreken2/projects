@@ -108,6 +108,7 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
     fp = nullptr;
 
     if (orig_bit_depth == 8) {
+        img_return.Term();
         img_return.Init(width, height,
             MLImage::IFFT_PNG,
             MLImage::BFT_UIntR8G8B8A8,
@@ -134,6 +135,7 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
             }
         }
     } else if (orig_bit_depth == 16) {
+        img_return.Term();
         img_return.Init(width, height,
             MLImage::IFFT_PNG,
             MLImage::BFT_UIntR16G16B16A16,

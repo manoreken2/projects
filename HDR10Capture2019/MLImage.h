@@ -57,6 +57,15 @@ struct MLImage {
         originalNumChannels = aOriginalNumChannels;
     }
 
+    /// <summary>
+    /// dataをdelete[]し、bytes==0をセットします。
+    /// </summary>
+    void DeleteData(void) {
+        delete[] data;
+        data = nullptr;
+        bytes = 0;
+    }
+
     void Term(void) {
         width = 0;
         height = 0;

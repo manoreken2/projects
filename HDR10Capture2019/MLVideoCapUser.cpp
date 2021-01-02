@@ -14,6 +14,7 @@ void MLVideoCapUser::Term(void)
 {
 	mVC.Term();
 	mDE.Term();
+    ClearCapturedImageList();
 }
 
 
@@ -143,11 +144,12 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         // 詰まっているとき。古いデータを消す。
         ++mFrameSkipCount;
 
-        MLImage img = mCapturedImages.front();
+        MLImage & img = mCapturedImages.front();
         img.Term();
         mCapturedImages.pop_front();
     }
 
+    // キャプチャー画像を追加。
     mCapturedImages.push_back(ci);
     mMutex->unlock();
 }
@@ -170,12 +172,25 @@ MLVideoCapUser::UseDevice(IDeckLink* d)
 
 	return S_OK;
 }
+
+int
+MLVideoCapUser::CapturedImageCount(void)
+{
+    int r = 0;
+
+    mMutex->lock();
+
+    r = (int)mCapturedImages.size();
+
+    mMutex->unlock();
+
+    return r;
+}
+
 HRESULT
 MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
 {
     HRESULT hr = S_OK;
-
-    assert(img_return.data == nullptr);
 
     mMutex->lock();
 
@@ -184,13 +199,12 @@ MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
     if (mCapturedImages.size() == 0) {
         hr = E_FAIL;
     } else {
-        img_return = mCapturedImages.front();
+        assert(img_return.data == nullptr);
+        // 画像メモリ領域dataの実体のコピーを作成する。
+        // popしない。
+        img_return.DeepCopyFrom(mCapturedImages.front());
 
         if (img_return.data != nullptr) {
-            // 画像メモリ領域の実体をコピーする。
-            uint8_t* buf = new uint8_t[img_return.bytes];
-            memcpy(buf, img_return.data, img_return.bytes);
-            img_return.data = buf;
             hr = S_OK;
         } else {
             // 画像が空である。
@@ -224,4 +238,28 @@ MLVideoCapUser::PopCapturedImg(MLImage& img_return)
 
     return hr;
 }
+
+HRESULT
+MLVideoCapUser::FlushStreams(void)
+{
+    mFrameSkipCount = 0;
+    return mVC.FlushStreams();
+}
+
+void
+MLVideoCapUser::ClearCapturedImageList(void)
+{
+    mMutex->lock();
+
+    while (0 < mCapturedImages.size()) {
+        MLImage & img = mCapturedImages.front();
+        img.Term();
+
+        mCapturedImages.pop_front();
+    }
+
+    mMutex->unlock();
+}
+
+
 

@@ -102,6 +102,7 @@ int MLBmpRead(const char* filePath, MLImage& img_return) {
     fp = nullptr;
 
     if (orig_bit_depth == 8) {
+        img_return.Term();
         img_return.Init(width, height, MLImage::IFFT_BMP, bitFmt,
             colorGamut,
             gammaType,
@@ -127,6 +128,7 @@ int MLBmpRead(const char* filePath, MLImage& img_return) {
             }
         }
     } else if (orig_bit_depth == 16) {
+        img_return.Term();
         img_return.Init(width, height, MLImage::IFFT_BMP, bitFmt,
             colorGamut,
             gammaType,

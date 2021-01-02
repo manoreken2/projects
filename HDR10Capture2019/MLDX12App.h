@@ -98,6 +98,7 @@ private:
     D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
     ComPtr<ID3D12Resource> mConstantBuffer;
+
     /// <summary>
     /// 定数バッファをmapしっぱなしにする。
     /// </summary>
@@ -110,7 +111,7 @@ private:
     ComPtr<ID3D12Resource>       mTexImgui;
 
 
-    MLImage                      mShowImg;
+    MLImage                      mRenderImg;
     MLImage                      mWriteImg;
 
     /// <summary>
@@ -136,6 +137,10 @@ private:
 
     bool mWindowedMode;
 
+    /// <summary>
+    /// mRenderImgの読み書きと、mVCU.mCapturedImagesの読み書きは
+    /// 複数のスレッドから行われるため、ロックします。
+    /// </summary>
     std::mutex mMutex;
 
     char mErrorSettingsMsg[512] = {};
@@ -202,4 +207,9 @@ private:
     VideoCaptureState mVCState = VCS_PreInit;
     char mErrorVCMsg[512] = {};
     char mAviFilePath[512] = {};
+
+    /// <summary>
+    /// mVCUから表示用キャプチャー画像を取り出し、mRenderImgとmWriteImgにセットする。
+    /// </summary>
+    void UpdateCaptureImg(void);
  };
