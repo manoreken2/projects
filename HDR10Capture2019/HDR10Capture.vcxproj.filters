@@ -64,6 +64,21 @@
     <ClCompile Include="MLPngWriter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="MLAviCommon.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLAviWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLVideoTime.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MLExrWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h">
@@ -151,6 +166,21 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MLPngWriter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAVICommon.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAviReader.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLAviWriter.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLVideoTime.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MLExrWriter.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

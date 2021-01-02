@@ -65,6 +65,26 @@ struct MLImage {
         data = nullptr;
     }
 
+    void DeepCopyFrom(const MLImage &r) {
+        assert(data == nullptr);
+
+        data = nullptr;
+        bytes = r.bytes;
+        width = r.width;
+        height = r.height;
+        imgFileFormat = r.imgFileFormat;
+        bitFormat = r.bitFormat;
+        colorGamut = r.colorGamut;
+        gamma = r.gamma;
+        originalBitDepth = r.originalBitDepth;
+        originalNumChannels = r.originalNumChannels;
+
+        if (r.data != nullptr) {
+            data = new uint8_t[bytes];
+            memcpy(data, r.data, bytes);
+        }
+    }
+
     static const char* MLImageFileFormatTypeToStr(ImageFileFormatType t);
 
     static const char* MLImageBitFormatToStr(BitFormatType t);

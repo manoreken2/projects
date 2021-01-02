@@ -21,6 +21,7 @@
 #include "MLSaveSettings.h"
 #include "MLVideoCapUser.h"
 
+
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
@@ -110,6 +111,7 @@ private:
 
 
     MLImage                      mShowImg;
+    MLImage                      mWriteImg;
 
     /// <summary>
     /// 描画中テクスチャをアップロードするとクラッシュするので。
@@ -139,7 +141,7 @@ private:
     char mErrorSettingsMsg[512] = {};
     char mErrorFileReadMsg[512] = {};
 
-    char mImgFilePath[512];
+    char mImgFilePath[512] = {};
 
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
     ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
@@ -193,8 +195,11 @@ private:
     MLVideoCaptureDeviceEnum::DeviceInf mVCDeviceToUse;
     enum VideoCaptureState {
         VCS_PreInit,
-        VCS_CaptureRunning,
+        VCS_CapturePreview,
+        VCS_Recording,
+        VCS_WaitRecordEnd,
     };
     VideoCaptureState mVCState = VCS_PreInit;
     char mErrorVCMsg[512] = {};
+    char mAviFilePath[512] = {};
  };

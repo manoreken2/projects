@@ -30,7 +30,7 @@ wWinMain(
 
     MLDX12App app(1920, 1080, MLDX12App::OE_HDR10);
 
-    int rv = MLWinApp::Run(&app, hInstance, nCmdShow, L"HDRViewer2");
+    int rv = MLWinApp::Run(&app, hInstance, nCmdShow, L"HDR10Capture");
 
     if (coInitialized) {
         CoUninitialize();

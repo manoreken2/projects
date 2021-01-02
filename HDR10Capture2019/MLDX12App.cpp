@@ -12,6 +12,8 @@
 #include "MLPngWriter.h"
 #include "MLBmpReader.h"
 #include "MLVideoCaptureEnumToStr.h"
+#include "MLVideoTime.h"
+#include "MLExrWriter.h"
 
 // D3D12HelloFrameBuffering sample
 //*********************************************************
@@ -37,12 +39,19 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
     mWindowedMode(true)
 {
     // 設定を読み出します。
-    std::string imgFilePath = mSettings.LoadStringA("ImgFilePath");
-    if (imgFilePath.empty()) {
+    std::string imgPath = mSettings.LoadStringA("ImgFilePath");
+    if (imgPath.empty()) {
         strcpy_s(mImgFilePath, "c:/data/OpenEXR_HDR10_test1.exr");
     } else {
-        strcpy_s(mImgFilePath, imgFilePath.c_str());
+        strcpy_s(mImgFilePath, imgPath.c_str());
     }
+    std::string aviPath = mSettings.LoadStringA("AviFilePath");
+    if (aviPath.empty()) {
+        strcpy_s(mAviFilePath, "D:/test.avi");
+    } else {
+        strcpy_s(mAviFilePath, aviPath.c_str());
+    }
+
     int outOfRangeR = mSettings.LoadInt("OutOfRangeR", 0);
     int outOfRangeG = mSettings.LoadInt("OutOfRangeG", 0);
     int outOfRangeB = mSettings.LoadInt("OutOfRangeB", 255);
@@ -59,6 +68,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
 
 MLDX12App::~MLDX12App(void) {
     mSettings.SaveStringA("ImgFilePath", mImgFilePath);
+    mSettings.SaveStringA("AviFilePath", mAviFilePath);
 
     int outOfRangeR = (int)(mShaderConsts.outOfRangeColor.x * 255.0f);
     int outOfRangeG = (int)(mShaderConsts.outOfRangeColor.y * 255.0f);
@@ -121,6 +131,7 @@ MLDX12App::OnDestroy(void) {
     CloseHandle(mFenceEvent);
 
     mShowImg.Term();
+    mWriteImg.Term();
 
     mDx12Imgui.Term();
 
@@ -953,6 +964,19 @@ MLDX12App::WaitForGpu(void) {
     mFenceValues[mFenceIdx]++;
 }
 
+MLAviImageFormat
+BMDPixelFormatToMLAviImageFormat(BMDPixelFormat t)
+{
+    switch (t) {
+    case bmdFormat10BitRGB:
+        return MLIF_RGB10bit_r210;
+    case bmdFormat12BitRGB:
+        return MLIF_RGB12bit_R12B;
+    default:
+        return MLIF_Unknown;
+    }
+}
+
 void
 MLDX12App::ShowVideoCaptureWindow(void)
 {
@@ -997,7 +1021,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
                             ImGui::OpenPopup("ErrorVCPopup");
                         } else {
                             // 成功。
-                            mVCState = VCS_CaptureRunning;
+                            mVCState = VCS_CapturePreview;
                             mState = S_Capturing;
                         }
                     }
@@ -1008,19 +1032,25 @@ MLDX12App::ShowVideoCaptureWindow(void)
             }
         }
         break;
-    case VCS_CaptureRunning:
+    case VCS_CapturePreview:
         {
+            const MLVideoCapture::VideoFormat& fmt = mVCU.CurrentVideoFormat();
+
             ImGui::Text("Now Using \"%s\"", mVCDeviceToUse.name.c_str());
             if (ImGui::Button("Unuse ##VCS")) {
                 mVCU.UnuseDevice();
                 mVCState = VCS_PreInit;
+                mState = S_Init;
             } else {
-                const MLVideoCapture::VideoFormat & fmt = mVCU.CurrentVideoFormat();
-                ImGui::Text("Input Signal: %s, %d x %d, %.2f fps, %s, %s, %s, %s, %s",
+
+                if (ImGui::Button("Flush Streams ##VCS")) {
+                    mVCU.FlushStreams();
+                }
+
+                ImGui::Text("Input Signal: %s, %d x %d, %.2f fps, %s, %s, %s, %s",
                     BMDDisplayModeToStr(fmt.displayMode),
                     fmt.width, fmt.height,
                     (double)fmt.frameRateTS/fmt.frameRateTV,
-                    BMDDisplayModeFlagsToStr(fmt.flags).c_str(),
                     BMDColorspaceToStr(fmt.colorSpace),
                     BMDDynamicRangeToStr(fmt.dynamicRange),
                     BMDFieldDominanceToStr(fmt.fieldDominance),
@@ -1036,15 +1066,70 @@ MLDX12App::ShowVideoCaptureWindow(void)
 
                 ImGui::Text("Frame Skip : %d", mVCU.FrameSkipCount());
 
+                MLAviImageFormat aviIF = BMDPixelFormatToMLAviImageFormat(fmt.pixelFormat);
+
+                if (MLIF_Unknown != aviIF) {
+                    ImGui::InputText("Record AVI filename ##VCS", mAviFilePath, sizeof mAviFilePath - 1);
+                    if (ImGui::Button("Record ## VCS", ImVec2(256, 64))) {
+                        wchar_t path[512];
+                        memset(path, 0, sizeof path);
+                        MultiByteToWideChar(CP_UTF8, 0, mAviFilePath, sizeof mAviFilePath, path, 511);
+
+                        bool bRv = mVCU.AviWriter().Start(
+                            path, fmt.width, fmt.height,
+                            (double)fmt.frameRateTS/fmt.frameRateTV,
+                            aviIF, true);
+                        if (bRv) {
+                            mVCState = VCS_Recording;
+                            mErrorVCMsg[0] = 0;
+                        } else {
+                            sprintf_s(mErrorVCMsg, "Record Failed.\nFile open error : %s", mAviFilePath);
+                            ImGui::OpenPopup("ErrorVCPopup");
+                        }
+                    }
+                }
+
                 if (mShowImg.data == nullptr) {
                     // ここで、キャプチャーデータがポップされ描画に渡される。
                     MLImage newImg;
                     hr = mVCU.PopCapturedImg(newImg);
                     if (SUCCEEDED(hr)) {
+                        mWriteImg.Term();
+                        mWriteImg.DeepCopyFrom(newImg);
+
                         mShowImg.Term();
                         mShowImg = newImg;
+
                     }
                 }
+            }
+        }
+        break;
+    case VCS_Recording:
+        ImGui::Text("Now Recording...");
+        ImGui::Text("Record filename : %s", mAviFilePath);
+        {
+            // hour:min:sec:frameを算出。
+            auto vt = MLFrameNrToTime((int)(mVCU.AviWriter().FramesPerSec()+0.5), mVCU.AviWriter().TotalVideoFrames());
+            ImGui::Text("%02d:%02d:%02d:%02d",
+                vt.hour, vt.min, vt.sec, vt.frame);
+        }
+        if (ImGui::Button("Stop Recording", ImVec2(256, 64))) {
+            mVCState = VCS_WaitRecordEnd;
+
+            mVCU.AviWriter().StopAsync();
+
+            ImGui::OpenPopup("WriteFlushPopup");
+        }
+
+        ImGui::Text("Rec Queue size : %d", mVCU.AviWriter().RecQueueSize());
+        break;
+    case VCS_WaitRecordEnd:
+        {
+            ImGui::Text("Now Writing AVI...\nRemaining %d frames.", mVCU.AviWriter().RecQueueSize());
+            bool bEnd = mVCU.AviWriter().PollThreadEnd();
+            if (bEnd) {
+                mVCState = VCS_CapturePreview;
             }
         }
         break;
@@ -1086,48 +1171,6 @@ MLDX12App::ShowSettingsWindow(void) {
     default:
         assert(0);
         break;
-    }
-
-    if (mState == S_ImageViewing
-            || mState == S_Capturing) {
-        MLImage& img = mShowImg;
-        if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-            ImGui::Text("Original is %d bit %d ch %s",
-                img.originalNumChannels * img.originalBitDepth,
-                img.originalNumChannels,
-                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
-            ImGui::Text("%d x %d, %s",
-                img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
-            {
-                bool b = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_SwapRedBlue);
-                ImGui::Checkbox("Swap Red and Blue", &b);
-                if (b) {
-                    mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_SwapRedBlue;
-                } else {
-                    mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_SwapRedBlue);
-                }
-            }
-
-        }
-        if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-            //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
-
-            int cg = (int)img.colorGamut;
-            ImGui::RadioButton("Rec.709 ##ICG", &cg, 0);
-            ImGui::RadioButton("Adobe RGB ##ICG", &cg, 1);
-            ImGui::RadioButton("Rec.2020 ##ICG", &cg, 2);
-            img.colorGamut = (MLColorGamutType)cg;
-
-            //ImGui::TreePop();
-        }
-        if (ImGui::TreeNodeEx("Image Gamma curve", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-            int cg = (int)img.gamma;
-            ImGui::RadioButton("Linear ##IGC", &cg, 0);
-            ImGui::RadioButton("Gamma 2.2 ##IGC", &cg, 1);
-            ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
-            img.gamma = (MLImage::GammaType)cg;
-        }
-
     }
 
     if (ImGui::TreeNodeEx("Display Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
@@ -1209,6 +1252,48 @@ MLDX12App::ShowSettingsWindow(void) {
         }
     }
 
+    if (mState == S_ImageViewing && mVCState == VCS_PreInit) {
+        MLImage& img = mShowImg;
+
+        if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            ImGui::Text("Original is %d bit %d ch %s",
+                img.originalNumChannels * img.originalBitDepth,
+                img.originalNumChannels,
+                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
+            ImGui::Text("%d x %d, %s",
+                img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
+            {
+                bool b = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_SwapRedBlue);
+                ImGui::Checkbox("Swap Red and Blue", &b);
+                if (b) {
+                    mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_SwapRedBlue;
+                } else {
+                    mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_SwapRedBlue);
+                }
+            }
+
+        }
+        if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
+
+            int cg = (int)img.colorGamut;
+            ImGui::RadioButton("Rec.709 ##ICG", &cg, 0);
+            ImGui::RadioButton("Adobe RGB ##ICG", &cg, 1);
+            ImGui::RadioButton("Rec.2020 ##ICG", &cg, 2);
+            img.colorGamut = (MLColorGamutType)cg;
+
+            //ImGui::TreePop();
+        }
+        if (ImGui::TreeNodeEx("Image Gamma curve", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            int cg = (int)img.gamma;
+            ImGui::RadioButton("Linear ##IGC", &cg, 0);
+            ImGui::RadioButton("Gamma 2.2 ##IGC", &cg, 1);
+            ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
+            img.gamma = (MLImage::GammaType)cg;
+        }
+
+    }
+
     ImGui::End();
 }
 
@@ -1228,19 +1313,20 @@ MLDX12App::ShowImageFileRWWindow(void) {
 
     if (mState == S_Capturing) {
         // キャプチャー中。
-        ImGui::InputText("PNG Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
-        if (ImGui::Button("Write PNG ##RF0")) {
-            mMutex.lock();
-            hr = MLPngWrite(mImgFilePath, mShowImg);
-            mMutex.unlock();
+        ImGui::InputText("OpenEXR Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
 
-            if (FAILED(hr)) {
-                sprintf_s(mErrorFileReadMsg, "Write PNG Image Failed.\nFile Write error : %s", mImgFilePath);
-                ImGui::OpenPopup("ErrorImageFileRWPopup");
+        if (mWriteImg.data != nullptr) {
+            if (ImGui::Button("Write OpenEXR ##RF0")) {
+                hr = MLExrWrite(mImgFilePath, mWriteImg);
+
+                if (FAILED(hr)) {
+                    sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                    ImGui::OpenPopup("ErrorImageFileRWPopup");
+                }
             }
         }
     } else {
-        ImGui::InputText("Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
+        ImGui::InputText("EXR/PNG/BMP Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
         if (ImGui::Button("Read ##RF0")) {
             mMutex.lock();
             hr = MLBmpRead(mImgFilePath, mShowImg);

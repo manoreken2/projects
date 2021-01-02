@@ -50,6 +50,9 @@ public:
         /// </summary>
         BMDPixelFormat pixelFormat;
 
+        /// <summary>
+        /// frameRateTS / frameRateTVÇ™frames per secondÅB
+        /// </summary>
         BMDTimeValue frameRateTV;
         BMDTimeScale frameRateTS;
 

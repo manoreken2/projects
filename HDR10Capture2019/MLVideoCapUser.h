@@ -7,6 +7,7 @@
 #include <list>
 #include <mutex>
 #include "MLConverter.h"
+#include "MLAviWriter.h"
 
 class MLVideoCapUser : IMLVideoCaptureCallback {
 public:
@@ -48,9 +49,15 @@ public:
     }
 
     HRESULT PopCapturedImg(MLImage& img_return);
+    HRESULT CreateCopyOfCapturedImg(MLImage& img_return);
 
     BMDDetectedVideoInputFormatFlags DetectedVideoInputFormatFlags(void) const {
         return mVC.DetectedVideoInputFormatFlags();
+    }
+    MLAviWriter & AviWriter(void) { return mAviWriter; }
+
+    HRESULT FlushStreams(void) {
+        return mVC.FlushStreams();
     }
 
 private:
@@ -62,4 +69,5 @@ private:
     int mFrameSkipCount = 0;
 
     MLConverter mConv;
+    MLAviWriter mAviWriter;
 };

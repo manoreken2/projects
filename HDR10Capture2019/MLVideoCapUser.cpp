@@ -24,6 +24,23 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
 {
     HRESULT hr = S_OK;
 
+    if (audioPacket != nullptr) {
+        // オーディオを記録する。
+        void* audioBuff = nullptr;
+        audioPacket->GetBytes(&audioBuff);
+
+        int audioFrameCount = audioPacket->GetSampleFrameCount();
+        if (0 < audioFrameCount) {
+            /*
+            char s[256];
+            sprintf_s(s, "audio frame %d\n", audioFrameCount);
+            OutputDebugStringA(s);
+            */
+
+            mAviWriter.AddAudio((const uint8_t*)audioBuff, audioFrameCount);
+        }
+    }
+
     // Videoの処理。
 
     void* buffer = nullptr;
@@ -32,6 +49,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
 
     const int width = videoFrame->GetWidth();
     const int height = videoFrame->GetHeight();
+    const int rowBytes = videoFrame->GetRowBytes();
     const BMDPixelFormat fmt = videoFrame->GetPixelFormat();
 
     if (width <= 0 || height <= 0 ||
@@ -41,6 +59,8 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         // 画像データが届いていない。
         return;
     }
+
+    mAviWriter.AddImage((const uint8_t*)buffer, rowBytes * height);
 
     const MLVideoCapture::VideoFormat & vFmt = CurrentVideoFormat();
 
@@ -149,6 +169,38 @@ MLVideoCapUser::UseDevice(IDeckLink* d)
 	}
 
 	return S_OK;
+}
+HRESULT
+MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
+{
+    HRESULT hr = S_OK;
+
+    assert(img_return.data == nullptr);
+
+    mMutex->lock();
+
+    //printf("%d \n", (int)mCapturedImages.size());
+
+    if (mCapturedImages.size() == 0) {
+        hr = E_FAIL;
+    } else {
+        img_return = mCapturedImages.front();
+
+        if (img_return.data != nullptr) {
+            // 画像メモリ領域の実体をコピーする。
+            uint8_t* buf = new uint8_t[img_return.bytes];
+            memcpy(buf, img_return.data, img_return.bytes);
+            img_return.data = buf;
+            hr = S_OK;
+        } else {
+            // 画像が空である。
+            hr = E_FAIL;
+        }
+    }
+
+    mMutex->unlock();
+
+    return hr;
 }
 
 HRESULT

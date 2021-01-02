@@ -216,7 +216,7 @@ MLVideoCapture::VideoInputFormatChanged(
     m_detectedVIFF = detectedSignalFlags;
 
     char s[256];
-    sprintf_s(s, "VideoInputFormatChanged %dx%d %s %s %f fps %s %s %s\n",
+    sprintf_s(s, "VideoInputFormatChanged %dx%d %s %s %f fps %s(?) %s %s\n",
         width, height,
         BMDDisplayModeToStr(dm),
         BMDFieldDominanceToStr(fd),
@@ -227,9 +227,9 @@ MLVideoCapture::VideoInputFormatChanged(
     OutputDebugStringA(s);
 
     // pixelFormatを決定する。
-    // RGBの8ビット、10ビット、12ビットのどれかにしたい。
+    // RGBの8ビット、10ビット、または12ビットにしたい。
     BMDPixelFormat	pixelFormat = bmdFormat8BitARGB;
-    if (detectedSignalFlags & bmdDetectedVideoInput10BitDepth) {
+    if        (detectedSignalFlags & bmdDetectedVideoInput10BitDepth) {
         pixelFormat = bmdFormat10BitRGB;
     } else if (detectedSignalFlags & bmdDetectedVideoInput12BitDepth) {
         pixelFormat = bmdFormat12BitRGB;
@@ -245,7 +245,6 @@ MLVideoCapture::VideoInputFormatChanged(
     m_vFmt.fieldDominance = fd;
     m_vFmt.dynamicRange = dr;
     
-
     m_deckLinkInput->StopStreams();
 
     if (m_deckLinkInput->EnableVideoInput(newMode->GetDisplayMode(), pixelFormat, bmdVideoInputEnableFormatDetection) != S_OK) {
@@ -306,6 +305,16 @@ MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoF
         IDeckLinkVideoFrameMetadataExtensions * vfMeta = nullptr;
         videoFrame->QueryInterface(IID_PPV_ARGS(&vfMeta));
 
+        BMDDynamicRange dr = bmdDynamicRangeSDR;
+        if (m_edid) {
+            LONGLONG v;
+            hr = m_edid->GetInt(bmdDeckLinkHDMIInputEDIDDynamicRange, &v);
+            if (SUCCEEDED(hr)) {
+                dr = (BMDDynamicRange)v;
+            }
+        }
+        m_vFmt.dynamicRange = dr;
+
         if (vfMeta) {
             LONGLONG v = 0;
             hr = vfMeta->GetInt(bmdDeckLinkFrameMetadataColorspace, &v);
@@ -321,6 +330,9 @@ MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoF
     } else {
         // HDRのメタデータが無い。
         // SDRである。
+
+        m_vFmt.dynamicRange = bmdDynamicRangeSDR;
+
         if (m_vFmt.flags & bmdDisplayModeColorspaceRec709) {
             m_vFmt.colorSpace = bmdColorspaceRec709;
         } else {

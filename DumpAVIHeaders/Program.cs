@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace DumpAVIHeaders {
     class Program {
-        static long mVideoCount = 0;
-        static long mAudioCount = 0;
+        long mVideoCount = 0;
+        long mAudioCount = 0;
 
         struct AviMainHeader {
             public uint cb;
@@ -26,7 +26,7 @@ namespace DumpAVIHeaders {
             public uint dwHeight;
         };
 
-        static AviMainHeader mAviMH;
+        AviMainHeader mAviMH;
 
         struct AviStreamHeader {
             public uint fccType;
@@ -51,7 +51,17 @@ namespace DumpAVIHeaders {
             public short bottom;
         };
 
-        static AviStreamHeader mAviSH;
+        AviStreamHeader mAviSH;
+
+        struct BitmapFileHeader {
+            public ushort bfType;
+            public uint bfSize;
+            public ushort bfReserved1;
+            public ushort bfReserved2;
+            public uint bfOffBits;
+        };
+
+        BitmapFileHeader mBmpfh;
 
         struct BitmapInfoHeader {
             public uint biSize;
@@ -69,7 +79,7 @@ namespace DumpAVIHeaders {
             public uint biClrImportant;
         };
 
-        static BitmapInfoHeader mBmpih;
+        BitmapInfoHeader mBmpih;
 
         struct WaveFormatEx {
             public ushort wFormatTag;
@@ -82,7 +92,7 @@ namespace DumpAVIHeaders {
             public ushort cbSize;
         };
 
-        static WaveFormatEx mWavFmt;
+        WaveFormatEx mWavFmt;
 
         struct IndxChunk {
             public uint cb;
@@ -97,7 +107,7 @@ namespace DumpAVIHeaders {
             public uint dwReserved2;
         };
 
-        static IndxChunk mIndx;
+        IndxChunk mIndx;
 
         static string FourCCToString(uint fourCC) {
             var s = new char[4];
@@ -119,7 +129,7 @@ namespace DumpAVIHeaders {
             return fcc;
         }
 
-        static uint ReadRiff(BinaryReader br) {
+        uint ReadRiff(BinaryReader br) {
             uint fSize = br.ReadUInt32();
             uint fileType = br.ReadUInt32();
 
@@ -129,7 +139,7 @@ namespace DumpAVIHeaders {
             return fSize;
         }
 
-        static void ReadAviMainHeader(string spc, BinaryReader br) {
+        void ReadAviMainHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
             if (cb != 56) {
                 Console.WriteLine("Unknown AVI Main Header size={0}", cb);
@@ -158,7 +168,7 @@ namespace DumpAVIHeaders {
                 mAviMH.dwTotalFrames, mAviMH.dwStreams);
         }
 
-        static void ReadAviStreamHeader(string spc, BinaryReader br) {
+        void ReadAviStreamHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
             if (cb != 56) {
                 Console.WriteLine("Unknown AVI Stream Header size={0}", cb);
@@ -200,7 +210,7 @@ namespace DumpAVIHeaders {
                 mAviSH.dwSampleSize);
         }
 
-        static void ReadBitmapInfoHeader(string spc, BinaryReader br) {
+        void ReadBitmapInfoHeader(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
             if (cb != 40) {
                 Console.WriteLine("Unknown Bitmap Info header size={0}", cb);
@@ -224,9 +234,41 @@ namespace DumpAVIHeaders {
             Console.WriteLine("{0:x12} {1} BitmapInfoHeader {2}x{3} {4}bit {5}",
                 br.BaseStream.Position-40, spc,
                 mBmpih.biWidth, mBmpih.biHeight, mBmpih.biBitCount, FourCCToString(mBmpih.biCompression));
+
+            // BITMAPFILEHEADERも作る。ファイル書き込み用。
+            mBmpfh.bfType = 0x4d42;
+            mBmpfh.bfSize = 14 + 40 + mBmpih.biSize;
+            mBmpfh.bfReserved1 = 0;
+            mBmpfh.bfReserved2 = 0;
+            mBmpfh.bfOffBits = 14 + 40;
         }
 
-        static void ReadWaveFormatEx(string spc, BinaryReader br) {
+        void WriteBmp(BinaryReader br, byte[] data) {
+            string outBmpPath = string.Format("{0}{1:d5}.bmp", mOutBmpPrefix, mVideoCount);
+            using (var bw = new BinaryWriter(new FileStream(outBmpPath, FileMode.Create))) {
+                bw.Write(mBmpfh.bfType);
+                bw.Write(mBmpfh.bfSize);
+                bw.Write(mBmpfh.bfReserved1);
+                bw.Write(mBmpfh.bfReserved2);
+                bw.Write(mBmpfh.bfOffBits);
+                
+                bw.Write(mBmpih.biSize);
+                bw.Write(mBmpih.biWidth);
+                bw.Write(mBmpih.biHeight);
+                bw.Write(mBmpih.biPlanes);
+                bw.Write(mBmpih.biBitCount);
+
+                bw.Write(mBmpih.biCompression);
+                bw.Write(mBmpih.biSizeImage);
+                bw.Write(mBmpih.biXPelsPerMeter);
+                bw.Write(mBmpih.biYPelsPerMeter);
+                bw.Write(mBmpih.biClrImportant);
+
+                bw.Write(data);
+            }
+        }
+
+        void ReadWaveFormatEx(string spc, BinaryReader br) {
             uint cb = br.ReadUInt32();
 
             long start = br.BaseStream.Position;
@@ -248,19 +290,19 @@ namespace DumpAVIHeaders {
 
             br.BaseStream.Seek(cb - 18, SeekOrigin.Current);
         }
-        static void ReadUnknownHeader(string spc, string fcc, BinaryReader br) {
+        void ReadUnknownHeader(string spc, string fcc, BinaryReader br) {
             uint bytes = br.ReadUInt32();
             Console.WriteLine("{0:x12} {1} {2} {3}bytes",
                 br.BaseStream.Position-8, spc, fcc, bytes);
             br.BaseStream.Seek(bytes, SeekOrigin.Current);
         }
-        static void ReadJunk(string spc, BinaryReader br) {
+        void ReadJunk(string spc, BinaryReader br) {
             uint bytes = br.ReadUInt32();
             Console.WriteLine("{0:x12} {1} JUNK {2}bytes",
                 br.BaseStream.Position - 8, spc, bytes);
             br.BaseStream.Seek(bytes, SeekOrigin.Current);
         }
-        static void ReadIndx(string spc, BinaryReader br) {
+        void ReadIndx(string spc, BinaryReader br) {
             mIndx.cb = br.ReadUInt32();
             long start = br.BaseStream.Position;
 
@@ -289,8 +331,7 @@ namespace DumpAVIHeaders {
             br.BaseStream.Seek(start + mIndx.cb, SeekOrigin.Begin);
         }
 
-
-        static void ReadStreamData(string spc, uint cBytes, BinaryReader br) {
+        void ReadStreamData(string spc, uint cBytes, BinaryReader br) {
             long startPos = br.BaseStream.Position;
             long endPos = startPos + cBytes-4;
 
@@ -307,25 +348,28 @@ namespace DumpAVIHeaders {
                     continue;
                 }
 
+                var data = br.ReadBytes((int)bBytes);
                 if (((fcc>>16) & 0xffff) == UncompressedVideo) {
-                    Console.Write("{0} ", FourCCToString(fcc));
+                    Console.WriteLine("{0:x12}    {1} UncompressedVideo {2}bytes", br.BaseStream.Position-8, FourCCToString(fcc), bBytes);
                     ++mVideoCount;
+                    if (0 < mOutBmpPrefix.Length) {
+                        WriteBmp(br, data);
+                    }
                 } else if (((fcc>>16) & 0xffff) == CompressedVideo) {
-                    Console.Write("{0} ", FourCCToString(fcc));
+                    Console.WriteLine("{0:x12}    {1} CompressedVideo {2}bytes", br.BaseStream.Position - 8, FourCCToString(fcc), bBytes);
                     ++mVideoCount;
                 } else if (((fcc>>16) & 0xffff) == PaletteChange) {
-                    Console.WriteLine("{0:x12} PaletteChange {1}bytes", br.BaseStream.Position, bBytes);
+                    Console.WriteLine("{0:x12}    {1} PaletteChange {2}bytes", br.BaseStream.Position-8, FourCCToString(fcc), bBytes);
                 } else if (((fcc>>16) & 0xffff) == AudioData) {
-                    Console.Write("{0} ", FourCCToString(fcc));
+                    Console.WriteLine("{0:x12}    {1} AudioData {2}bytes", br.BaseStream.Position - 8, FourCCToString(fcc), bBytes);
                     ++mAudioCount;
                 }
 
-                br.BaseStream.Seek(bBytes, SeekOrigin.Current);
             } while (br.BaseStream.Position < endPos);
             Console.WriteLine("");
         }
 
-        static void ReadAviOldIndex(string spc, BinaryReader br) {
+        void ReadAviOldIndex(string spc, BinaryReader br) {
             uint bytes = br.ReadUInt32();
             uint count = bytes / 16;
             Console.WriteLine("{0:x12} {1} (optional) AviOldIndex {2} entries",
@@ -335,7 +379,7 @@ namespace DumpAVIHeaders {
         }
 
 
-        static void ReadHeaders(BinaryReader br, int layer, uint hSize) {
+        void ReadHeaders(BinaryReader br, int layer, uint hSize) {
             long currentPos = br.BaseStream.Position;
             long endPos = currentPos + hSize;
 
@@ -393,13 +437,12 @@ namespace DumpAVIHeaders {
             } while (currentPos < endPos);
         }
 
-        static void Main(string[] args) {
-            if (args.Length != 1) {
-                Console.WriteLine("Usage: DumpAVIHeaders filename");
-                return;
-            }
+        string mOutBmpPrefix = "";
 
-            using (var br = new BinaryReader(new FileStream(args[0], FileMode.Open, FileAccess.Read))) {
+        void Run(string inFilename, string outBmpPrefix) {
+            mOutBmpPrefix = outBmpPrefix;
+
+            using (var br = new BinaryReader(new FileStream(inFilename, FileMode.Open, FileAccess.Read))) {
                 uint RIFF = StringToFourCC("RIFF");
 
                 do {
@@ -411,11 +454,27 @@ namespace DumpAVIHeaders {
                     }
 
                     uint fSize = ReadRiff(br);
-                    ReadHeaders(br, 0, fSize-4);
+                    ReadHeaders(br, 0, fSize - 4);
                 } while (br.BaseStream.Position < br.BaseStream.Length);
             }
 
             Console.WriteLine("VideoChunk={0}, AudioChunk={1}", mVideoCount, mAudioCount);
+        }
+
+        static void Main(string[] args) {
+            if (args.Length < 1 || 2 < args.Length) {
+                Console.WriteLine("Usage: DumpAVIHeaders inputFilename [outputBmpFilePrefix]");
+                return;
+            }
+
+            string inFilename = args[0];
+            string outBmpPrefix = "";
+            if (2 == args.Length) {
+                outBmpPrefix = args[1];
+            }
+
+            var self = new Program();
+            self.Run(inFilename, outBmpPrefix);
         }
     }
 }
