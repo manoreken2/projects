@@ -126,7 +126,7 @@ private:
     /// 描画中テクスチャが0番の場合、アップロード用テクスチャは1番。
     /// 描画中テクスチャが1番の場合、アップロード用テクスチャは0番。
     /// </summary>
-    int                          mRenderTexImgIdx = 0;
+    int                          mTexImgIdx = 0;
 
     /// <summary>
     /// 使用中のmFenceValues[]要素番号。
@@ -162,7 +162,6 @@ private:
 
     void SetDefaultImgTexture(void);
     bool UpdateImgTexture(void);
-
 
     void CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data);
     void CreateImguiTexture(void);

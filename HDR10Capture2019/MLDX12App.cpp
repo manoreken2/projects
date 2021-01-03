@@ -14,6 +14,7 @@
 #include "MLVideoCaptureEnumToStr.h"
 #include "MLVideoTime.h"
 #include "MLExrWriter.h"
+#include <shlwapi.h>
 
 // D3D12HelloFrameBuffering sample
 //*********************************************************
@@ -518,8 +519,8 @@ MLDX12App::SetDefaultImgTexture(void)
 
     mMutex.unlock();
 
-    mTexImg[mRenderTexImgIdx].Reset();
-    CreateTexture(mTexImg[mRenderTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
+    mTexImg[mTexImgIdx].Reset();
+    CreateTexture(mTexImg[mTexImgIdx], TCE_TEX_IMG0, texW, texH, DXGI_FORMAT_R16G16B16A16_FLOAT, pixelBytes, (uint8_t*)buff);
 
     delete[] buff;
 }
@@ -886,7 +887,7 @@ MLDX12App::PopulateCommandList(void) {
 
     // 全クライアント領域に画像を描画。
     DrawFullscreenTexture(
-        (TextureEnum)(TCE_TEX_IMG0 + mRenderTexImgIdx),
+        (TextureEnum)(TCE_TEX_IMG0 + mTexImgIdx),
         mRenderImg);
 
     // Start the Dear ImGui frame
@@ -1043,7 +1044,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
                         // 選択デバイスを使用開始。
                         hr = mVCU.UseDevice(mVCDeviceToUse.device);
                         if (FAILED(hr)) {
-                            sprintf_s(mErrorVCMsg, "Use DeckLink Device failed %08x", hr);
+                            sprintf_s(mErrorVCMsg, "Error: Use DeckLink Device failed %08x", hr);
                             ImGui::OpenPopup("ErrorVCPopup");
                         } else {
                             // 成功。
@@ -1098,20 +1099,25 @@ MLDX12App::ShowVideoCaptureWindow(void)
                 if (MLIF_Unknown != aviIF) {
                     ImGui::InputText("Record AVI filename ##VCS", mAviFilePath, sizeof mAviFilePath - 1);
                     if (ImGui::Button("Record ## VCS", ImVec2(256, 48))) {
-                        wchar_t path[512];
-                        memset(path, 0, sizeof path);
-                        MultiByteToWideChar(CP_UTF8, 0, mAviFilePath, sizeof mAviFilePath, path, 511);
-
-                        bool bRv = mVCU.AviWriter().Start(
-                            path, fmt.width, fmt.height,
-                            (double)fmt.frameRateTS/fmt.frameRateTV,
-                            aviIF, true);
-                        if (bRv) {
-                            mVCState = VCS_Recording;
-                            mErrorVCMsg[0] = 0;
-                        } else {
-                            sprintf_s(mErrorVCMsg, "Record Failed.\nFile open error : %s", mAviFilePath);
+                        if (PathFileExistsA(mAviFilePath)) {
+                            sprintf_s(mErrorVCMsg, "Error: File exists.\nPlease input different file name. %s", mAviFilePath);
                             ImGui::OpenPopup("ErrorVCPopup");
+                        } else {
+                            wchar_t path[512];
+                            memset(path, 0, sizeof path);
+                            MultiByteToWideChar(CP_UTF8, 0, mAviFilePath, sizeof mAviFilePath, path, 511);
+
+                            bool bRv = mVCU.AviWriter().Start(
+                                path, fmt.width, fmt.height,
+                                (double)fmt.frameRateTS/fmt.frameRateTV,
+                                aviIF, true);
+                            if (bRv) {
+                                mVCState = VCS_Recording;
+                                mErrorVCMsg[0] = 0;
+                            } else {
+                                sprintf_s(mErrorVCMsg, "Error: Record Failed.\nFile open error : %s", mAviFilePath);
+                                ImGui::OpenPopup("ErrorVCPopup");
+                            }
                         }
                     }
                 }
@@ -1370,21 +1376,31 @@ MLDX12App::ShowImageFileRWWindow(void) {
             switch (et) {
             case ET_PNG:
                 if (ImGui::Button("Write PNG Image ##RF0", ImVec2(256, 48))) {
-                    hr = MLPngWrite(mImgFilePath, mWriteImg);
-
-                    if (FAILED(hr)) {
-                        sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                    if (PathFileExistsA(mImgFilePath)) {
+                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name. %s", mImgFilePath);
                         ImGui::OpenPopup("ErrorImageFileRWPopup");
+                    } else {
+                        hr = MLPngWrite(mImgFilePath, mWriteImg);
+
+                        if (FAILED(hr)) {
+                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                            ImGui::OpenPopup("ErrorImageFileRWPopup");
+                        }
                     }
                 }
                 break;
             case ET_EXR:
                 if (ImGui::Button("Write EXR Image ##RF0", ImVec2(256, 48))) {
-                    hr = mExrWriter.Write(mImgFilePath, mWriteImg);
+                    if (PathFileExistsA(mImgFilePath)) {
+                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name. %s", mImgFilePath);
 
-                    if (FAILED(hr)) {
-                        sprintf_s(mErrorFileReadMsg, "Write Image Failed.\nFile Write error : %s", mImgFilePath);
                         ImGui::OpenPopup("ErrorImageFileRWPopup");
+                    } else {
+                        hr = mExrWriter.Write(mImgFilePath, mWriteImg);
+                        if (FAILED(hr)) {
+                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                            ImGui::OpenPopup("ErrorImageFileRWPopup");
+                        }
                     }
                 }
                 break;
@@ -1410,7 +1426,7 @@ MLDX12App::ShowImageFileRWWindow(void) {
             }
             mMutex.unlock();
             if (hr < 0) {
-                sprintf_s(mErrorFileReadMsg, "Read Image Failed.\nFile open error : %s", mImgFilePath);
+                sprintf_s(mErrorFileReadMsg, "Error: Read Image Failed.\nFile open error : %s", mImgFilePath);
                 ImGui::OpenPopup("ErrorImageFileRWPopup");
             } else {
                 mState = S_ImageViewing;
@@ -1449,12 +1465,12 @@ MLDX12App::UpdateImgTexture(void) {
 
     mMutex.unlock();
 
-    int uploadTexIdx = !mRenderTexImgIdx;
+    int uploadTexIdx = !mTexImgIdx;
     UploadImgToGpu(mRenderImg, mTexImg[uploadTexIdx],
         (TextureEnum)(TCE_TEX_IMG0 + uploadTexIdx));
 
     mRenderImg.DeleteData();
-    mRenderTexImgIdx = uploadTexIdx;
+    mTexImgIdx = uploadTexIdx;
 
 
     return true;
