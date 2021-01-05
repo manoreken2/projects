@@ -71,9 +71,10 @@ MLConverter::MLConverter(void)
 void
 MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
-    int pos = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            const int pos = x + y * width;
+
             // bmdFormat8BitARGB
             // ビッグエンディアンのA8R8G8B8 → リトルエンディアンのR8G8B8A8
             const uint32_t v = NtoHL(pFrom[pos]);
@@ -87,8 +88,6 @@ MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
             const uint32_t g = (v >> 8) & 0xff;
             const uint32_t b = (v >> 0) & 0xff;
             pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
-
-            ++pos;
         }
     }
 }
@@ -97,9 +96,10 @@ void
 MLConverter::Rgb10bitToRGBA8bit(const uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = alpha;
-    int pos = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            const int pos = x + y * width;
+
             // bmdFormat10BitRGB
             // ビッグエンディアンのX2R10G10B10 → リトルエンディアンのR8G8B8A8
             const uint32_t v = NtoHL(pFrom[pos]);
@@ -112,8 +112,6 @@ MLConverter::Rgb10bitToRGBA8bit(const uint32_t *pFrom, uint32_t *pTo, const int 
             const uint32_t g = (v >> 12) & 0xff;
             const uint32_t b = (v >> 2) & 0xff;
             pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
-
-            ++pos;
         }
     }
 }
@@ -125,9 +123,10 @@ void
 MLConverter::Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = (alpha >> 6) & 0x3;
-    int pos = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            const int pos = x + y * width;
+
             // bmdFormat10BitRGB
             // ビッグエンディアンのX2R10G10B10 → リトルエンディアンのR8G8B8A8
             const uint32_t v = NtoHL(pFrom[pos]);
@@ -140,8 +139,6 @@ MLConverter::Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
             const uint32_t g = (v >> 10) & 0x3ff;
             const uint32_t b = (v >> 0) & 0x3ff;
             pTo[pos] = (a << 30) + (b << 20) + (g << 10) + r;
-
-            ++pos;
         }
     }
 }
@@ -156,10 +153,11 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
     // 0.0～1.0の範囲の値。
     half aF = (float)(alpha /255.0f);
 
-    int readPos = 0;
-    int writePos = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            const int readPos = x + y * width;
+            const int writePos = readPos * 4;
+
             const uint32_t v = pFrom[readPos];
             // v                                 LSB
             // XXRRRRRR RRRRGGGG GGGGGGBB BBBBBBBB
@@ -199,9 +197,6 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
                 assert(0);
                 break;
             } 
-
-            ++readPos;
-            writePos += 4;
         }
     }
 }
@@ -213,9 +208,11 @@ void
 MLConverter::R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = (alpha >> 6) & 0x3;
-    int pos = 0;
+
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+            const int pos = x + y * width;
+
             const uint32_t v = pFrom[pos];
             // v                                 LSB
             // XXRRRRRR RRRRGGGG GGGGGGBB BBBBBBBB
@@ -230,7 +227,6 @@ MLConverter::R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int w
 
             const uint32_t r210 = (a << 30) + (r << 20) + (g << 10) + b;
             pTo[pos] = HtoNL(r210);
-            ++pos;
         }
     }
 }
@@ -241,12 +237,16 @@ MLConverter::R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int w
 void
 MLConverter::Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
+    /// widthは8で割り切れます。
+    assert((width & 7) == 0);
+
     const uint8_t a = alpha;
-    int fromPos = 0;
-    int toPos = 0;
     const int pixelCount = width * height;
 
-    while (toPos < pixelCount) {
+    for (int i=0; i<pixelCount/8; ++i) {
+        const int fromPos = i * 9;
+        const int toPos = i * 8;
+
         // 8pixelsのRGB3チャンネルのデータが36バイト=9個のuint32に入っている。
         // 3ch * 8px * 12bit / 8bit = 36バイト。
         const uint32_t w0 = NtoHL(pFrom[fromPos + 0]);
@@ -348,9 +348,6 @@ MLConverter::Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
         pTo[toPos + 5] = (a << 24) + (b5 << 16) + (g5 << 8) + r5;
         pTo[toPos + 6] = (a << 24) + (b6 << 16) + (g6 << 8) + r6;
         pTo[toPos + 7] = (a << 24) + (b7 << 16) + (g7 << 8) + r7;
-
-        fromPos   += 9;
-        toPos     += 8;
     }
 }
 
@@ -360,12 +357,16 @@ MLConverter::Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
 void
 MLConverter::Rgb12bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
+    /// widthは8で割り切れます。
+    assert((width & 7) == 0);
+
     const uint8_t a = (alpha>>6) & 0x3;
-    int fromPos = 0;
-    int toPos = 0;
     const int pixelCount = width * height;
 
-    while (toPos < pixelCount) {
+    for (int i=0; i<pixelCount/8; ++i) {
+        const int fromPos = i * 9;
+        const int toPos = i * 8;
+
         // 8pixelsのRGB3チャンネルのデータが36バイト=9個のuint32に入っている。
         // 3ch * 8px * 12bit / 8bit = 36バイト。
         const uint32_t w0 = NtoHL(pFrom[fromPos + 0]);
@@ -468,9 +469,6 @@ MLConverter::Rgb12bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
         pTo[toPos + 5] = (a << 30) + (b5 << 20) + (g5 << 10) + r5;
         pTo[toPos + 6] = (a << 30) + (b6 << 20) + (g6 << 10) + r6;
         pTo[toPos + 7] = (a << 30) + (b7 << 20) + (g7 << 10) + r7;
-
-        fromPos += 9;
-        toPos += 8;
     }
 }
 
@@ -480,12 +478,16 @@ MLConverter::Rgb12bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
 void
 MLConverter::Rgb12bitToR210(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
+    /// widthは8で割り切れます。
+    assert((width & 7) == 0);
+
     const uint8_t a = 0x3;
-    int fromPos = 0;
-    int toPos = 0;
     const int pixelCount = width * height;
 
-    while (toPos < pixelCount) {
+    for (int i=0; i<pixelCount/8; ++i) {
+        const int fromPos = i * 9;
+        const int toPos = i * 8;
+
         // 8pixelsのRGB3チャンネルのデータが36バイト=9個のuint32に入っている。
         // 3ch * 8px * 12bit / 8bit = 36バイト。
         const uint32_t w0 = NtoHL(pFrom[fromPos + 0]);
@@ -601,9 +603,6 @@ MLConverter::Rgb12bitToR210(const uint32_t* pFrom, uint32_t* pTo, const int widt
         pTo[toPos + 5] = HtoNL(r210_5);
         pTo[toPos + 6] = HtoNL(r210_6);
         pTo[toPos + 7] = HtoNL(r210_7);
-
-        fromPos += 9;
-        toPos += 8;
     }
 }
 
@@ -614,12 +613,16 @@ MLConverter::Rgb12bitToR210(const uint32_t* pFrom, uint32_t* pTo, const int widt
 void
 MLConverter::Rgb12bitToR16G16B16A16(const uint32_t* pFrom, uint64_t* pTo, const int width, const int height, const uint8_t alpha)
 {
+    /// widthは8で割り切れます。
+    assert((width & 7) == 0);
+
     const uint16_t a = alpha * 257; //< 255 * 257 = 65535
-    int fromPos = 0;
-    int toPos = 0;
     const int pixelCount = width * height;
 
-    while (toPos < pixelCount) {
+    for (int i = 0; i < pixelCount / 8; ++i) {
+        const int fromPos = i * 9;
+        const int toPos = i * 8;
+
         // 8pixelsのRGB3チャンネルのデータが36バイト=9個のuint32に入っている。
         // 3ch * 8px * 12bit / 8bit = 36バイト。
         const uint32_t w0 = NtoHL(pFrom[fromPos + 0]);
@@ -721,9 +724,6 @@ MLConverter::Rgb12bitToR16G16B16A16(const uint32_t* pFrom, uint64_t* pTo, const 
         pTo[toPos + 5] = ((uint64_t)a << 48) + ((uint64_t)b5 << 32) + ((uint32_t)g5 << 16) + r5;
         pTo[toPos + 6] = ((uint64_t)a << 48) + ((uint64_t)b6 << 32) + ((uint32_t)g6 << 16) + r6;
         pTo[toPos + 7] = ((uint64_t)a << 48) + ((uint64_t)b7 << 32) + ((uint32_t)g7 << 16) + r7;
-
-        fromPos += 9;
-        toPos += 8;
     }
 
 }
