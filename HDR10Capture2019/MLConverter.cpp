@@ -71,6 +71,7 @@ MLConverter::MLConverter(void)
 void
 MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
+#pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int pos = x + y * width;
@@ -96,6 +97,8 @@ void
 MLConverter::Rgb10bitToRGBA8bit(const uint32_t *pFrom, uint32_t *pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = alpha;
+
+#pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int pos = x + y * width;
@@ -123,6 +126,8 @@ void
 MLConverter::Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = (alpha >> 6) & 0x3;
+
+#pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int pos = x + y * width;
@@ -153,6 +158,7 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
     // 0.0`1.0‚Ì”ÍˆÍ‚Ì’lB
     half aF = (float)(alpha /255.0f);
 
+#pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int readPos = x + y * width;
@@ -209,6 +215,7 @@ MLConverter::R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int w
 {
     const uint32_t a = (alpha >> 6) & 0x3;
 
+#pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             const int pos = x + y * width;
@@ -243,6 +250,7 @@ MLConverter::Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
     const uint8_t a = alpha;
     const int pixelCount = width * height;
 
+#pragma omp parallel for
     for (int i=0; i<pixelCount/8; ++i) {
         const int fromPos = i * 9;
         const int toPos = i * 8;
@@ -363,6 +371,7 @@ MLConverter::Rgb12bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
     const uint8_t a = (alpha>>6) & 0x3;
     const int pixelCount = width * height;
 
+#pragma omp parallel for
     for (int i=0; i<pixelCount/8; ++i) {
         const int fromPos = i * 9;
         const int toPos = i * 8;
@@ -484,6 +493,7 @@ MLConverter::Rgb12bitToR210(const uint32_t* pFrom, uint32_t* pTo, const int widt
     const uint8_t a = 0x3;
     const int pixelCount = width * height;
 
+#pragma omp parallel for
     for (int i=0; i<pixelCount/8; ++i) {
         const int fromPos = i * 9;
         const int toPos = i * 8;
@@ -619,6 +629,7 @@ MLConverter::Rgb12bitToR16G16B16A16(const uint32_t* pFrom, uint64_t* pTo, const 
     const uint16_t a = alpha * 257; //< 255 * 257 = 65535
     const int pixelCount = width * height;
 
+#pragma omp parallel for
     for (int i = 0; i < pixelCount / 8; ++i) {
         const int fromPos = i * 9;
         const int toPos = i * 8;
@@ -725,5 +736,4 @@ MLConverter::Rgb12bitToR16G16B16A16(const uint32_t* pFrom, uint64_t* pTo, const 
         pTo[toPos + 6] = ((uint64_t)a << 48) + ((uint64_t)b6 << 32) + ((uint32_t)g6 << 16) + r6;
         pTo[toPos + 7] = ((uint64_t)a << 48) + ((uint64_t)b7 << 32) + ((uint32_t)g7 << 16) + r7;
     }
-
 }
