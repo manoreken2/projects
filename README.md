@@ -13,6 +13,7 @@ Enable HDR on Windows Display Settings window to preview video in HDR10.
 ### About output AVI file of HDR10Capture
 
 Tested input video format is RGB 10bit r210, RGB 12bit R12B, and YUV422 10bit v210.
+YUV to RGB conversion algorithm to display captured image is Rec.709.
 It seems there is a color conversion bug on YUV422 8bit UYVY input. 
 
 Output AVI file does not have index chunk and not completed. Mencoder can fix the index. Example:
