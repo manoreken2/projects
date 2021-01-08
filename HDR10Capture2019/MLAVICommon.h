@@ -8,7 +8,8 @@ uint32_t MLStringToFourCC(const char* s);
 const std::string MLFourCCtoString(uint32_t fourcc);
 
 enum MLAviImageFormat {
-    MLIF_Unknown,
+    MLIF_Unknown = -1,
+    MLIF_YUV422_UYVY,
     MLIF_YUV422_v210,
     MLIF_RGB10bit_r210,
     MLIF_RGB12bit_R12B,

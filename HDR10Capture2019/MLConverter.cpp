@@ -29,6 +29,86 @@ HtoNS(uint16_t v)
            ((v >> 8) & 0xff);
 }
 
+static float
+Saturate01(const float v)
+{
+    if (v < 0) {
+        return 0;
+    } else if (1.0f < v) {
+        return 1.0f;
+    } else {
+        return v;
+    }
+}
+
+/// <summary>
+/// 0～1の範囲のfloat値のYUVを0～1の範囲のfloat値のRGBにする。
+/// </summary>
+static void
+YuvToRgb(
+    const float y, const float u, const float v,
+    float* r_return, float *g_return, float *b_return)
+{
+    *r_return = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
+    *g_return = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
+    *b_return = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
+}
+
+/// <summary>
+/// 8bit YUV → 8bit RGB
+/// </summary>
+static void
+Yuv8ToRgb8(
+    const uint8_t y8, const uint8_t u8, const uint8_t v8,
+    uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return)
+{
+    const float y = y8 / 255.0f;
+    const float u = u8 / 255.0f;
+    const float v = v8 / 255.0f;
+
+    const float r = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
+    const float g = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
+    const float b = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
+
+    *r8_return = (uint8_t)(r * 255.0f);
+    *g8_return = (uint8_t)(g * 255.0f);
+    *b8_return = (uint8_t)(b * 255.0f);
+}
+
+/// <summary>
+/// 10bit YUV → 10bit RGB
+/// </summary>
+static void
+Yuv10ToRgb10(
+    const uint16_t y10, const uint16_t u10, const uint16_t v10,
+    uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
+{
+    const float y = y10 / 1023.0f;
+    const float u = u10 / 1023.0f;
+    const float v = v10 / 1023.0f;
+
+    const float r = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
+    const float g = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
+    const float b = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
+
+    *r10_return = (uint16_t)(r * 1023.0f);
+    *g10_return = (uint16_t)(g * 1023.0f);
+    *b10_return = (uint16_t)(b * 1023.0f);
+}
+
+/// <summary>
+/// 0～1の範囲のfloat値のRGBを0～1の範囲のfloat値のYUVにする。
+/// </summary>
+static void
+RgbToYuv(
+    const float r, const float g, const float b,
+    float* y_return, float* u_return, float* v_return)
+{
+    *y_return = Saturate01( 0.2568f * r + 0.5041f * g + 0.0979f * b + 0.0627f);
+    *u_return = Saturate01(-0.1482f * r - 0.2910f * g + 0.4392f * b + 0.5020f);
+    *v_return = Saturate01( 0.4392f * r - 0.3678f * g - 0.0714f * b + 0.5020f);
+}
+
 static const float pq_m1 = 0.1593017578125f; // ( 2610.0 / 4096.0 ) / 4.0;
 static const float pq_m2 = 78.84375f; // ( 2523.0 / 4096.0 ) * 128.0;
 static const float pq_c1 = 0.8359375f; // 3424.0 / 4096.0 or pq_c3 - pq_c2 + 1.0;
@@ -69,6 +149,134 @@ MLConverter::MLConverter(void)
 }
 
 void
+MLConverter::Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
+{
+    // widthは2で割り切れる。
+    assert((width & 1) == 0);
+
+    const uint32_t a = 0xff;
+
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x2 = 0; x2 < width/2; ++x2) {
+            //2ピクセルずつ処理。
+
+            //入力のUYVY: 2ピクセルが1個のuint32に入る。
+            const int readP = x2 + y * (width/2);
+            //出力: 1ピクセルが1個のuint32に入る。
+            const int writeP = (x2 * 2) + y * width;
+
+            // bmdFormat8BitYUV: UYVY
+            // ビッグエンディアンのUYVU
+            // w                                 LSB
+            // YYYYYYYY VVVVVVVV YYYYYYYY UUUUUUUU
+            // 76543210 76543210 76543210 76543210
+            const uint32_t w = pFrom[readP];
+
+            const uint32_t y0 = (w >> 8) & 0xff;
+            const uint32_t y1 = (w >> 24) & 0xff;
+
+            const uint32_t u = (w >> 0) & 0xff;
+            const uint32_t v = (w >> 16) & 0xff;
+
+            // yuv → RGB
+            uint8_t r, g, b;
+
+            Yuv8ToRgb8(y0, u, v, &r, &g, &b);
+            pTo[writeP + 0] = (a << 24) + (b << 16) + (g << 8) + r;
+
+            Yuv8ToRgb8(y1, u, v, &r, &g, &b);
+            pTo[writeP + 1] = (a << 24) + (b << 16) + (g << 8) + r;
+        }
+    }
+}
+/// <summary>
+/// bmdFormat10BitYUV v210 → DXGI_FORMAT_R10G10B10A2_UNORM
+/// </summary>
+void
+MLConverter::Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
+{
+    const uint32_t a = 0x3;
+
+    assert((width % 48) == 0);
+
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x6 = 0; x6 < width/6; ++x6) {
+            // 6ピクセルずつ処理。
+
+            //入力のv210: 6ピクセルが4個のuint32に入る。
+            const int readP = x6*4 + y * (width *4 / 6);
+
+            // 出力：1ピクセルが1個のuint32に入る。
+            const int writeP = (x6 * 6) + y * width;
+
+            // bmdFormat10BitYUV v210
+            const uint32_t w0 = pFrom[readP + 0];
+            const uint32_t w1 = pFrom[readP + 1];
+            const uint32_t w2 = pFrom[readP + 2];
+            const uint32_t w3 = pFrom[readP + 3];
+
+            // w0                                LSB
+            // --vvvvvv vvvvyyyy yyyyyyuu uuuuuuuu
+            // --000000 00000000 00000000 00000000 pixelIdx
+            // --987654 32109876 54321098 76543210
+
+            // w1                                LSB
+            // --yyyyyy yyyyuuuu uuuuuuyy yyyyyyyy
+            // --222222 22222222 22222211 11111111 pixelIdx
+            // --987654 32109876 54321098 76543210
+
+            // w0                                LSB
+            // --uuuuuu uuuuyyyy yyyyyyvv vvvvvvvv
+            // --444444 44443333 33333322 22222222 pixelIdx
+            // --987654 32109876 54321098 76543210
+            // w0                                LSB
+            // --yyyyyy yyyyvvvv vvvvvvyy yyyyyyyy
+            // --555555 55554444 44444444 44444444 pixelIdx
+            // --987654 32109876 54321098 76543210
+
+            const uint32_t u0 = (w0 >> 0) & 0x3ff;
+            const uint32_t y0 = (w0 >> 10) & 0x3ff;
+            const uint32_t v0 = (w0 >> 20) & 0x3ff;
+
+            const uint32_t y1 = (w1 >> 0) & 0x3ff;
+            const uint32_t u2 = (w1 >> 10) & 0x3ff;
+            const uint32_t y2 = (w1 >> 20) & 0x3ff;
+
+            const uint32_t v2 = (w2 >> 0) & 0x3ff;
+            const uint32_t y3 = (w2 >> 10) & 0x3ff;
+            const uint32_t u4 = (w2 >> 20) & 0x3ff;
+
+            const uint32_t y4 = (w3 >> 0) & 0x3ff;
+            const uint32_t v4 = (w3 >> 10) & 0x3ff;
+            const uint32_t y5 = (w3 >> 20) & 0x3ff;
+
+            // yuv → RGB
+            uint16_t r, g, b;
+
+            Yuv10ToRgb10(y0, u0, v0, &r, &g, &b);
+            pTo[writeP + 0] = (a << 30) + (b << 20) + (g << 10) + r;
+
+            Yuv10ToRgb10(y1, u0, v0, &r, &g, &b);
+            pTo[writeP + 1] = (a << 30) + (b << 20) + (g << 10) + r;
+
+            Yuv10ToRgb10(y2, u2, v2, &r, &g, &b);
+            pTo[writeP + 2] = (a << 30) + (b << 20) + (g << 10) + r;
+
+            Yuv10ToRgb10(y3, u2, v2, &r, &g, &b);
+            pTo[writeP + 3] = (a << 30) + (b << 20) + (g << 10) + r;
+
+            Yuv10ToRgb10(y4, u4, v4, &r, &g, &b);
+            pTo[writeP + 4] = (a << 30) + (b << 20) + (g << 10) + r;
+
+            Yuv10ToRgb10(y5, u4, v4, &r, &g, &b);
+            pTo[writeP + 5] = (a << 30) + (b << 20) + (g << 10) + r;
+        }
+    }
+}
+
+void
 MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
 #pragma omp parallel for
@@ -78,16 +286,16 @@ MLConverter::Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
 
             // bmdFormat8BitARGB
             // ビッグエンディアンのA8R8G8B8 → リトルエンディアンのR8G8B8A8
-            const uint32_t v = NtoHL(pFrom[pos]);
+            const uint32_t w = pFrom[pos];
 
-            // v                                 LSB
-            // AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB
+            // w                                 LSB
+            // BBBBBBBB GGGGGGGG RRRRRRRR AAAAAAAA
             // 76543210 76543210 76543210 76543210
 
-            const uint32_t a = (v >> 24) & 0xff;
-            const uint32_t r = (v >> 16) & 0xff;
-            const uint32_t g = (v >> 8) & 0xff;
-            const uint32_t b = (v >> 0) & 0xff;
+            const uint8_t a = (w >> 0) & 0xff;
+            const uint8_t r = (w >> 8) & 0xff;
+            const uint8_t g = (w >> 16) & 0xff;
+            const uint8_t b = (w >> 24) & 0xff;
             pTo[pos] = (a << 24) + (b << 16) + (g << 8) + r;
         }
     }

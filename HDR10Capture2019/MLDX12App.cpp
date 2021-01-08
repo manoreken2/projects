@@ -971,6 +971,10 @@ MLAviImageFormat
 BMDPixelFormatToMLAviImageFormat(BMDPixelFormat t)
 {
     switch (t) {
+    case bmdFormat8BitYUV:
+        return MLIF_YUV422_UYVY;
+    case bmdFormat10BitYUV:
+        return MLIF_YUV422_v210;
     case bmdFormat10BitRGB:
         return MLIF_RGB10bit_r210;
     case bmdFormat12BitRGB:
@@ -1084,8 +1088,10 @@ MLDX12App::ShowVideoCaptureWindow(void)
                     BMDFieldDominanceToStr(fmt.fieldDominance),
                     BMDDetectedVideoInputFormatFlagsToStr(mVCU.DetectedVideoInputFormatFlags()).c_str());
 
-                if (mVCU.DetectedVideoInputFormatFlags() & bmdDetectedVideoInputRGB444) {
+                if ((mVCU.DetectedVideoInputFormatFlags() & bmdDetectedVideoInputRGB444) ||
+                    (mVCU.DetectedVideoInputFormatFlags() & bmdDetectedVideoInputYCbCr422)) {
                     // キャプチャー可能。
+                    ImGui::Text("Captured As: %s", BMDPixelFormatToStr(fmt.pixelFormat));
                 } else {
                     // キャプチャー不可。対応してない。
                     ImGui::Text("Unsupported format! %s",

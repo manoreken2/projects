@@ -20,8 +20,8 @@ void MLVideoCapUser::Term(void)
 
 void
 MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
-        IDeckLinkVideoInputFrame* videoFrame,
-        IDeckLinkAudioInputPacket* audioPacket)
+    IDeckLinkVideoInputFrame* videoFrame,
+    IDeckLinkAudioInputPacket* audioPacket)
 {
     HRESULT hr = S_OK;
 
@@ -42,7 +42,11 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         }
     }
 
-    // Videoの処理。
+    // 以下はVideoの処理。
+
+    if (videoFrame == nullptr) {
+        return;
+    }
 
     void* buffer = nullptr;
     hr = videoFrame->GetBytes(&buffer);
@@ -53,11 +57,17 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
     const int rowBytes = videoFrame->GetRowBytes();
     const BMDPixelFormat fmt = videoFrame->GetPixelFormat();
 
-    if (width <= 0 || height <= 0 ||
-        ((fmt != bmdFormat8BitARGB) 
-            && (fmt != bmdFormat10BitRGB) 
-            && (fmt != bmdFormat12BitRGB))) {
+    if (width <= 0 || height <= 0) {
         // 画像データが届いていない。
+        return;
+    }
+
+    // 所望の形式の画像データかどうか調査。
+    if ((fmt != bmdFormat8BitYUV)
+        && (fmt != bmdFormat10BitYUV)
+        && (fmt != bmdFormat8BitARGB)
+        && (fmt != bmdFormat10BitRGB)
+        && (fmt != bmdFormat12BitRGB)) {
         return;
     }
 
@@ -101,8 +111,30 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
 
     MLImage ci;
 
-    // pixelFormatは以下の3種類: MLVideoCapture::VideoInputFormatChangedで制限している。
+    // pixelFormatはMLVideoCapture::VideoInputFormatChangedで制限している。
     switch (fmt) {
+    case bmdFormat8BitYUV:
+        bft = MLImage::BFT_UIntR8G8B8A8;
+        originalBitDepth = 8;
+        originalNumCh = 3;
+        ml_ImgBytes = width * height * 4; //< 4==R8G8B8A8
+
+        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+            bft, gamut, gamma, originalBitDepth, originalNumCh,
+            ml_ImgBytes, new uint8_t[ml_ImgBytes]);
+        mConv.Uyvy8bitToR8G8B8A8((uint32_t*)buffer, (uint32_t*)ci.data, width, height);
+        break;
+    case bmdFormat10BitYUV:
+        bft = MLImage::BFT_UIntR10G10B10A2;
+        originalBitDepth = 10;
+        originalNumCh = 3;
+        ml_ImgBytes = width * height * 4; //< 4==R10G10B10A2
+
+        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+            bft, gamut, gamma, originalBitDepth, originalNumCh,
+            ml_ImgBytes, new uint8_t[ml_ImgBytes]);
+        mConv.Yuv422_10bitToR10G10B10A2((uint32_t*)buffer, (uint32_t*)ci.data, width, height);
+        break;
     case bmdFormat8BitARGB:
         bft = MLImage::BFT_UIntR8G8B8A8;
         originalBitDepth = 8;

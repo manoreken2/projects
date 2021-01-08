@@ -9,6 +9,16 @@ public:
     ~MLConverter(void) { }
 
     /// <summary>
+    /// bmdFormat8BitYUV UYVY Å® DXGI_FORMAT_R8G8B8A8_UNORM
+    /// </summary>
+    static void Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);
+
+    /// <summary>
+    /// bmdFormat10BitYUV v210 Å® DXGI_FORMAT_R10G10B10A2_UNORM
+    /// </summary>
+    static void Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);
+
+    /// <summary>
     /// bmdFormat8BitARGB Å® DXGI_FORMAT_R8G8B8A8_UNORM
     /// </summary>
     static void Argb8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);

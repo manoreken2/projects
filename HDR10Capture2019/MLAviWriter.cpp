@@ -390,6 +390,8 @@ uint32_t
 MLAviImageFormatToFourcc(MLAviImageFormat t)
 {
     switch (t) {
+    case MLIF_YUV422_UYVY:
+        return MLStringToFourCC("UYVY");
     case MLIF_YUV422_v210:
         return MLStringToFourCC("v210");
     case MLIF_RGB10bit_r210:
@@ -406,6 +408,8 @@ int
 MLAviImageFormatToBitsPerPixel(MLAviImageFormat t)
 {
     switch (t) {
+    case MLIF_YUV422_UYVY:
+        return 16;
     case MLIF_YUV422_v210:
         return 20;
     case MLIF_RGB10bit_r210:
