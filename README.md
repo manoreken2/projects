@@ -6,19 +6,20 @@ HDR10Capture project
 
 HDR10 PQ Video capture program using DirectX12 and DeckLink devices.
 Tested on DeckLink Mini recorder 4K.
-Captured video is saved as Uncompressed RGB10bit r210 AVI.
+Captured video is saved as Uncompressed RGB10bit r210 AVI or Uncompressed YUV422 10bit v210 AVI.
 
 Enable HDR on Windows Display Settings window to preview video in HDR10.
 
 ### About output AVI file of HDR10Capture
 
-Currently only RGB 10bit r210 or RGB 12bit R12B format can be recorded. Video data is saved as r210.
+Tested input video format is RGB 10bit r210, RGB 12bit R12B, and YUV422 10bit v210.
+It seems there is a color conversion bug on YUV422 8bit UYVY input. 
 
 Output AVI file does not have index chunk and not completed. Mencoder can fix the index. Example:
 
-> mencoder -idx output.avi -ovc copy -oac copy -o fixed.avi
+> mencoder output.avi -ovc copy -oac copy -o fixed.avi
 
-Output AVI can be converted to OpenEXR image sequence using AviToExrSequence.
+Output RGB AVI can be converted to OpenEXR image sequence using AviToExrSequence.
 
 ### How to build
 
