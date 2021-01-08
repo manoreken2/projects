@@ -10,12 +10,12 @@ Captured video is saved as Uncompressed RGB10bit r210 AVI or Uncompressed YUV422
 
 Enable HDR on Windows Display Settings window to preview video in HDR10.
 
-YUV to RGB conversion algorithm to display captured image is Rec.709.
+YUV to RGB conversion algorithm *to display captured image* is Rec.709.
 
 ### About output AVI file of HDR10Capture
 
 Tested input video format is RGB 10bit r210, RGB 12bit R12B, and YUV422 10bit v210.
-It seems there is a color conversion bug on YUV422 8bit UYVY input. 
+It seems there is a color conversion bug on SDR YUV input. 
 
   * RGB video is saved as r210 AVI.
   * YUV video is saved as v210 AVI.
