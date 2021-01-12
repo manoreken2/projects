@@ -32,7 +32,8 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
         gamma = MLImage::MLG_ST2084;
     }
 
-    uint8_t* buf = nullptr;
+    uint8_t* buf1 = nullptr;
+    uint8_t* buf2 = nullptr;
 
     do {
         if (aviR.NumFrames() == 0) {
@@ -42,18 +43,23 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
         }
 
         const MLBitmapInfoHeader& imgFmt = aviR.ImageFormat();
-        if (imgFmt.biCompression != MLStringToFourCC("r210")) {
-            printf("Error: Unsupported AVI image format %s. Only r210 is supported. %S\n",
+        if (imgFmt.biCompression != MLStringToFourCC("r210") &&
+            imgFmt.biCompression != MLStringToFourCC("v210")) {
+            printf("Error: Unsupported AVI image format %s. Only r210 and v210 is supported. %S\n",
                 MLFourCCtoString(imgFmt.biCompression).c_str(),
                 inAviPath);
             b = false;
             break;
         }
 
-        buf = new uint8_t[imgFmt.biSizeImage];
+        // AVIの画像読み出しバッファー。
+        buf1 = new uint8_t[imgFmt.biSizeImage];
+
+        // R10G10B10A2の画像置き場。1ピクセル4バイト。
+        buf2 = new uint8_t[imgFmt.biWidth * imgFmt.biHeight * 4];
 
         for (int i = 0; i < aviR.NumFrames(); ++i) {
-            int rv = aviR.GetImage(i, imgFmt.biSizeImage, buf);
+            int rv = aviR.GetImage(i, imgFmt.biSizeImage, buf1);
             if (rv != imgFmt.biSizeImage) {
                 printf("Error: Read image #%d failed. %S\n",
                     i,
@@ -62,17 +68,27 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
                 break;
             }
 
-            conv.Rgb10bitToR10G10B10A2(
-                (const uint32_t*)buf,
-                (uint32_t*)buf,
-                imgFmt.biWidth, imgFmt.biHeight, 0xff);
+            if (imgFmt.biCompression == MLStringToFourCC("v210")) {
+                conv.Yuv422_10bitToR10G10B10A2(
+                    (const uint32_t*)buf1,
+                    (uint32_t*)buf2,
+                    imgFmt.biWidth, imgFmt.biHeight, 0xff);
+            } else if (imgFmt.biCompression == MLStringToFourCC("r210")) {
+                conv.Rgb10bitToR10G10B10A2(
+                    (const uint32_t*)buf1,
+                    (uint32_t*)buf2,
+                    imgFmt.biWidth, imgFmt.biHeight, 0xff);
+            } else {
+                // ここには来ない。
+                assert(0);
+            }
 
             MLImage mi;
             mi.Init(imgFmt.biWidth, imgFmt.biHeight,
                 MLImage::IFFT_CapturedImg,
                 MLImage::BFT_UIntR10G10B10A2,
                 gamut, gamma,
-                10, 3, imgFmt.biSizeImage, buf);
+                10, 3, imgFmt.biSizeImage, buf2);
 
             char outExrPath[MAX_PATH] = {};
             sprintf_s(outExrPath, "%s%06d.exr", outExrPrefix, i + 1);
@@ -91,9 +107,12 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
 
     } while (false);
 
-    delete[] buf;
-    buf = nullptr;
-     
+    delete[] buf2;
+    buf2 = nullptr;
+
+    delete[] buf1;
+    buf1 = nullptr;
+
     aviR.Close();
     return b;
 }

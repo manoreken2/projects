@@ -194,9 +194,9 @@ MLConverter::Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
 /// bmdFormat10BitYUV v210 Å® DXGI_FORMAT_R10G10B10A2_UNORM
 /// </summary>
 void
-MLConverter::Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
+MLConverter::Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
-    const uint32_t a = 0x3;
+    const uint32_t a = (alpha >> 6) & 0x3;
 
     assert((width % 48) == 0);
 
