@@ -1,7 +1,7 @@
 #include "MLVideoCapture.h"
 #include "MLVideoCaptureEnumToStr.h"
 #include <SDKDDKVer.h>
-
+#include <assert.h>
 
 MLVideoCapture::~MLVideoCapture(void)
 {
@@ -227,12 +227,23 @@ MLVideoCapture::VideoInputFormatChanged(
     OutputDebugStringA(s);
 
     // pixelFormatを決定する。
-    // RGBの8ビット、10ビット、または12ビットにしたい。
-    BMDPixelFormat	pixelFormat = bmdFormat8BitARGB;
-    if        (detectedSignalFlags & bmdDetectedVideoInput10BitDepth) {
-        pixelFormat = bmdFormat10BitRGB;
-    } else if (detectedSignalFlags & bmdDetectedVideoInput12BitDepth) {
-        pixelFormat = bmdFormat12BitRGB;
+    BMDPixelFormat	pixelFormat = bmdFormat8BitYUV;
+    if (detectedSignalFlags & bmdDetectedVideoInputYCbCr422) {
+        // YUV。
+        pixelFormat = bmdFormat8BitYUV;
+        if (detectedSignalFlags & bmdDetectedVideoInput10BitDepth) {
+            pixelFormat = bmdFormat10BitYUV;
+        } else if (detectedSignalFlags & bmdDetectedVideoInput12BitDepth) {
+            pixelFormat = bmdFormat10BitYUV;
+        }
+    } else {
+        // RGBの8ビット、10ビット、または12ビットにしたい。
+        pixelFormat = bmdFormat8BitARGB;
+        if (detectedSignalFlags & bmdDetectedVideoInput10BitDepth) {
+            pixelFormat = bmdFormat10BitRGB;
+        } else if (detectedSignalFlags & bmdDetectedVideoInput12BitDepth) {
+            pixelFormat = bmdFormat12BitRGB;
+        }
     }
 
     m_vFmt.width = width;
@@ -298,7 +309,7 @@ MLVideoCapture::VideoInputFrameArrived(/* in */ IDeckLinkVideoInputFrame* videoF
 
     ++m_frameCounter;
 
-    if (videoFrame->GetFlags() & bmdFrameContainsHDRMetadata) {
+    if (videoFrame != nullptr && (videoFrame->GetFlags() & bmdFrameContainsHDRMetadata)) {
         // HDRのメタデータが来た。
         // 内容を取得する。
 

@@ -114,8 +114,8 @@ BMDPixelFormatToStr(BMDPixelFormat t)
 {
     switch (t) {
     case bmdFormatUnspecified: return "Unspecified";
-    case bmdFormat8BitYUV: return "YUV_8Bit";
-    case bmdFormat10BitYUV: return "YUV_10Bit(v210)";
+    case bmdFormat8BitYUV: return "YUV422_8Bit(UYVY)";
+    case bmdFormat10BitYUV: return "YUV422_10Bit(v210)";
     case bmdFormat8BitARGB: return "ARGB_8Bit";
     case bmdFormat8BitBGRA: return "BGRA_8Bit";
     case bmdFormat10BitRGB: return "RGB_10Bit(r210)";
