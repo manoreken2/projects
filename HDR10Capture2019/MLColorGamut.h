@@ -7,6 +7,7 @@ enum MLColorGamutType {
     ML_CG_AdobeRGB,
     ML_CG_Rec2020,
     ML_CG_DCIP3,
+    ML_CG_scRGB,
 };
 
 const char* MLColorGamutToStr(MLColorGamutType t);
@@ -18,6 +19,6 @@ public:
 
 private:
     //                      from to
-    DirectX::XMMATRIX mConvMat[4][4];
+    DirectX::XMMATRIX mConvMat[5][5];
 };
 

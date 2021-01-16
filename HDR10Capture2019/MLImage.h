@@ -23,7 +23,7 @@ struct MLImage {
     };
 
     enum GammaType {
-        MLG_Linear,
+        MLG_Linear, //< 100nits == 1.0
         MLG_G22,
         MLG_ST2084,
         MLG_HLG,

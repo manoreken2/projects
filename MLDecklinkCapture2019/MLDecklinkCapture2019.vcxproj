@@ -24,6 +24,7 @@
     <ClInclude Include="MLVideoCapture.h" />
     <ClInclude Include="MLVideoCaptureDeviceEnum.h" />
     <ClInclude Include="MLVideoCaptureEnumToStr.h" />
+    <ClInclude Include="MLVideoCaptureVideoFormat.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.txt" />

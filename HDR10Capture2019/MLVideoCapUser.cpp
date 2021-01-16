@@ -28,8 +28,18 @@ BmdColorSpaceToMLConverterColorSpace(BMDColorspace cs)
     case bmdColorspaceRec2020:
         return MLConverter::CS_Rec2020;
     default:
-        assert(0);
+        // 0が来ることがある。
+        // 無難な値にする。
         return MLConverter::CS_Rec601;
+    }
+}
+
+void
+MLVideoCapUser::MLVideoCaptureCallback_VideoInputFormatChanged(
+    const MLVideoCaptureVideoFormat& vFmt)
+{
+    if (mVCU_cb != nullptr) {
+        mVCU_cb->MLVideoCapUserCallback_VideoInputFormatChanged(vFmt);
     }
 }
 
@@ -88,7 +98,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
 
     mAviWriter.AddImage((const uint8_t*)buffer, rowBytes * height);
 
-    const MLVideoCapture::VideoFormat & vFmt = CurrentVideoFormat();
+    const MLVideoCaptureVideoFormat & vFmt = CurrentVideoFormat();
 
     //const int rowBytes = videoFrame->GetRowBytes();
     MLImage::BitFormatType bft = MLImage::BFT_UIntR8G8B8A8;
@@ -101,7 +111,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
     MLColorGamutType gamut = ML_CG_Rec709;
     switch (vFmt.colorSpace) {
     case bmdColorspaceRec601:
-        // 対応してない。仮でRec.709ということにする。
+        // 対応してない。Rec709ということにする。
         gamut = ML_CG_Rec709;
         break;
     case bmdColorspaceRec709:
@@ -264,6 +274,16 @@ MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
     mMutex->unlock();
 
     return hr;
+}
+
+void
+MLVideoCapUser::UpdateImageGamma(MLImage::GammaType g)
+{
+    mMutex->lock();
+    if (mCapturedImages.size() != 0) {
+        mCapturedImages.front().gamma = g;
+    }
+    mMutex->unlock();
 }
 
 HRESULT

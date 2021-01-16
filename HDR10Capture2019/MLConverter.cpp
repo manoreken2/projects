@@ -158,7 +158,7 @@ Rec2020_Yuv10ToRgb10(
 
 static void
 Yuv8ToRgb8(
-        MLConverter::ColorSpace colorSpace,
+        const MLConverter::ColorSpace colorSpace,
         const uint8_t y8, const uint8_t u8, const uint8_t v8,
         uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return)
 {
@@ -177,7 +177,7 @@ Yuv8ToRgb8(
 
 static void
 Yuv10ToRgb10(
-        MLConverter::ColorSpace colorSpace,
+        const MLConverter::ColorSpace colorSpace,
         const uint16_t y10, const uint16_t u10, const uint16_t v10,
         uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
 {
@@ -237,7 +237,7 @@ MLConverter::MLConverter(void)
 }
 
 void
-MLConverter::Uyvy8bitToR8G8B8A8(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
+MLConverter::Uyvy8bitToR8G8B8A8(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
     // widthÇÕ2Ç≈äÑÇËêÿÇÍÇÈÅB
     assert((width & 1) == 0);
@@ -282,7 +282,7 @@ MLConverter::Uyvy8bitToR8G8B8A8(ColorSpace colorSpace, const uint32_t* pFrom, ui
 /// bmdFormat10BitYUV v210 Å® DXGI_FORMAT_R10G10B10A2_UNORM
 /// </summary>
 void
-MLConverter::Yuv422_10bitToR10G10B10A2(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
+MLConverter::Yuv422_10bitToR10G10B10A2(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = (alpha >> 6) & 0x3;
 

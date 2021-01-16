@@ -8,12 +8,18 @@
 #include <mutex>
 #include "MLConverter.h"
 #include "MLAviWriter.h"
+#include "IMLVideoCapUserCallback.h"
+
 
 class MLVideoCapUser : IMLVideoCaptureCallback {
 public:
     /// <param name="mtx">描画ロック用mutex</param>
     HRESULT Init(std::mutex &mtx);
     void Term(void);
+
+    void SetCallback(IMLVideoCapUserCallback* cb) {
+        mVCU_cb = cb;
+    }
 
     int NumOfDevices(void) const {
         return mDE.NumOfDevices();
@@ -38,7 +44,7 @@ public:
     }
 
     // Use中に呼び出せる。
-    const MLVideoCapture::VideoFormat & CurrentVideoFormat(void) const {
+    const MLVideoCaptureVideoFormat & CurrentVideoFormat(void) const {
         return mVC.CurrentVideoFormat();
     }
 
@@ -51,6 +57,7 @@ public:
     /// </summary>
     int CapturedImageCount(void);
 
+    void UpdateImageGamma(MLImage::GammaType g);
     HRESULT PopCapturedImg(MLImage& img_return);
     HRESULT CreateCopyOfCapturedImg(MLImage& img_return);
 
@@ -64,6 +71,7 @@ public:
 
 private:
     std::mutex* mMutex = nullptr;
+    void MLVideoCaptureCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt);
     void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket);
     MLVideoCaptureDeviceEnum mDE;
     MLVideoCapture mVC;
@@ -75,4 +83,5 @@ private:
 
     const int CapturedImageQueueSize = 2;
 
+    IMLVideoCapUserCallback * mVCU_cb = nullptr;
 };

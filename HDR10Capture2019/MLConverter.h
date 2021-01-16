@@ -17,12 +17,12 @@ public:
     /// <summary>
     /// bmdFormat8BitYUV UYVY Å® DXGI_FORMAT_R8G8B8A8_UNORM
     /// </summary>
-    static void Uyvy8bitToR8G8B8A8(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);
+    static void Uyvy8bitToR8G8B8A8(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);
 
     /// <summary>
     /// bmdFormat10BitYUV v210 Å® DXGI_FORMAT_R10G10B10A2_UNORM
     /// </summary>
-    static void Yuv422_10bitToR10G10B10A2(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha = 0xff);
+    static void Yuv422_10bitToR10G10B10A2(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha = 0xff);
 
     /// <summary>
     /// bmdFormat8BitARGB Å® DXGI_FORMAT_R8G8B8A8_UNORM

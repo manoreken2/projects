@@ -275,6 +275,10 @@ MLVideoCapture::VideoInputFormatChanged(
         }
     }
 
+    if (m_callback) {
+        m_callback->MLVideoCaptureCallback_VideoInputFormatChanged(m_vFmt);
+    }
+
 bail:
     return S_OK;
 }

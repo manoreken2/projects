@@ -28,7 +28,7 @@ using Microsoft::WRL::ComPtr;
 
 struct ImDrawData;
 
-class MLDX12App : public MLDX12 {
+class MLDX12App : public MLDX12, IMLVideoCapUserCallback {
 public:
     MLDX12App(UINT width, UINT height, UINT options);
     virtual ~MLDX12App(void);
@@ -178,9 +178,10 @@ private:
 
     // HDR10の設定。
     void UpdateColorSpace(void);
+
     bool mIsDisplayHDR10 = false;
-    DXGI_FORMAT mBackBufferFmt = DXGI_FORMAT_R8G8B8A8_UNORM;
-    DXGI_COLOR_SPACE_TYPE mColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+    DXGI_FORMAT mBackBufferFmt = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    DXGI_COLOR_SPACE_TYPE mColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
     WCHAR mDeviceName[32] = {};
     RECT  mDesktopCoordinates = {};
     BOOL  mAttachedToDesktop = FALSE;
@@ -189,7 +190,7 @@ private:
     FLOAT mMinLuminance = 0;
     FLOAT mMaxLuminance = 0;
     FLOAT mMaxFullFrameLuminance = 0;
-    MLColorGamutType mDisplayColorGamut = ML_CG_Rec709;
+    MLColorGamutType mDisplayColorGamut = ML_CG_scRGB;
 
     MLColorGamutConv mGamutConv;
 
@@ -207,6 +208,8 @@ private:
     VideoCaptureState mVCState = VCS_PreInit;
     char mErrorVCMsg[512] = {};
     char mAviFilePath[512] = {};
+    MLImage::GammaType mCaptureImgGamma = MLImage::MLG_G22;
+    void MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt);
 
     /// <summary>
     /// mVCUから表示用キャプチャー画像を取り出し、mRenderImgとmWriteImgにセットする。

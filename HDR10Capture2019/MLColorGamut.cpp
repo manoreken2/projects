@@ -8,6 +8,7 @@ const char* MLColorGamutToStr(MLColorGamutType t)
     case     ML_CG_AdobeRGB: return "Adobe RGB";
     case     ML_CG_Rec2020: return "Rec.2020";
     case     ML_CG_DCIP3: return "DCIP3";
+    case     ML_CG_scRGB: return "scRGB";
     default:
         assert(0);
         return "";
@@ -18,6 +19,7 @@ const char* MLColorGamutToStr(MLColorGamutType t)
 MLColorGamutConv::MLColorGamutConv(void) {
     //        from         to
     mConvMat[ML_CG_Rec709][ML_CG_Rec709] = DirectX::XMMatrixIdentity();
+    mConvMat[ML_CG_Rec709][ML_CG_scRGB] = DirectX::XMMatrixIdentity();
     mConvMat[ML_CG_Rec709][ML_CG_AdobeRGB] = DirectX::XMMATRIX(
         0.7151f, 0.2849f, 0.0000f, 0.0f,
         0.0000f, 1.0000f, 0.0000f, 0.0f,
@@ -39,6 +41,11 @@ MLColorGamutConv::MLColorGamutConv(void) {
         - 0.0000f, 1.0000f, - 0.0000f, 0.0f,
         - 0.0000f, - 0.0429f, 1.0429f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f);
+    mConvMat[ML_CG_AdobeRGB][ML_CG_scRGB] = DirectX::XMMATRIX(
+        1.3984f, -0.3983f, 0.0000f, 0.0f,
+        -0.0000f, 1.0000f, -0.0000f, 0.0f,
+        -0.0000f, -0.0429f, 1.0429f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
     mConvMat[ML_CG_AdobeRGB][ML_CG_AdobeRGB] = DirectX::XMMatrixIdentity();
     mConvMat[ML_CG_AdobeRGB][ML_CG_Rec2020] = DirectX::XMMATRIX(
         0.8773f, 0.0775f, 0.0452f, 0.0f,
@@ -56,6 +63,11 @@ MLColorGamutConv::MLColorGamutConv(void) {
         - 0.1246f, 1.1329f, - 0.0083f, 0.0f,
         - 0.0182f, - 0.1006f, 1.1185f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f);
+    mConvMat[ML_CG_Rec2020][ML_CG_scRGB] = DirectX::XMMATRIX(
+        1.6606f, -0.5876f, -0.0728f, 0.0f,
+        -0.1246f, 1.1329f, -0.0083f, 0.0f,
+        -0.0182f, -0.1006f, 1.1185f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
     mConvMat[ML_CG_Rec2020][ML_CG_AdobeRGB] = DirectX::XMMATRIX(
         1.1521f, - 0.0975f, - 0.0545f, 0.0f,
         - 0.1246f, 1.1329f, - 0.0083f, 0.0f,
@@ -72,6 +84,11 @@ MLColorGamutConv::MLColorGamutConv(void) {
         1.2251f, - 0.2249f, - 0.0000f, 0.0f,
         - 0.0421f, 1.0420f, 0.0000f, 0.0f,
         - 0.0196f, - 0.0786f, 1.0980f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    mConvMat[ML_CG_DCIP3][ML_CG_scRGB] = DirectX::XMMATRIX(
+        1.2251f, -0.2249f, -0.0000f, 0.0f,
+        -0.0421f, 1.0420f, 0.0000f, 0.0f,
+        -0.0196f, -0.0786f, 1.0980f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f);
     mConvMat[ML_CG_DCIP3][ML_CG_AdobeRGB] = DirectX::XMMATRIX(
         0.8641f, 0.1360f, 0.0000f, 0.0f,

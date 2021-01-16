@@ -30,6 +30,9 @@
     <ClInclude Include="MLVideoCaptureEnumToStr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MLVideoCaptureVideoFormat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.txt" />

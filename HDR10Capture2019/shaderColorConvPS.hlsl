@@ -80,7 +80,8 @@ static const float pq_c2 = 18.8515625f; // ( 2413.0 / 4096.0 ) * 32.0;
 static const float pq_c3 = 18.6875f; // ( 2392.0 / 4096.0 ) * 32.0;
 static const float pq_C = 10000.0f;
 
-float3 ST2084toLinear(float3 rgb) {
+
+float3 ST2084_to_scRGB_Linear(float3 rgb) {
     float3 Np = pow(rgb, 1.0f / pq_m2);
     float3 L = Np - pq_c1;
     if (L.r < 0.0f) {
@@ -94,19 +95,22 @@ float3 ST2084toLinear(float3 rgb) {
     }
     L = L / (pq_c2 - pq_c3 * Np);
     L = pow(L, 1.0f / pq_m1);
-    return L * pq_C * 0.01f; // returns 100cd/m^2 == 1
+
+    // scRGB: 80nits == 1.0
+    return L * pq_C * (1.0f / 80.0f);
 }
 
 float3 ApplyGamma(float3 rgb) {
     if (c_gammaType == 0) {
-        // MLG_Linear
+        // MLG_Linear : 100nits == 1.0
+
         return rgb;
     } else if (c_gammaType == 1) {
         // MLG_G22 
         return SRGBtoLinear(rgb);
     } else if (c_gammaType == 2) {
         // MLG_ST2084
-        return ST2084toLinear(rgb);
+        return ST2084_to_scRGB_Linear(rgb);
     } else {
         // ? 
         return rgb;
@@ -115,7 +119,8 @@ float3 ApplyGamma(float3 rgb) {
 
 float4 HighlightOutOfRange(float4 v) {
     if ((c_flags & 1) != 0) {
-        float maxV = c_outOfRangeNits * 0.01f;
+        // scRGB: 80nits == 1.0.
+        float maxV = c_outOfRangeNits * (1.0f / 80.0f);
         if (maxV < v.r
             || maxV < v.g
             || maxV < v.b) {

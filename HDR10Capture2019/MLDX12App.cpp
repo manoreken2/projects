@@ -16,7 +16,7 @@
 #include "MLExrWriter.h"
 #include <shlwapi.h>
 
-// D3D12HelloFrameBuffering sample
+// D3D12HelloFrameBuffering sampleを改造して作成。
 //*********************************************************
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -26,18 +26,18 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //*********************************************************
 
-MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
-    MLDX12(width, height),
-    mSettings("Settings.ini"),
-    mOptions(options),
-    mState(S_Init),
-    mFenceIdx(0),
-    mViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
-    mScissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-    mFenceValues{},
-    mRtvDescSize(0),
-    mNumVertices(0),
-    mWindowedMode(true)
+MLDX12App::MLDX12App(UINT width, UINT height, UINT options)
+    : MLDX12(width, height),
+        mSettings("Settings.ini"),
+        mOptions(options),
+        mState(S_Init),
+        mFenceIdx(0),
+        mViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+        mScissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
+        mFenceValues{},
+        mRtvDescSize(0),
+        mNumVertices(0),
+        mWindowedMode(true)
 {
     // 設定を読み出します。
     std::string imgPath = mSettings.LoadStringA("ImgFilePath");
@@ -58,7 +58,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
     int outOfRangeB = mSettings.LoadInt("OutOfRangeB", 255);
     double outOfRangeNits = mSettings.LoadDouble("OutOfRangeNits", 100.0);
 
-    mDisplayColorGamut = (MLColorGamutType)mSettings.LoadInt("DisplayColorGamut", ML_CG_Rec709);
+    mDisplayColorGamut = (MLColorGamutType)mSettings.LoadInt("DisplayColorGamut", ML_CG_scRGB);
 
     mShaderConsts.colorConvMat = XMMatrixIdentity();
     mShaderConsts.outOfRangeColor = XMFLOAT4(outOfRangeR / 255.0f, outOfRangeG / 255.0f, outOfRangeB / 255.0f, 1.0f);
@@ -68,7 +68,8 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
     mShaderConsts.scale = 1.0f;
 }
 
-MLDX12App::~MLDX12App(void) {
+MLDX12App::~MLDX12App(void)
+{
     mSettings.SaveStringA("ImgFilePath", mImgFilePath);
     mSettings.SaveStringA("AviFilePath", mAviFilePath);
 
@@ -86,7 +87,8 @@ MLDX12App::~MLDX12App(void) {
 }
 
 void
-MLDX12App::OnInit(void) {
+MLDX12App::OnInit(void)
+{
     //OutputDebugString(L"OnInit started\n");
 
     LoadPipeline();
@@ -110,6 +112,7 @@ MLDX12App::OnInit(void) {
     //OutputDebugString(L"OnInit end\n");
 
     mVCU.Init(mMutex);
+    mVCU.SetCallback(this);
 }
 
 /// <summary>
@@ -125,12 +128,15 @@ MLDX12App::ReInit(void)
 }
 
 void
-MLDX12App::OnDestroy(void) {
+MLDX12App::OnDestroy(void)
+{
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
     WaitForGpu();
 
     CloseHandle(mFenceEvent);
+
+    mVCU.SetCallback(nullptr);
 
     mRenderImg.Term();
     mWriteImg.Term();
@@ -144,7 +150,8 @@ MLDX12App::OnDestroy(void) {
 }
 
 void
-MLDX12App::LoadPipeline(void) {
+MLDX12App::LoadPipeline(void)
+{
     UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
@@ -338,6 +345,8 @@ MLDX12App::UpdateColorSpace(void)
         case DXGI_FORMAT_R16G16B16A16_FLOAT:
             // The system creates the HDR10 signal; application uses linear values.
             // アプリはHDR10のガンマの処理をしなくて良い。
+            // scRGB色空間のピクセル値を書き込む必要あり。
+            // https://docs.microsoft.com/en-us/windows/win32/direct3darticles/high-dynamic-range
             colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
             break;
         default:
@@ -357,7 +366,8 @@ MLDX12App::UpdateColorSpace(void)
 }
 
 void
-MLDX12App::LoadAssets(void) {
+MLDX12App::LoadAssets(void)
+{
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -583,7 +593,9 @@ MLDX12App::AdjustFullScreenQuadAspectRatio(int w, int h)
 }
 
 void
-MLDX12App::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx, int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data) {
+MLDX12App::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx,
+        int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data)
+{
     ThrowIfFailed(mCmdAllocators[mFenceIdx].Get()->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFenceIdx].Get(), mPipelineState.Get()));
 
@@ -652,10 +664,9 @@ MLDX12App::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx, int w, int h, 
     WaitForGpu();
 }
 
-
-
 void
-MLDX12App::CreateImguiTexture(void) {
+MLDX12App::CreateImguiTexture(void)
+{
     ThrowIfFailed(mCmdAllocators[mFenceIdx].Get()->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFenceIdx].Get(), mPipelineState.Get()));
 
@@ -740,7 +751,8 @@ MLDX12App::CreateImguiTexture(void) {
 }
 
 void
-MLDX12App::OnKeyUp(int key) {
+MLDX12App::OnKeyUp(int key)
+{
     switch (key) {
     case VK_F7:
         mShowImGui = !mShowImGui;
@@ -775,7 +787,8 @@ MLDX12App::OnKeyUp(int key) {
 }
 
 void
-MLDX12App::OnSizeChanged(int width, int height, bool minimized) {
+MLDX12App::OnSizeChanged(int width, int height, bool minimized)
+{
     /*
     char s[256];
     sprintf_s(s, "\n\nOnSizeChanged(%d %d)\n", width, height);
@@ -807,7 +820,8 @@ MLDX12App::OnSizeChanged(int width, int height, bool minimized) {
 }
 
 void
-MLDX12App::UpdateViewAndScissor(void) {
+MLDX12App::UpdateViewAndScissor(void)
+{
     float x = 1.0f;
     float y = 1.0f;
 
@@ -823,7 +837,8 @@ MLDX12App::UpdateViewAndScissor(void) {
 }
 
 void
-MLDX12App::LoadSizeDependentResources(void) {
+MLDX12App::LoadSizeDependentResources(void)
+{
     UpdateViewAndScissor();
 
     {
@@ -850,7 +865,8 @@ MLDX12App::OnUpdate(void)
 }
 
 void
-MLDX12App::OnRender(void) {
+MLDX12App::OnRender(void)
+{
     PopulateCommandList();
 
     ID3D12CommandList* ppCommandLists[] = { mCmdList.Get() };
@@ -869,7 +885,8 @@ MLDX12App::OnRender(void) {
 }
 
 void
-MLDX12App::PopulateCommandList(void) {
+MLDX12App::PopulateCommandList(void)
+{
     ThrowIfFailed(mCmdAllocators[mFenceIdx]->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFenceIdx].Get(), mPipelineState.Get()));
 
@@ -908,7 +925,8 @@ MLDX12App::PopulateCommandList(void) {
 }
 
 void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img) {
+MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img)
+{
     // シェーダーの選択。
     mCmdList->SetPipelineState(mPipelineState.Get());
 
@@ -999,14 +1017,32 @@ MLDX12App::UpdateCaptureImg(void)
             // 新しい表示用キャプチャー画像がある場合、GPUに送り出す。
             // 表示用キャプチャー画像を静止画書き込み用バッファーにコピー。
 
+            // ガンマの設定を確定する。
+            const MLVideoCaptureVideoFormat& fmt = mVCU.CurrentVideoFormat();
+            if (fmt.colorSpace == bmdColorspaceRec2020
+                && fmt.dynamicRange == bmdDynamicRangeHDRStaticPQ) {
+                mCaptureImgGamma = MLImage::MLG_ST2084;
+            } else {
+                mCaptureImgGamma = MLImage::MLG_G22;
+            }
+
             mWriteImg.Term();
             mWriteImg.DeepCopyFrom(newImg);
 
             mMutex.lock();
             mRenderImg = newImg;
+
+            // キャプチャー画像のガンマが信用できないので上書きする。
+            mRenderImg.gamma = mCaptureImgGamma;
             mMutex.unlock();
         }
     }
+}
+
+void
+MLDX12App::MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt)
+{
+    // VideoFormatの変更イベントは解像度が変わったときと、ピクセルフォーマットが変わったときに起きるようだ。
 }
 
 void
@@ -1066,7 +1102,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
         break;
     case VCS_CapturePreview:
         {
-            const MLVideoCapture::VideoFormat& fmt = mVCU.CurrentVideoFormat();
+            const MLVideoCaptureVideoFormat& fmt = mVCU.CurrentVideoFormat();
 
             ImGui::Text("Now Using \"%s\"", mVCDeviceToUse.name.c_str());
             if (ImGui::Button("Unuse ##VCS")) {
@@ -1079,7 +1115,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
                     mVCU.ClearCapturedImageList();
                 }
 
-                ImGui::Text("Input Signal: %s, %d x %d, %.2f fps, %s, %s, %s, %s",
+                ImGui::Text("Input Signal: %s, %d x %d, %.2f fps, %s, %s(?), %s, %s",
                     BMDDisplayModeToStr(fmt.displayMode),
                     fmt.width, fmt.height,
                     (double)fmt.frameRateTS/fmt.frameRateTV,
@@ -1097,6 +1133,8 @@ MLDX12App::ShowVideoCaptureWindow(void)
                     ImGui::Text("Unsupported format! %s",
                         BMDDetectedVideoInputFormatFlagsToStr(mVCU.DetectedVideoInputFormatFlags()).c_str());
                 }
+
+                ImGui::Text("Captured image gamma = %s", MLImage::GammaTypeToStr(mCaptureImgGamma));
 
                 ImGui::Text("Frame Skip : %d", mVCU.FrameSkipCount());
 
@@ -1141,6 +1179,8 @@ MLDX12App::ShowVideoCaptureWindow(void)
             ImGui::Text("%02d:%02d:%02d:%02d",
                 vt.hour, vt.min, vt.sec, vt.frame);
         }
+
+        ImGui::Text("Captured image gamma = %s", MLImage::GammaTypeToStr(mCaptureImgGamma));
 
         ImGui::Text("Display Queue size : %d", mVCU.CapturedImageCount());
         ImGui::Text("Rec Queue size : %d", mVCU.AviWriter().RecQueueSize());
@@ -1215,7 +1255,7 @@ MLDX12App::ShowSettingsWindow(void) {
         ImGui::Text("BackBuffer = %s",
             DxgiFormatToStr(mBackBufferFmt));
 
-        ImGui::Text("ColorSpace = %s",
+        ImGui::Text("Display ColorSpace = %s",
             DxgiColorSpaceToStr(mColorSpace));
 
         ImGui::Text("AttachedToDesktop = %s, Rotation = %s",
@@ -1226,11 +1266,13 @@ MLDX12App::ShowSettingsWindow(void) {
             mMinLuminance, mMaxLuminance, mMaxFullFrameLuminance);
     }
 
-    if (ImGui::TreeNodeEx("Display Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+    if (ImGui::TreeNodeEx("Backbuffer Color Gamut (scRGB is recommended)", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
         int cg = (int)mDisplayColorGamut;
-        ImGui::RadioButton("Rec.709 ##DCG", &cg, 0);
-        ImGui::RadioButton("Adobe RGB ##DCG", &cg, 1);
-        ImGui::RadioButton("Rec.2020 ##DCG", &cg, 2);
+        ImGui::RadioButton("Rec.709 ##DCG", &cg, ML_CG_Rec709);
+        ImGui::RadioButton("Adobe RGB ##DCG", &cg, ML_CG_AdobeRGB);
+        ImGui::RadioButton("DCI-P3 ##DCG", &cg, ML_CG_DCIP3);
+        ImGui::RadioButton("Rec.2020 ##DCG", &cg, ML_CG_Rec2020);
+        ImGui::RadioButton("scRGB ##DCG", &cg, ML_CG_scRGB);
         mDisplayColorGamut = (MLColorGamutType)cg;
     }
 
@@ -1295,7 +1337,11 @@ MLDX12App::ShowSettingsWindow(void) {
             ImGui::Text("%d x %d, %s",
                 img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
 
-            ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 1.0f, 100.0f);
+            ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 0.1f, 100.0f);
+            ImGui::SameLine();
+            if (ImGui::Button("Reset ##IBS")) {
+                mShaderConsts.scale = 1.0f;
+            }
 
             {
                 bool b = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_SwapRedBlue);
@@ -1326,7 +1372,6 @@ MLDX12App::ShowSettingsWindow(void) {
             ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
             img.gamma = (MLImage::GammaType)cg;
         }
-
     }
 
     ImGui::End();
@@ -1362,7 +1407,8 @@ PathNameToExtensionType(const char* path)
 }
 
 void
-MLDX12App::ShowImageFileRWWindow(void) {
+MLDX12App::ShowImageFileRWWindow(void)
+{
     int hr = S_OK;
     ImGui::Begin("File Read / Write");
 
@@ -1448,7 +1494,8 @@ MLDX12App::ShowImageFileRWWindow(void) {
 }
 
 void
-MLDX12App::ImGuiCommands(void) {
+MLDX12App::ImGuiCommands(void)
+{
     if (mShowImGui) {
         //ImGui::ShowDemoWindow();
 
@@ -1473,8 +1520,8 @@ MLDX12App::ImGuiCommands(void) {
 }
 
 bool
-MLDX12App::UpdateImgTexture(void) {
-
+MLDX12App::UpdateImgTexture(void)
+{
     mMutex.lock();
 
     if (mRenderImg.data == nullptr) {
@@ -1493,14 +1540,15 @@ MLDX12App::UpdateImgTexture(void) {
     mRenderImg.DeleteData();
     mTexImgIdx = uploadTexIdx;
 
-
     return true;
 }
 
 void
-MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx) {
+MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx)
+{
     DXGI_FORMAT pixelFormat;
     int         pixelBytes;
+
     switch (ci.bitFormat) {
     case MLImage::BFT_UIntR8G8B8A8:
         pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -1534,7 +1582,6 @@ MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx) 
         // 中でInternalRelease()される。
         tex = nullptr;
 
-        // サイズが変わった。
         D3D12_RESOURCE_DESC texDesc = {};
         texDesc.MipLevels = 1;
         texDesc.Format = pixelFormat;
@@ -1567,8 +1614,9 @@ MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx) 
         srvDesc.Texture2D.MipLevels = 1;
         mDevice->CreateShaderResourceView(tex.Get(), &srvDesc, srvHandle);
     } else {
-        const CD3DX12_RESOURCE_BARRIER barrier_Transision_PS_to_CopyDest = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        const CD3DX12_RESOURCE_BARRIER barrier_Transision_PS_to_CopyDest
+            = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
         mCmdListTexUpload->ResourceBarrier(1, &barrier_Transision_PS_to_CopyDest);
     }
 
@@ -1594,8 +1642,9 @@ MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx) 
         textureData.RowPitch = ci.width * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * ci.height;
         UpdateSubresources(mCmdListTexUpload.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        const CD3DX12_RESOURCE_BARRIER barrier_Transision_CopyDest_to_PS = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        const CD3DX12_RESOURCE_BARRIER barrier_Transision_CopyDest_to_PS
+            = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         mCmdListTexUpload->ResourceBarrier(1, &barrier_Transision_CopyDest_to_PS);
     }
 

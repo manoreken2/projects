@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="IMLVideoCapUserCallback.h" />
     <ClInclude Include="MLAVICommon.h" />
     <ClInclude Include="MLAviReader.h" />
     <ClInclude Include="MLAviWriter.h" />
