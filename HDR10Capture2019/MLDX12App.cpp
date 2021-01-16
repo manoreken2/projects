@@ -1074,7 +1074,6 @@ MLDX12App::ShowVideoCaptureWindow(void)
                 mVCState = VCS_PreInit;
                 mState = S_Init;
             } else {
-
                 if (ImGui::Button("Flush Streams ##VCS")) {
                     mVCU.FlushStreams();
                     mVCU.ClearCapturedImageList();
@@ -1153,8 +1152,9 @@ MLDX12App::ShowVideoCaptureWindow(void)
 
             ImGui::OpenPopup("WriteFlushPopup");
         }
-
+        
         UpdateCaptureImg();
+
         break;
     case VCS_WaitRecordEnd:
         {
@@ -1456,6 +1456,17 @@ MLDX12App::ImGuiCommands(void) {
         ShowVideoCaptureWindow();
         ShowImageFileRWWindow();
         ShowSettingsWindow();
+    } else {
+
+        // キャプチャー画像を更新。
+        switch (mVCState) {
+        case VCS_CapturePreview:
+        case VCS_Recording:
+            UpdateCaptureImg();
+            break;
+        default:
+            break;
+        }
     }
 
     ImGui::Render();
