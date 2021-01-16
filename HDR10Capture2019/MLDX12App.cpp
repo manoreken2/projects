@@ -65,6 +65,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options) :
     mShaderConsts.imgGammaType = MLImage::MLG_Linear;
     mShaderConsts.flags = 0;
     mShaderConsts.outOfRangeNits = (float)outOfRangeNits;
+    mShaderConsts.scale = 1.0f;
 }
 
 MLDX12App::~MLDX12App(void) {
@@ -1293,6 +1294,9 @@ MLDX12App::ShowSettingsWindow(void) {
                 MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
             ImGui::Text("%d x %d, %s",
                 img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
+
+            ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 1.0f, 100.0f);
+
             {
                 bool b = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_SwapRedBlue);
                 ImGui::Checkbox("Swap Red and Blue", &b);
@@ -1302,8 +1306,8 @@ MLDX12App::ShowSettingsWindow(void) {
                     mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_SwapRedBlue);
                 }
             }
-
         }
+
         if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
 

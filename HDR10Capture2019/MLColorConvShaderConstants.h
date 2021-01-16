@@ -10,6 +10,7 @@ struct MLColorConvShaderConstants {
     int imgGammaType; //< MLImage::GammaType
     int flags; //< FlagsType
     float outOfRangeNits;
+    float scale;
 
     enum FlagsType {
         FLAG_OutOfRangeColor = 1,

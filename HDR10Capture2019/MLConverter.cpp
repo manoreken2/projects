@@ -41,73 +41,161 @@ Saturate01(const float v)
     }
 }
 
-/// <summary>
-/// 0～1の範囲のfloat値のYUVを0～1の範囲のfloat値のRGBにする。
-/// </summary>
-static void
-YuvToRgb(
-    const float y, const float u, const float v,
-    float* r_return, float *g_return, float *b_return)
-{
-    *r_return = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
-    *g_return = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
-    *b_return = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
-}
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+// YUV ⇔ RGB
+// https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.2020_conversion
+
+#define Yuv_i8_to_f32 \
+    const float y = y8 / 255.0f; \
+    const float u = u8 / 255.0f; \
+    const float v = v8 / 255.0f; \
+
+#define Yuv_i10_to_f32 \
+    const float y = y10 / 1023.0f; \
+    const float u = u10 / 1023.0f; \
+    const float v = v10 / 1023.0f;
+
+#define Rgb_f32_to_i8_return \
+    *r8_return = (uint8_t)(r * 255.0f); \
+    *g8_return = (uint8_t)(g * 255.0f); \
+    *b8_return = (uint8_t)(b * 255.0f);
+
+#define Rgb_f32_to_i10_return \
+    *r10_return = (uint16_t)(r * 1023.0f); \
+    *g10_return = (uint16_t)(g * 1023.0f); \
+    *b10_return = (uint16_t)(b * 1023.0f);
+
+#define BT601_YuvRgb \
+    const float r = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f); \
+    const float g = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f); \
+    const float b = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
+
+#define Rec709_YuvRgb \
+    const float r = Saturate01(1.1646f * y + 0.0005f * u + 1.7928f * v - 0.9733f); \
+    const float g = Saturate01(1.1646f * y - 0.2134f * u - 0.5331f * v + 0.3017f); \
+    const float b = Saturate01(1.1646f * y + 2.1125f * u + 0.0002f * v - 1.1336f);
+
+#define Rec2020_YuvRgb \
+    const float r = Saturate01(1.1644f * y + 0.0002f * u + 1.6786f * v - 0.9156f); \
+    const float g = Saturate01(1.1644f * y - 0.1873f * u - 0.6504f * v + 0.3474f); \
+    const float b = Saturate01(1.1644f * y + 2.1417f * u + 0.0001f * v - 1.1481f);
 
 /// <summary>
-/// 8bit YUV → 8bit RGB
+/// BT.601 8bit YUV → 8bit RGB
 /// </summary>
 static void
-Yuv8ToRgb8(
+Bt601_Yuv8ToRgb8(
     const uint8_t y8, const uint8_t u8, const uint8_t v8,
     uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return)
 {
-    const float y = y8 / 255.0f;
-    const float u = u8 / 255.0f;
-    const float v = v8 / 255.0f;
-
-    const float r = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
-    const float g = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
-    const float b = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
-
-    *r8_return = (uint8_t)(r * 255.0f);
-    *g8_return = (uint8_t)(g * 255.0f);
-    *b8_return = (uint8_t)(b * 255.0f);
+    Yuv_i8_to_f32;
+    BT601_YuvRgb;
+    Rgb_f32_to_i8_return;
 }
 
 /// <summary>
-/// 10bit YUV → 10bit RGB
+/// BT.601 10bit YUV → 10bit RGB
 /// </summary>
+static void
+Bt601_Yuv10ToRgb10(
+        const uint16_t y10, const uint16_t u10, const uint16_t v10,
+        uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
+{
+    Yuv_i10_to_f32;
+    BT601_YuvRgb;
+    Rgb_f32_to_i10_return;
+}
+
+/// <summary>
+/// Rec.709 8bit YUV → 8bit RGB
+/// </summary>
+static void
+Rec709_Yuv8ToRgb8(
+        const uint8_t y8, const uint8_t u8, const uint8_t v8,
+        uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return)
+{
+    Yuv_i8_to_f32;
+    Rec709_YuvRgb;
+    Rgb_f32_to_i8_return;
+}
+
+/// <summary>
+/// Rec.709 10bit YUV → 10bit RGB
+/// </summary>
+static void
+Rec709_Yuv10ToRgb10(
+        const uint16_t y10, const uint16_t u10, const uint16_t v10,
+        uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
+{
+    Yuv_i10_to_f32;
+    Rec709_YuvRgb;
+    Rgb_f32_to_i10_return;
+}
+
+/// <summary>
+/// Rec.2020 8bit YUV → 8bit RGB
+/// </summary>
+static void
+Rec2020_Yuv8ToRgb8(
+    const uint8_t y8, const uint8_t u8, const uint8_t v8,
+    uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return) {
+    Yuv_i8_to_f32;
+    Rec2020_YuvRgb;
+    Rgb_f32_to_i8_return;
+}
+
+/// <summary>
+/// Rec.2020 10bit YUV → 10bit RGB
+/// </summary>
+static void
+Rec2020_Yuv10ToRgb10(
+    const uint16_t y10, const uint16_t u10, const uint16_t v10,
+    uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return) {
+    Yuv_i10_to_f32;
+    Rec2020_YuvRgb;
+    Rgb_f32_to_i10_return;
+}
+
+static void
+Yuv8ToRgb8(
+        MLConverter::ColorSpace colorSpace,
+        const uint8_t y8, const uint8_t u8, const uint8_t v8,
+        uint8_t* r8_return, uint8_t* g8_return, uint8_t* b8_return)
+{
+    switch (colorSpace) {
+    case MLConverter::CS_Rec601:
+        Bt601_Yuv8ToRgb8(y8, u8, v8, r8_return, g8_return, b8_return);
+        break;
+    case MLConverter::CS_Rec709:
+        Rec709_Yuv8ToRgb8(y8, u8, v8, r8_return, g8_return, b8_return);
+        break;
+    case MLConverter::CS_Rec2020:
+        Rec2020_Yuv8ToRgb8(y8, u8, v8, r8_return, g8_return, b8_return);
+        break;
+    }
+}
+
 static void
 Yuv10ToRgb10(
-    const uint16_t y10, const uint16_t u10, const uint16_t v10,
-    uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
+        MLConverter::ColorSpace colorSpace,
+        const uint16_t y10, const uint16_t u10, const uint16_t v10,
+        uint16_t* r10_return, uint16_t* g10_return, uint16_t* b10_return)
 {
-    const float y = y10 / 1023.0f;
-    const float u = u10 / 1023.0f;
-    const float v = v10 / 1023.0f;
-
-    const float r = Saturate01(1.1644f * y + 0.0000f * u + 1.5960f * v - 0.8742f);
-    const float g = Saturate01(1.1644f * y - 0.3918f * u - 0.8130f * v + 0.5317f);
-    const float b = Saturate01(1.1644f * y + 2.0172f * u + 0.0000f * v - 1.0856f);
-
-    *r10_return = (uint16_t)(r * 1023.0f);
-    *g10_return = (uint16_t)(g * 1023.0f);
-    *b10_return = (uint16_t)(b * 1023.0f);
+    switch (colorSpace) {
+    case MLConverter::CS_Rec601:
+        Bt601_Yuv10ToRgb10(y10, u10, v10, r10_return, g10_return, b10_return);
+        break;
+    case MLConverter::CS_Rec709:
+        Rec709_Yuv10ToRgb10(y10, u10, v10, r10_return, g10_return, b10_return);
+        break;
+    case MLConverter::CS_Rec2020:
+        Rec2020_Yuv10ToRgb10(y10, u10, v10, r10_return, g10_return, b10_return);
+        break;
+    }
 }
 
-/// <summary>
-/// 0～1の範囲のfloat値のRGBを0～1の範囲のfloat値のYUVにする。
-/// </summary>
-static void
-RgbToYuv(
-    const float r, const float g, const float b,
-    float* y_return, float* u_return, float* v_return)
-{
-    *y_return = Saturate01( 0.2568f * r + 0.5041f * g + 0.0979f * b + 0.0627f);
-    *u_return = Saturate01(-0.1482f * r - 0.2910f * g + 0.4392f * b + 0.5020f);
-    *v_return = Saturate01( 0.4392f * r - 0.3678f * g - 0.0714f * b + 0.5020f);
-}
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+// ガンマカーブ 
 
 static const float pq_m1 = 0.1593017578125f; // ( 2610.0 / 4096.0 ) / 4.0;
 static const float pq_m2 = 78.84375f; // ( 2523.0 / 4096.0 ) * 128.0;
@@ -149,7 +237,7 @@ MLConverter::MLConverter(void)
 }
 
 void
-MLConverter::Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
+MLConverter::Uyvy8bitToR8G8B8A8(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
     // widthは2で割り切れる。
     assert((width & 1) == 0);
@@ -182,10 +270,10 @@ MLConverter::Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
             // yuv → RGB
             uint8_t r, g, b;
 
-            Yuv8ToRgb8(y0, u, v, &r, &g, &b);
+            Yuv8ToRgb8(colorSpace, y0, u, v, &r, &g, &b);
             pTo[writeP + 0] = (a << 24) + (b << 16) + (g << 8) + r;
 
-            Yuv8ToRgb8(y1, u, v, &r, &g, &b);
+            Yuv8ToRgb8(colorSpace, y1, u, v, &r, &g, &b);
             pTo[writeP + 1] = (a << 24) + (b << 16) + (g << 8) + r;
         }
     }
@@ -194,7 +282,7 @@ MLConverter::Uyvy8bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int 
 /// bmdFormat10BitYUV v210 → DXGI_FORMAT_R10G10B10A2_UNORM
 /// </summary>
 void
-MLConverter::Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
+MLConverter::Yuv422_10bitToR10G10B10A2(ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
 {
     const uint32_t a = (alpha >> 6) & 0x3;
 
@@ -255,22 +343,22 @@ MLConverter::Yuv422_10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, con
             // yuv → RGB
             uint16_t r, g, b;
 
-            Yuv10ToRgb10(y0, u0, v0, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y0, u0, v0, &r, &g, &b);
             pTo[writeP + 0] = (a << 30) + (b << 20) + (g << 10) + r;
 
-            Yuv10ToRgb10(y1, u0, v0, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y1, u0, v0, &r, &g, &b);
             pTo[writeP + 1] = (a << 30) + (b << 20) + (g << 10) + r;
 
-            Yuv10ToRgb10(y2, u2, v2, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y2, u2, v2, &r, &g, &b);
             pTo[writeP + 2] = (a << 30) + (b << 20) + (g << 10) + r;
 
-            Yuv10ToRgb10(y3, u2, v2, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y3, u2, v2, &r, &g, &b);
             pTo[writeP + 3] = (a << 30) + (b << 20) + (g << 10) + r;
 
-            Yuv10ToRgb10(y4, u4, v4, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y4, u4, v4, &r, &g, &b);
             pTo[writeP + 4] = (a << 30) + (b << 20) + (g << 10) + r;
 
-            Yuv10ToRgb10(y5, u4, v4, &r, &g, &b);
+            Yuv10ToRgb10(colorSpace, y5, u4, v4, &r, &g, &b);
             pTo[writeP + 5] = (a << 30) + (b << 20) + (g << 10) + r;
         }
     }

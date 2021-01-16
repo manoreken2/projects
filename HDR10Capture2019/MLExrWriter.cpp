@@ -23,6 +23,9 @@ MLExrWriter::Write(const char* exrFilePath, const MLImage& img)
     case MLImage::MLG_ST2084:
         gamma = MLConverter::GT_HDR_PQ;
         break;
+    case MLImage::MLG_Linear:
+        gamma = MLConverter::GT_Linear;
+        break;
     default:
         // çÏÇ¡ÇƒÇ»Ç¢ÅB
         return E_NOTIMPL;
@@ -36,6 +39,10 @@ MLExrWriter::Write(const char* exrFilePath, const MLImage& img)
     case MLImage::BFT_UIntR10G10B10A2:
         buff = new uint8_t[buffBytes];
         mConv.R10G10B10A2ToExrHalfFloat((uint32_t*)img.data, (uint16_t*)buff, img.width, img.height, 0xff, gamma);
+        break;
+    case MLImage::BFT_HalfFloatR16G16B16A16:
+        buff = new uint8_t[buffBytes];
+        memcpy(buff, img.data, buffBytes);
         break;
     default:
         // çÏÇ¡ÇƒÇ»Ç¢ÅB

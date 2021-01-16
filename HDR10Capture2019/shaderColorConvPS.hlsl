@@ -29,6 +29,7 @@ cbuffer Consts : register(b0) {
     int    c_gammaType;
     int    c_flags; //< FlagsType
     float  c_outOfRangeNits;
+    float  c_scale;
 };
 
 struct PSInput
@@ -141,6 +142,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     rgba.rgb = ApplyGamma(rgba.rgb);
 
     rgba = mul(rgba, c_mat);
+
+    rgba.rgb = rgba.rgb * c_scale;
 
     rgba = HighlightOutOfRange(rgba);
 

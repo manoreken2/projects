@@ -17,6 +17,21 @@ void MLVideoCapUser::Term(void)
     ClearCapturedImageList();
 }
 
+static MLConverter::ColorSpace
+BmdColorSpaceToMLConverterColorSpace(BMDColorspace cs)
+{
+    switch (cs) {
+    case bmdColorspaceRec601:
+        return MLConverter::CS_Rec601;
+    case bmdColorspaceRec709:
+        return MLConverter::CS_Rec709;
+    case bmdColorspaceRec2020:
+        return MLConverter::CS_Rec2020;
+    default:
+        assert(0);
+        return MLConverter::CS_Rec601;
+    }
+}
 
 void
 MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
@@ -81,6 +96,8 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
     int originalNumCh = 4;
     int ml_ImgBytes = width * height * 4; //< 4==A,R,G,B
 
+    MLConverter::ColorSpace colorSpace = BmdColorSpaceToMLConverterColorSpace(vFmt.colorSpace);
+
     MLColorGamutType gamut = ML_CG_Rec709;
     switch (vFmt.colorSpace) {
     case bmdColorspaceRec601:
@@ -122,7 +139,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         ci.Init(width, height, MLImage::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
-        mConv.Uyvy8bitToR8G8B8A8((uint32_t*)buffer, (uint32_t*)ci.data, width, height);
+        mConv.Uyvy8bitToR8G8B8A8(colorSpace, (uint32_t*)buffer, (uint32_t*)ci.data, width, height);
         break;
     case bmdFormat10BitYUV:
         bft = MLImage::BFT_UIntR10G10B10A2;
@@ -133,7 +150,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         ci.Init(width, height, MLImage::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
-        mConv.Yuv422_10bitToR10G10B10A2((uint32_t*)buffer, (uint32_t*)ci.data, width, height);
+        mConv.Yuv422_10bitToR10G10B10A2(colorSpace, (uint32_t*)buffer, (uint32_t*)ci.data, width, height);
         break;
     case bmdFormat8BitARGB:
         bft = MLImage::BFT_UIntR8G8B8A8;
