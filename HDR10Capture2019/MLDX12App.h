@@ -217,4 +217,9 @@ private:
     void UpdateCaptureImg(void);
 
     MLExrWriter mExrWriter;
+
+    /// <summary>
+    /// ファイル名がmImgFilePathの画像を読み込み、mRenderImgにセットする。
+    /// </summary>
+    HRESULT ReadImg(void);
  };

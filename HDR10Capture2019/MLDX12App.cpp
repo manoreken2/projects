@@ -15,6 +15,7 @@
 #include "MLVideoTime.h"
 #include "MLExrWriter.h"
 #include <shlwapi.h>
+#include <shellapi.h>
 
 // D3D12HelloFrameBuffering sampleを改造して作成。
 //*********************************************************
@@ -113,6 +114,19 @@ MLDX12App::OnInit(void)
 
     mVCU.Init(mMutex);
     mVCU.SetCallback(this);
+
+    {
+        // コマンドラインargsをパースする。
+        LPCSTR arg = GetCommandLineA();
+        int argc = 0;
+        LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+        if (argc == 2) {
+            wchar_t* pathW = argv[1];
+            WideCharToMultiByte(CP_UTF8, 0, pathW, -1, mImgFilePath, sizeof(mImgFilePath) - 1, nullptr, nullptr);
+            ReadImg();
+        }
+    }
 }
 
 /// <summary>
@@ -1406,6 +1420,34 @@ PathNameToExtensionType(const char* path)
     return ET_Other;
 }
 
+HRESULT
+MLDX12App::ReadImg(void)
+{
+    HRESULT hr = 0;
+
+    mMutex.lock();
+    hr = MLBmpRead(mImgFilePath, mRenderImg);
+    if (hr == 1) {
+        // ファイルは存在するがBMPではなかった場合。
+        hr = MLPngRead(mImgFilePath, mRenderImg);
+        if (hr == 1) {
+            // ファイルは存在するがPNGではなかった場合。
+            hr = MLExrRead(mImgFilePath, mRenderImg);
+        }
+    }
+    mMutex.unlock();
+
+    if (hr < 0) {
+        sprintf_s(mErrorFileReadMsg, "Error: Read Image Failed.\nFile open error : %s", mImgFilePath);
+        ImGui::OpenPopup("ErrorImageFileRWPopup");
+    } else {
+        mState = S_ImageViewing;
+    }
+
+    return hr;
+}
+
+
 void
 MLDX12App::ShowImageFileRWWindow(void)
 {
@@ -1469,24 +1511,7 @@ MLDX12App::ShowImageFileRWWindow(void)
         ImGui::InputText("EXR/PNG/BMP Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
 
         if (ImGui::Button("Read Image ##RF0", ImVec2(256, 48))) {
-
-            mMutex.lock();
-            hr = MLBmpRead(mImgFilePath, mRenderImg);
-            if (hr == 1) {
-                // ファイルは存在するがBMPではなかった場合。
-                hr = MLPngRead(mImgFilePath, mRenderImg);
-                if (hr == 1) {
-                    // ファイルは存在するがPNGではなかった場合。
-                    hr = MLExrRead(mImgFilePath, mRenderImg);
-                }
-            }
-            mMutex.unlock();
-            if (hr < 0) {
-                sprintf_s(mErrorFileReadMsg, "Error: Read Image Failed.\nFile open error : %s", mImgFilePath);
-                ImGui::OpenPopup("ErrorImageFileRWPopup");
-            } else {
-                mState = S_ImageViewing;
-            }
+            ReadImg();
         }
     }
 
