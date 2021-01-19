@@ -9,7 +9,7 @@ void
 MLDX12Common::SetupPSO(ID3D12Device *device, DXGI_FORMAT rtvFormat, ID3D12RootSignature * rootSignature, const wchar_t* vsShaderName, const wchar_t *psShaderName, ComPtr<ID3D12PipelineState> & pso) {
     WCHAR s[512];
     GetAssetsPath(s, _countof(s));
-    std::wstring assetsPath = assetsPath;
+    std::wstring assetsPath = s;
 
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;

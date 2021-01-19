@@ -3,6 +3,10 @@ Extract all and run HDR10Capture.exe
 
 Tested capture card: DeckLink Mini Recorder 4K.
 
+Version 1.6
+
+-Fix shader file load path bug.
+
 Version 1.5
 
 -Read commandline specified image file
