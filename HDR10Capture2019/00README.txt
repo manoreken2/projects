@@ -3,6 +3,18 @@ Extract all and run HDR10Capture.exe
 
 Tested capture card: DeckLink Mini Recorder 4K.
 
+Version 1.5
+
+-Read commandline specified image file
+
+Version 1.4
+
+-Backbuffer draw image format changed to scRGB (80nits == 1.0)
+-Brightness gain slider
+-Bugfix: Yuv Rec.709 to RGB conversion matrix
+-Bugfix: Yuv Rec.2020 to RGB conversion matrix
+-Bugfix: Update captured image while ImGui is not shown
+
 Version 1.3
 
 -Support to capture YUV422 8bit UYVY and YUV422 10bit v210.
