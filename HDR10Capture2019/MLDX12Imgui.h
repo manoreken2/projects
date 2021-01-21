@@ -29,4 +29,6 @@ private:
 
     void SetupPso(void);
     void SetupRootSig(void);
+
+    char mImguiFilename[MAX_PATH];
 };

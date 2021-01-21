@@ -11,6 +11,24 @@
 #include <stdint.h>
 #include <comutil.h>
 
+static void
+GetAssetsPathA(_Out_writes_(pathSize) char* path, UINT pathSize) {
+    if (path == nullptr) {
+        throw std::exception();
+    }
+
+    DWORD size = GetModuleFileNameA(nullptr, path, pathSize);
+    if (size == 0 || size == pathSize) {
+        // Method failed or path was truncated.
+        throw std::exception();
+    }
+
+    char* lastSlash = strrchr(path, L'\\');
+    if (lastSlash) {
+        *(lastSlash + 1) = L'\0';
+    }
+}
+
 struct VERTEX_CONSTANT_BUFFER
 {
     float   mvp[4][4];
@@ -37,6 +55,13 @@ void MLDX12Imgui::Init(ID3D12Device *device, DXGI_FORMAT rtvFmt)
     SetupPso();
 
     ImGui::StyleColorsDark();
+
+    char path[MAX_PATH];
+    GetAssetsPathA(path, _countof(path));
+
+    std::string iniFileName = std::string(path) + "imgui.ini";
+    strcpy_s(mImguiFilename, iniFileName.c_str());
+    io.IniFilename = mImguiFilename;
 }
 
 void MLDX12Imgui::Term(void)
