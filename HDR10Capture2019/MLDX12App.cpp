@@ -1351,7 +1351,7 @@ MLDX12App::ShowSettingsWindow(void) {
             ImGui::Text("%d x %d, %s",
                 img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
 
-            ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 0.1f, 100.0f);
+            ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 0.001f, 100.0f);
             ImGui::SameLine();
             if (ImGui::Button("Reset ##IBS")) {
                 mShaderConsts.scale = 1.0f;
