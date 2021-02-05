@@ -17,6 +17,10 @@
 #include <shlwapi.h>
 #include <shellapi.h>
 
+// shader source code as string
+#include "shaderVS.inc"
+#include "shaderColorConvPS.inc"
+
 // D3D12HelloFrameBuffering sampleを改造して作成。
 //*********************************************************
 // Copyright (c) Microsoft. All rights reserved.
@@ -429,7 +433,10 @@ MLDX12App::LoadAssets(void)
     }
 
     mPipelineState.Reset();
-    MLDX12Common::SetupPSO(mDevice.Get(), mBackBufferFmt, mRootSignature.Get(), L"shaderVS.hlsl", L"shaderColorConvPS.hlsl", mPipelineState);
+    MLDX12Common::SetupPSOFromMemory(mDevice.Get(), mBackBufferFmt, mRootSignature.Get(), 
+           "shaderVS", strlen(g_shaderVS), g_shaderVS,
+           "shaderPS", strlen(g_shaderColorConvPS), g_shaderColorConvPS,
+            mPipelineState);
     NAME_D3D12_OBJECT(mPipelineState);
 
     mCmdList.Reset();

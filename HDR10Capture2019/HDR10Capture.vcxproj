@@ -80,23 +80,47 @@
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
       <FileType>Document</FileType>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">copy %(Identity) "$(OutDir)" &gt; NUL</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy %(Identity) "$(OutDir)" &gt; NUL</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\%(Identity)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\%(Identity)</Outputs>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</TreatOutputAsContent>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</TreatOutputAsContent>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">type $(ProjectDir)shaderStrHeader1.inc &gt; $(ProjectDir)%(Filename).inc
+echo g_%(Filename) &gt;&gt;  $(ProjectDir)%(Filename).inc 
+type $(ProjectDir)shaderStrHeader2.inc &gt;&gt;  $(ProjectDir)%(Filename).inc
+type %(FullPath) &gt;&gt;  $(ProjectDir)%(Filename).inc
+type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">type $(ProjectDir)shaderStrHeader1.inc &gt; $(ProjectDir)%(Filename).inc
+echo g_%(Filename) &gt;&gt;  $(ProjectDir)%(Filename).inc 
+type $(ProjectDir)shaderStrHeader2.inc &gt;&gt;  $(ProjectDir)%(Filename).inc
+type %(FullPath) &gt;&gt;  $(ProjectDir)%(Filename).inc
+type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).inc</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)%(Filename).inc</Outputs>
+      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatOutputAsContent>
+      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatOutputAsContent>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generating %(Filename).inc</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generating %(Filename).inc</Message>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
     </CustomBuild>
     <CustomBuild Include="shaderVS.hlsl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
       <FileType>Document</FileType>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">copy %(Identity) "$(OutDir)" &gt; NUL</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy %(Identity) "$(OutDir)" &gt; NUL</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)\%(Identity)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\%(Identity)</Outputs>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</TreatOutputAsContent>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</TreatOutputAsContent>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">type $(ProjectDir)shaderStrHeader1.inc &gt; $(ProjectDir)%(Filename).inc
+echo g_%(Filename) &gt;&gt;  $(ProjectDir)%(Filename).inc 
+type $(ProjectDir)shaderStrHeader2.inc &gt;&gt;  $(ProjectDir)%(Filename).inc
+type %(FullPath) &gt;&gt;  $(ProjectDir)%(Filename).inc
+type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">type $(ProjectDir)shaderStrHeader1.inc &gt; $(ProjectDir)%(Filename).inc
+echo g_%(Filename) &gt;&gt;  $(ProjectDir)%(Filename).inc 
+type $(ProjectDir)shaderStrHeader2.inc &gt;&gt;  $(ProjectDir)%(Filename).inc
+type %(FullPath) &gt;&gt;  $(ProjectDir)%(Filename).inc
+type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)%(Filename).inc</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)%(Filename).inc</Outputs>
+      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatOutputAsContent>
+      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatOutputAsContent>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generating %(Filename).inc</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generating %(Filename).inc</Message>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
