@@ -112,7 +112,7 @@
     <ProjectGuid>{CE193FA5-5C7C-4DB2-A940-CEE9AC97304E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>MLDX12VideoCapture</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
     <ProjectName>HDR10Capture</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

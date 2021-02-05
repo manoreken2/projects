@@ -1,6 +1,3 @@
-Manoretimedia Kenkyuujyo project files
-==============
-
 HDR10Capture project
 --------------
 
