@@ -131,6 +131,11 @@ type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Co
       <Project>{29c9d62f-2b59-48e7-9f79-d843554b8f0d}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaderStrFooter.inc" />
+    <None Include="shaderStrHeader1.inc" />
+    <None Include="shaderStrHeader2.inc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{CE193FA5-5C7C-4DB2-A940-CEE9AC97304E}</ProjectGuid>

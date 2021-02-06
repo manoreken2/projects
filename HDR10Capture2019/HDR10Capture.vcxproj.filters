@@ -211,10 +211,24 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{09eab052-331c-4f64-bb7c-2973ff6c1094}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Code Fragments">
+      <UniqueIdentifier>{fa117538-9b7b-4efb-94cf-a89f8a03e50a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
       <Filter>Resources</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaderStrFooter.inc">
+      <Filter>Code Fragments</Filter>
+    </None>
+    <None Include="shaderStrHeader1.inc">
+      <Filter>Code Fragments</Filter>
+    </None>
+    <None Include="shaderStrHeader2.inc">
+      <Filter>Code Fragments</Filter>
+    </None>
   </ItemGroup>
 </Project>
