@@ -3,6 +3,10 @@ Extract all and run HDR10Capture.exe
 
 Tested capture card: DeckLink Mini Recorder 4K.
 
+Version 1.8
+
+-Drag drop suppport.
+
 Version 1.6
 
 -Fix shader file load path bug.
