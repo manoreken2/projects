@@ -1,11 +1,9 @@
 HDR10Capture project : HDR10 Image Viewer / video Capture app
 --------------
 
-HDR10 PQ Image is shown on HDR10 display connected to Windows PC.
+HDR10 PQ Image is displayed on HDR10 monitor connected to Windows PC. Image is rendered correctly with AMD and Nvidia GPU. 
 
-Enable HDR on Windows Display Settings window to preview video in HDR10.
-
-Image is rendered correctly with AMD and Nvidia Graphics.
+Enable HDR on Windows Display Settings to display it with HDR10.
 
 Video capture functionarity works with DeckLink devices.
 Tested on DeckLink Mini recorder 4K.
