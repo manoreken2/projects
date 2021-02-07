@@ -1,11 +1,16 @@
-HDR10Capture project
+HDR10Capture project : HDR10 Image Viewer / video Capture app
 --------------
 
-HDR10 PQ Video capture program using DirectX12 and DeckLink devices.
+HDR10 PQ Image is shown on HDR10 display connected to Windows PC.
+
+Enable HDR on Windows Display Settings window to preview video in HDR10.
+
+Image is rendered correctly with AMD and Nvidia Graphics.
+
+Video capture functionarity works with DeckLink devices.
 Tested on DeckLink Mini recorder 4K.
 Captured video is saved as Uncompressed AVI.
 
-Enable HDR on Windows Display Settings window to preview video in HDR10.
 
 ### About AVI file output of HDR10Capture
 
