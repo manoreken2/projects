@@ -22,12 +22,12 @@ static const char* PngColorTypeToStr(int t) {
 /// PNGファイルを読む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。1:PNGファイルでは無かった。</returns>
-int MLPngRead(const char* pngFilePath, MLImage& img_return)
+int MLPngRead(const wchar_t* pngFilePath, MLImage& img_return)
 {
     FILE* fp = nullptr;
-    int ercd = fopen_s(&fp, pngFilePath, "rb");
+    int ercd = _wfopen_s(&fp, pngFilePath, L"rb");
     if (0 != ercd || !fp) {
-        printf("Error: PngRead failed. %s\n", pngFilePath);
+        printf("Error: PngRead failed. %S\n", pngFilePath);
         return E_FAIL;
     }
 
@@ -36,7 +36,7 @@ int MLPngRead(const char* pngFilePath, MLImage& img_return)
     fread(header, 1, number_to_check, fp);
     bool is_png = (0 == png_sig_cmp(header, 0, number_to_check));
     if (!is_png) {
-        printf("Error: PngRead file is not PNG. %s\n", pngFilePath);
+        printf("Error: PngRead file is not PNG. %S\n", pngFilePath);
         return 1;
     }
 

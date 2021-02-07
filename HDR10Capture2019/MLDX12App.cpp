@@ -47,15 +47,17 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options)
     // 設定を読み出します。
     std::string imgPath = mSettings.LoadStringA("ImgFilePath");
     if (imgPath.empty()) {
-        strcpy_s(mImgFilePath, "c:/data/OpenEXR_HDR10_test1.exr");
+        wcscpy_s(mImgFilePath, L"c:/data/OpenEXR_HDR10_test1.exr");
     } else {
-        strcpy_s(mImgFilePath, imgPath.c_str());
+        memset(mImgFilePath, 0, sizeof mImgFilePath);
+        MultiByteToWideChar(CP_UTF8, 0, imgPath.c_str(), -1, mImgFilePath, _countof(mImgFilePath)-1);
     }
     std::string aviPath = mSettings.LoadStringA("AviFilePath");
     if (aviPath.empty()) {
-        strcpy_s(mAviFilePath, "D:/test.avi");
+        wcscpy_s(mAviFilePath, L"D:/test.avi");
     } else {
-        strcpy_s(mAviFilePath, aviPath.c_str());
+        memset(mAviFilePath, 0, sizeof mAviFilePath);
+        MultiByteToWideChar(CP_UTF8, 0, aviPath.c_str(), -1, mAviFilePath, _countof(mAviFilePath) - 1);
     }
 
     int outOfRangeR = mSettings.LoadInt("OutOfRangeR", 0);
@@ -75,8 +77,17 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options)
 
 MLDX12App::~MLDX12App(void)
 {
-    mSettings.SaveStringA("ImgFilePath", mImgFilePath);
-    mSettings.SaveStringA("AviFilePath", mAviFilePath);
+    // WriteToFile()まで消えないバッファーを作る。
+    char imgPath[MAX_PATH * 3];
+    memset(imgPath, 0, sizeof imgPath);
+    WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, imgPath, sizeof imgPath - 1, nullptr, nullptr);
+    mSettings.SaveStringA("ImgFilePath", imgPath);
+
+    // WriteToFile()まで消えないバッファーを作る。
+    char aviPath[MAX_PATH * 3];
+    memset(aviPath, 0, sizeof aviPath);
+    WideCharToMultiByte(CP_UTF8, 0, mAviFilePath, -1, aviPath, sizeof aviPath - 1, nullptr, nullptr);
+    mSettings.SaveStringA("AviFilePath", aviPath);
 
     int outOfRangeR = (int)(mShaderConsts.outOfRangeColor.x * 255.0f);
     int outOfRangeG = (int)(mShaderConsts.outOfRangeColor.y * 255.0f);
@@ -127,7 +138,7 @@ MLDX12App::OnInit(void)
 
         if (argc == 2) {
             wchar_t* pathW = argv[1];
-            WideCharToMultiByte(CP_UTF8, 0, pathW, -1, mImgFilePath, sizeof(mImgFilePath) - 1, nullptr, nullptr);
+            wcscpy_s(mImgFilePath, pathW);
             ReadImg();
         }
     }
@@ -808,6 +819,15 @@ MLDX12App::OnKeyUp(int key)
 }
 
 void
+MLDX12App::OnDropFiles(HDROP hDrop)
+{
+    UINT rv = DragQueryFile(hDrop, 0, mImgFilePath, _countof(mImgFilePath) - 1);
+    if (0 < rv) {
+        mRequestReadImg = true;
+    }
+}
+
+void
 MLDX12App::OnSizeChanged(int width, int height, bool minimized)
 {
     /*
@@ -1070,6 +1090,8 @@ void
 MLDX12App::ShowVideoCaptureWindow(void)
 {
     HRESULT hr = S_OK;
+    char s[MAX_PATH * 3];
+    memset(s, 0, sizeof s);
 
     ImGui::Begin("Video Capture Settings ##VCS");
 
@@ -1162,25 +1184,26 @@ MLDX12App::ShowVideoCaptureWindow(void)
                 MLAviImageFormat aviIF = BMDPixelFormatToMLAviImageFormat(fmt.pixelFormat);
 
                 if (MLIF_Unknown != aviIF) {
-                    ImGui::InputText("Record AVI filename ##VCS", mAviFilePath, sizeof mAviFilePath - 1);
+                    WideCharToMultiByte(CP_UTF8, 0, mAviFilePath, -1, s, sizeof s - 1, nullptr, nullptr);
+                    if (ImGui::InputText("Record AVI filename ##VCS", s, sizeof s - 1)) {
+                        // text Updated.
+                        MultiByteToWideChar(CP_UTF8, 0, s, -1, mAviFilePath, _countof(mAviFilePath));
+                    }
+
                     if (ImGui::Button("Record ## VCS", ImVec2(256, 48))) {
-                        if (PathFileExistsA(mAviFilePath)) {
-                            sprintf_s(mErrorVCMsg, "Error: File exists.\nPlease input different file name. %s", mAviFilePath);
+                        if (PathFileExists(mAviFilePath)) {
+                            sprintf_s(mErrorVCMsg, "Error: File exists.\nPlease input different file name.");
                             ImGui::OpenPopup("ErrorVCPopup");
                         } else {
-                            wchar_t path[512];
-                            memset(path, 0, sizeof path);
-                            MultiByteToWideChar(CP_UTF8, 0, mAviFilePath, sizeof mAviFilePath, path, 511);
-
                             bool bRv = mVCU.AviWriter().Start(
-                                path, fmt.width, fmt.height,
+                                mAviFilePath, fmt.width, fmt.height,
                                 (double)fmt.frameRateTS/fmt.frameRateTV,
                                 aviIF, true);
                             if (bRv) {
                                 mVCState = VCS_Recording;
                                 mErrorVCMsg[0] = 0;
                             } else {
-                                sprintf_s(mErrorVCMsg, "Error: Record Failed.\nFile open error : %s", mAviFilePath);
+                                sprintf_s(mErrorVCMsg, "Error: Record Failed.\nFile open error.");
                                 ImGui::OpenPopup("ErrorVCPopup");
                             }
                         }
@@ -1193,7 +1216,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
         break;
     case VCS_Recording:
         ImGui::Text("Now Recording...");
-        ImGui::Text("Record filename : %s", mAviFilePath);
+        ImGui::Text("Record filename : %S", mAviFilePath);
         {
             // hour:min:sec:frameを算出。
             auto vt = MLFrameNrToTime((int)(mVCU.AviWriter().FramesPerSec()+0.5), mVCU.AviWriter().TotalVideoFrames());
@@ -1406,22 +1429,22 @@ enum ExtensionType {
 };
 
 static ExtensionType
-PathNameToExtensionType(const char* path)
+PathNameToExtensionType(const wchar_t* path)
 {
     assert(path);
 
-    int len = (int)strlen(path);
+    int len = (int)wcslen(path);
     if (len < 5) {
         return ET_Other;
     }
 
-    if (0 == _stricmp(&path[len - 4], ".PNG")) {
+    if (0 == _wcsicmp(&path[len - 4], L".PNG")) {
         return ET_PNG;
     }
-    if (0 == _stricmp(&path[len - 4], ".EXR")) {
+    if (0 == _wcsicmp(&path[len - 4], L".EXR")) {
         return ET_EXR;
     }
-    if (0 == _stricmp(&path[len - 4], ".BMP")) {
+    if (0 == _wcsicmp(&path[len - 4], L".BMP")) {
         return ET_BMP;
     }
     return ET_Other;
@@ -1432,6 +1455,12 @@ MLDX12App::ReadImg(void)
 {
     HRESULT hr = 0;
 
+    if (ET_Other == PathNameToExtensionType(mImgFilePath)) {
+        sprintf_s(mErrorFileReadMsg, "Error: Unsupported Image format.");
+        ImGui::OpenPopup("ErrorImageFileRWPopup");
+        return E_FAIL;
+    }
+
     mMutex.lock();
     hr = MLBmpRead(mImgFilePath, mRenderImg);
     if (hr == 1) {
@@ -1439,13 +1468,16 @@ MLDX12App::ReadImg(void)
         hr = MLPngRead(mImgFilePath, mRenderImg);
         if (hr == 1) {
             // ファイルは存在するがPNGではなかった場合。
-            hr = MLExrRead(mImgFilePath, mRenderImg);
+            char s[MAX_PATH * 3];
+            memset(s, 0, sizeof s);
+            WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, s, sizeof s - 1, nullptr, nullptr);
+            hr = MLExrRead(s, mRenderImg);
         }
     }
     mMutex.unlock();
 
     if (hr < 0) {
-        sprintf_s(mErrorFileReadMsg, "Error: Read Image Failed.\nFile open error : %s", mImgFilePath);
+        sprintf_s(mErrorFileReadMsg, "Error: Read Image Failed.");
         ImGui::OpenPopup("ErrorImageFileRWPopup");
     } else {
         mState = S_ImageViewing;
@@ -1458,6 +1490,9 @@ MLDX12App::ReadImg(void)
 void
 MLDX12App::ShowImageFileRWWindow(void)
 {
+    char path[MAX_PATH];
+    memset(path, 0, sizeof path);
+
     int hr = S_OK;
     ImGui::Begin("File Read / Write");
 
@@ -1472,7 +1507,12 @@ MLDX12App::ShowImageFileRWWindow(void)
 
     if (mState == S_Capturing) {
         // キャプチャー中。
-        ImGui::InputText("PNG / EXR Image Filename to Write", mImgFilePath, sizeof mImgFilePath - 1);
+        memset(path, 0, sizeof path);
+        WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, path, sizeof path - 1, nullptr, nullptr);
+        if (ImGui::InputText("PNG / EXR Image Filename to Write", path, sizeof path - 1)) {
+            // text has changed. update mImgFilePath.
+            MultiByteToWideChar(CP_UTF8, 0, path, -1, mImgFilePath, _countof(mImgFilePath) - 1);
+        }
 
         if (mWriteImg.data != nullptr) {
             // 静止画をファイルに保存する。
@@ -1481,14 +1521,14 @@ MLDX12App::ShowImageFileRWWindow(void)
             switch (et) {
             case ET_PNG:
                 if (ImGui::Button("Write PNG Image ##RF0", ImVec2(256, 48))) {
-                    if (PathFileExistsA(mImgFilePath)) {
-                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name. %s", mImgFilePath);
+                    if (PathFileExists(mImgFilePath)) {
+                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name.");
                         ImGui::OpenPopup("ErrorImageFileRWPopup");
                     } else {
                         hr = MLPngWrite(mImgFilePath, mWriteImg);
 
                         if (FAILED(hr)) {
-                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error.");
                             ImGui::OpenPopup("ErrorImageFileRWPopup");
                         }
                     }
@@ -1496,14 +1536,15 @@ MLDX12App::ShowImageFileRWWindow(void)
                 break;
             case ET_EXR:
                 if (ImGui::Button("Write EXR Image ##RF0", ImVec2(256, 48))) {
-                    if (PathFileExistsA(mImgFilePath)) {
-                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name. %s", mImgFilePath);
+                    if (PathFileExists(mImgFilePath)) {
+                        sprintf_s(mErrorFileReadMsg, "Error: File exists.\nPlease input different file name.");
 
                         ImGui::OpenPopup("ErrorImageFileRWPopup");
                     } else {
-                        hr = mExrWriter.Write(mImgFilePath, mWriteImg);
+                        WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, path, sizeof path - 1, nullptr, nullptr);
+                        hr = mExrWriter.Write(path, mWriteImg);
                         if (FAILED(hr)) {
-                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error : %s", mImgFilePath);
+                            sprintf_s(mErrorFileReadMsg, "Error: Write Image Failed.\nFile Write error.");
                             ImGui::OpenPopup("ErrorImageFileRWPopup");
                         }
                     }
@@ -1515,10 +1556,17 @@ MLDX12App::ShowImageFileRWWindow(void)
             }
         }
     } else {
-        ImGui::InputText("EXR/PNG/BMP Image Filename to Read", mImgFilePath, sizeof mImgFilePath - 1);
+        memset(path, 0, sizeof path);
+        WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, path, sizeof path - 1, nullptr, nullptr);
 
-        if (ImGui::Button("Read Image ##RF0", ImVec2(256, 48))) {
+        if (ImGui::InputText("EXR/PNG/BMP Image Filename to Read", path, sizeof path - 1)) {
+            // text has changed. update mImgFilePath.
+            MultiByteToWideChar(CP_UTF8, 0, path, -1, mImgFilePath, _countof(mImgFilePath) - 1);
+        }
+
+        if (mRequestReadImg || ImGui::Button("Read Image ##RF0", ImVec2(256, 48))) {
             ReadImg();
+            mRequestReadImg = false;
         }
     }
 

@@ -13,7 +13,7 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="HDR10Viewer2">
+    <Filter Include="HDR10Capture">
       <UniqueIdentifier>{56ed3e02-009a-4979-83c3-e9443212374e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -21,25 +21,19 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MLBmpWriter.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\HDR10Capture2019\MLBmpWriter.cpp">
+      <Filter>HDR10Capture</Filter>
     </ClCompile>
-    <ClCompile Include="..\HDR10Viewer2\MLBmpReader.cpp">
-      <Filter>HDR10Viewer2</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Viewer2\MLPngReader.cpp">
-      <Filter>HDR10Viewer2</Filter>
+    <ClCompile Include="..\HDR10Capture2019\MLPngReader.cpp">
+      <Filter>HDR10Capture</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MLBmpWriter.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="..\HDR10Capture2019\MLBmpWriter.h">
+      <Filter>HDR10Capture</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Viewer2\MLBmpReader.h">
-      <Filter>HDR10Viewer2</Filter>
-    </ClInclude>
-    <ClInclude Include="..\HDR10Viewer2\MLPngReader.h">
-      <Filter>HDR10Viewer2</Filter>
+    <ClInclude Include="..\HDR10Capture2019\MLPngReader.h">
+      <Filter>HDR10Capture</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

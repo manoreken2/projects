@@ -3,6 +3,7 @@
 #include <string>
 #include "Common.h"
 #include "d3dx12.h"
+#include <shellapi.h> //< HDROP
 
 class MLDX12 {
 public:
@@ -15,6 +16,7 @@ public:
     virtual void OnDestroy(void) = 0;
     virtual void OnKeyDown(int key) = 0;
     virtual void OnKeyUp(int key) = 0;
+    virtual void OnDropFiles(HDROP hDrop) = 0;
     virtual void OnSizeChanged(int width, int height, bool minimized) = 0;
     void SetWindowBounds(int left, int top, int right, int bottom);
 

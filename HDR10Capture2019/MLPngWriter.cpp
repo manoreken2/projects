@@ -17,7 +17,7 @@ HtoNS(uint16_t v)
 /// PNGファイルを書き込む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。</returns>
-int MLPngWrite(const char* pngFilePath, const MLImage& img)
+int MLPngWrite(const wchar_t* pngFilePath, const MLImage& img)
 {
     png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png) {
@@ -100,7 +100,7 @@ int MLPngWrite(const char* pngFilePath, const MLImage& img)
 
     // ここでファイルを書き込みオープン。
     FILE* fp = nullptr;
-    int ercd = fopen_s(&fp, pngFilePath, "wb");
+    int ercd = _wfopen_s(&fp, pngFilePath, L"wb");
     if (0 != ercd || !fp) {
         printf("Error: PngWrite failed. %s\n", pngFilePath);
 

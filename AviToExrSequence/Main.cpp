@@ -25,9 +25,11 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
         return false;
     }
 
+    MLConverter::ColorSpace cs = MLConverter::CS_Rec709;
     MLColorGamutType gamut = ML_CG_Rec709;
     MLImage::GammaType gamma = MLImage::MLG_G22;
     if (PQ) {
+        cs = MLConverter::CS_Rec2020;
         gamut = ML_CG_Rec2020;
         gamma = MLImage::MLG_ST2084;
     }
@@ -70,6 +72,7 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
 
             if (imgFmt.biCompression == MLStringToFourCC("v210")) {
                 conv.Yuv422_10bitToR10G10B10A2(
+                    cs,
                     (const uint32_t*)buf1,
                     (uint32_t*)buf2,
                     imgFmt.biWidth, imgFmt.biHeight, 0xff);

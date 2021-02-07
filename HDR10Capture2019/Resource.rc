@@ -61,8 +61,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,7,0,1
- PRODUCTVERSION 1,7,0,1
+ FILEVERSION 1,8,0,1
+ PRODUCTVERSION 1,8,0,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -79,12 +79,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "TODO: <Company name>"
             VALUE "FileDescription", "HDR10Capture"
-            VALUE "FileVersion", "1.7.0.1"
+            VALUE "FileVersion", "1.8.0.1"
             VALUE "InternalName", "HDR10Capture"
             VALUE "LegalCopyright", "Copyright (C) 2020"
             VALUE "OriginalFilename", "HDR10Capture.exe"
             VALUE "ProductName", "HDR10Capture"
-            VALUE "ProductVersion", "1.7.0.1"
+            VALUE "ProductVersion", "1.8.0.1"
         END
     END
     BLOCK "VarFileInfo"

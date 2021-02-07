@@ -45,11 +45,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(ProjectDir)..\HDR10Viewer2\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>$(ProjectDir)..\HDR10Capture2019\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>$(ProjectDir)..\HDR10Viewer2\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>$(ProjectDir)..\HDR10Capture2019\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -57,7 +57,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\HDR10Viewer2;$(ProjectDir)..\HDR10Viewer2\Contrib\include;$(ProjectDir)..\HDR10Viewer2\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\HDR10Capture2019;$(ProjectDir)..\HDR10Capture2019\Contrib\include;$(ProjectDir)..\HDR10Capture2019\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -73,7 +73,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\HDR10Viewer2;$(ProjectDir)..\HDR10Viewer2\Contrib\include;$(ProjectDir)..\HDR10Viewer2\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\HDR10Capture2019;$(ProjectDir)..\HDR10Capture2019\Contrib\include;$(ProjectDir)..\HDR10Capture2019\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -84,15 +84,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\HDR10Viewer2\MLBmpReader.cpp" />
-    <ClCompile Include="..\HDR10Viewer2\MLPngReader.cpp" />
+    <ClCompile Include="..\HDR10Capture2019\MLBmpWriter.cpp" />
+    <ClCompile Include="..\HDR10Capture2019\MLPngReader.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="MLBmpWriter.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\HDR10Viewer2\MLBmpReader.h" />
-    <ClInclude Include="..\HDR10Viewer2\MLPngReader.h" />
-    <ClInclude Include="MLBmpWriter.h" />
+    <ClInclude Include="..\HDR10Capture2019\MLBmpWriter.h" />
+    <ClInclude Include="..\HDR10Capture2019\MLPngReader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

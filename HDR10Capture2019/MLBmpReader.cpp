@@ -8,10 +8,10 @@
 /// BMPファイルを読む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。1:BMPファイルでは無かった。</returns>
-int MLBmpRead(const char* filePath, MLImage& img_return) {
+int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
     FILE* fp = nullptr;
 
-    int ercd = fopen_s(&fp, filePath, "rb");
+    int ercd = _wfopen_s(&fp, filePath, L"rb");
     if (ercd != 0 || fp == nullptr) {
         return E_FAIL;
     }

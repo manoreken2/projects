@@ -13,6 +13,7 @@
 #include "MLDX12.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
+#include <shellapi.h> //< HDROP, DragAcceptFiles()
 
 HWND MLWinApp::mHwnd = nullptr;
 std::wstring MLWinApp::mTitle = L"WinApp";
@@ -81,8 +82,21 @@ MLWinApp::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
             SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+
+            DragAcceptFiles(hWnd, TRUE);
         }
         return 0;
+
+    case WM_DROPFILES:
+        if (pDX12) {
+            HDROP hDrop = (HDROP)wParam;
+
+            pDX12->OnDropFiles(hDrop);
+
+            DragFinish(hDrop);
+            hDrop = nullptr;
+        }
+        break;
 
     case WM_KEYDOWN:
         if (pDX12) {

@@ -39,6 +39,7 @@ public:
     virtual void OnDestroy(void);
     virtual void OnKeyDown(int key) { }
     virtual void OnKeyUp(int key);
+    virtual void OnDropFiles(HDROP hDrop);
     virtual void OnSizeChanged(int width, int height, bool minimized);
     
     enum OptionsEnum {
@@ -147,7 +148,8 @@ private:
     char mErrorSettingsMsg[512] = {};
     char mErrorFileReadMsg[512] = {};
 
-    char mImgFilePath[512] = {};
+    wchar_t mImgFilePath[512] = {};
+    bool mRequestReadImg = false;
 
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
     ComPtr<ID3D12CommandAllocator> mCmdAllocatorTexUpload;
@@ -207,7 +209,7 @@ private:
     };
     VideoCaptureState mVCState = VCS_PreInit;
     char mErrorVCMsg[512] = {};
-    char mAviFilePath[512] = {};
+    wchar_t mAviFilePath[512] = {};
     MLImage::GammaType mCaptureImgGamma = MLImage::MLG_G22;
     void MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt);
 

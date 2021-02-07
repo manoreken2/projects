@@ -3,13 +3,11 @@ HDR10Capture project
 
 HDR10 PQ Video capture program using DirectX12 and DeckLink devices.
 Tested on DeckLink Mini recorder 4K.
-Captured video is saved as Uncompressed RGB10bit r210 AVI or Uncompressed YUV422 10bit v210 AVI.
+Captured video is saved as Uncompressed AVI.
 
 Enable HDR on Windows Display Settings window to preview video in HDR10.
 
-YUV to RGB conversion algorithm *to display captured image* is Rec.709. It seems there is a color conversion bug on SDR YUV input. 
-
-### About output AVI file of HDR10Capture
+### About AVI file output of HDR10Capture
 
 Tested input video format is RGB 10bit r210, RGB 12bit R12B, and YUV422 10bit v210.
 
