@@ -57,7 +57,7 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
         // AVIの画像読み出しバッファー。
         buf1 = new uint8_t[imgFmt.biSizeImage];
 
-        // R10G10B10A2の画像置き場。1ピクセル4バイト。
+        // 画像置き場。1ピクセル4バイト。
         buf2 = new uint8_t[imgFmt.biWidth * imgFmt.biHeight * 4];
 
         for (int i = 0; i < aviR.NumFrames(); ++i) {

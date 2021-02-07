@@ -1,14 +1,11 @@
 HDR10Capture project : HDR10 Image Viewer / video Capture app
 --------------
 
-HDR10 PQ Image is displayed on HDR10 monitor connected to Windows PC. Image is rendered correctly with AMD and Nvidia GPU. 
+Enable HDR on Windows Display Settings to display images with HDR10. HDR10 PQ Image is displayed on HDR10 monitor connected to Windows PC. 
 
-Enable HDR on Windows Display Settings to display it with HDR10.
+Image displaying finctionarity: supports 24bit/32bit/48bit BMP, 24bit/48bit PNG and Half float OpenEXR files. Drop image file to App to display it.
 
-Video capture functionarity works with DeckLink devices.
-Tested on DeckLink Mini recorder 4K.
-Captured video is saved as Uncompressed AVI.
-
+Video capture functionarity: App works with DeckLink devices. Tested on DeckLink Mini recorder 4K. Captured video is saved as Uncompressed AVI. Screenshot can be saved as OpenEXR image.
 
 ### About AVI file output of HDR10Capture
 
@@ -21,7 +18,7 @@ Output AVI file does not have index chunk and not completed. Mencoder can fix th
 
 > mencoder output.avi -ovc copy -oac copy -o fixed.avi
 
-Output RGB AVI can be converted to OpenEXR image sequence using AviToExrSequence.
+r210 or v210 AVI can be converted to OpenEXR image sequence using AviToExrSequence.
 
 ### How to build
 
