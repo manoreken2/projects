@@ -4,9 +4,6 @@
     <ClCompile Include="Main.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLDX12App.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\imgui.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -82,13 +79,16 @@
     <ClCompile Include="..\Common\MLWinApp.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="MainApp.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MLDX12App.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="MainApp.h">
+      <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

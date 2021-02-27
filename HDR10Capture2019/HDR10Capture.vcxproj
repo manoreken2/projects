@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MLDX12App.h" />
+    <ClInclude Include="MainApp.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -40,7 +40,7 @@
     <ClCompile Include="..\Common\MLVideoCapUser.cpp" />
     <ClCompile Include="..\Common\MLVideoTime.cpp" />
     <ClCompile Include="..\Common\MLWinApp.cpp" />
-    <ClCompile Include="MLDX12App.cpp" />
+    <ClCompile Include="MainApp.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -28,10 +28,10 @@ using Microsoft::WRL::ComPtr;
 
 struct ImDrawData;
 
-class MLDX12App : public MLDX12, IMLVideoCapUserCallback {
+class MainApp : public MLDX12, IMLVideoCapUserCallback {
 public:
-    MLDX12App(UINT width, UINT height, UINT options);
-    virtual ~MLDX12App(void);
+    MainApp(UINT width, UINT height, UINT options);
+    virtual ~MainApp(void);
 
     virtual void OnInit(void);
     virtual void OnUpdate(void);

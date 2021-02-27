@@ -1,4 +1,4 @@
-﻿#include "MLDX12App.h"
+﻿#include "MainApp.h"
 #include "DXSampleHelper.h"
 #include "MLWinApp.h"
 #include "imgui.h"
@@ -31,7 +31,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //*********************************************************
 
-MLDX12App::MLDX12App(UINT width, UINT height, UINT options)
+MainApp::MainApp(UINT width, UINT height, UINT options)
     : MLDX12(width, height),
         mSettings("Settings.ini"),
         mOptions(options),
@@ -75,7 +75,7 @@ MLDX12App::MLDX12App(UINT width, UINT height, UINT options)
     mShaderConsts.scale = 1.0f;
 }
 
-MLDX12App::~MLDX12App(void)
+MainApp::~MainApp(void)
 {
     // WriteToFile()まで消えないバッファーを作る。
     char imgPath[MAX_PATH * 3];
@@ -103,7 +103,7 @@ MLDX12App::~MLDX12App(void)
 }
 
 void
-MLDX12App::OnInit(void)
+MainApp::OnInit(void)
 {
     //OutputDebugString(L"OnInit started\n");
 
@@ -148,7 +148,7 @@ MLDX12App::OnInit(void)
 /// バグっている。使用不可。
 /// </summary>
 void
-MLDX12App::ReInit(void)
+MainApp::ReInit(void)
 {
     LoadPipeline();
     LoadAssets();
@@ -157,7 +157,7 @@ MLDX12App::ReInit(void)
 }
 
 void
-MLDX12App::OnDestroy(void)
+MainApp::OnDestroy(void)
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
@@ -179,7 +179,7 @@ MLDX12App::OnDestroy(void)
 }
 
 void
-MLDX12App::LoadPipeline(void)
+MainApp::LoadPipeline(void)
 {
     UINT dxgiFactoryFlags = 0;
 
@@ -326,7 +326,7 @@ MLDX12App::LoadPipeline(void)
 }
 
 void
-MLDX12App::UpdateColorSpace(void)
+MainApp::UpdateColorSpace(void)
 {
     // SDRの場合。
     DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
@@ -395,7 +395,7 @@ MLDX12App::UpdateColorSpace(void)
 }
 
 void
-MLDX12App::LoadAssets(void)
+MainApp::LoadAssets(void)
 {
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -539,7 +539,7 @@ MLDX12App::LoadAssets(void)
 }
 
 void
-MLDX12App::SetDefaultImgTexture(void)
+MainApp::SetDefaultImgTexture(void)
 {
     const int texW = 3840;
     const int texH = 2160;
@@ -569,7 +569,7 @@ MLDX12App::SetDefaultImgTexture(void)
 }
 
 void
-MLDX12App::AdjustFullScreenQuadAspectRatio(int w, int h)
+MainApp::AdjustFullScreenQuadAspectRatio(int w, int h)
 {
     assert(0 < w);
     assert(0 < h);
@@ -625,7 +625,7 @@ MLDX12App::AdjustFullScreenQuadAspectRatio(int w, int h)
 }
 
 void
-MLDX12App::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx,
+MainApp::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx,
         int w, int h, DXGI_FORMAT fmt, int pixelBytes, uint8_t* data)
 {
     ThrowIfFailed(mCmdAllocators[mFenceIdx].Get()->Reset());
@@ -697,7 +697,7 @@ MLDX12App::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx,
 }
 
 void
-MLDX12App::CreateImguiTexture(void)
+MainApp::CreateImguiTexture(void)
 {
     ThrowIfFailed(mCmdAllocators[mFenceIdx].Get()->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFenceIdx].Get(), mPipelineState.Get()));
@@ -783,7 +783,7 @@ MLDX12App::CreateImguiTexture(void)
 }
 
 void
-MLDX12App::OnKeyUp(int key)
+MainApp::OnKeyUp(int key)
 {
     switch (key) {
     case VK_F7:
@@ -819,7 +819,7 @@ MLDX12App::OnKeyUp(int key)
 }
 
 void
-MLDX12App::OnDropFiles(HDROP hDrop)
+MainApp::OnDropFiles(HDROP hDrop)
 {
     UINT rv = DragQueryFile(hDrop, 0, mImgFilePath, _countof(mImgFilePath) - 1);
     if (0 < rv) {
@@ -828,7 +828,7 @@ MLDX12App::OnDropFiles(HDROP hDrop)
 }
 
 void
-MLDX12App::OnSizeChanged(int width, int height, bool minimized)
+MainApp::OnSizeChanged(int width, int height, bool minimized)
 {
     /*
     char s[256];
@@ -861,7 +861,7 @@ MLDX12App::OnSizeChanged(int width, int height, bool minimized)
 }
 
 void
-MLDX12App::UpdateViewAndScissor(void)
+MainApp::UpdateViewAndScissor(void)
 {
     float x = 1.0f;
     float y = 1.0f;
@@ -878,7 +878,7 @@ MLDX12App::UpdateViewAndScissor(void)
 }
 
 void
-MLDX12App::LoadSizeDependentResources(void)
+MainApp::LoadSizeDependentResources(void)
 {
     UpdateViewAndScissor();
 
@@ -895,7 +895,7 @@ MLDX12App::LoadSizeDependentResources(void)
 }
 
 void
-MLDX12App::OnUpdate(void)
+MainApp::OnUpdate(void)
 {
     mShaderConsts.colorConvMat = mGamutConv.ConvMat(mRenderImg.colorGamut, mDisplayColorGamut);
     mShaderConsts.imgGammaType = mRenderImg.gamma;
@@ -906,7 +906,7 @@ MLDX12App::OnUpdate(void)
 }
 
 void
-MLDX12App::OnRender(void)
+MainApp::OnRender(void)
 {
     PopulateCommandList();
 
@@ -926,7 +926,7 @@ MLDX12App::OnRender(void)
 }
 
 void
-MLDX12App::PopulateCommandList(void)
+MainApp::PopulateCommandList(void)
 {
     ThrowIfFailed(mCmdAllocators[mFenceIdx]->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFenceIdx].Get(), mPipelineState.Get()));
@@ -966,7 +966,7 @@ MLDX12App::PopulateCommandList(void)
 }
 
 void
-MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img)
+MainApp::DrawFullscreenTexture(TextureEnum texId, MLImage& img)
 {
     // シェーダーの選択。
     mCmdList->SetPipelineState(mPipelineState.Get());
@@ -1005,7 +1005,7 @@ MLDX12App::DrawFullscreenTexture(TextureEnum texId, MLImage& img)
 }
 
 void
-MLDX12App::MoveToNextFrame(void) {
+MainApp::MoveToNextFrame(void) {
     const UINT64 currentFenceValue = mFenceValues[mFenceIdx];
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), currentFenceValue));
     mFenceIdx = mSwapChain->GetCurrentBackBufferIndex();
@@ -1020,7 +1020,7 @@ MLDX12App::MoveToNextFrame(void) {
 }
 
 void
-MLDX12App::WaitForGpu(void) {
+MainApp::WaitForGpu(void) {
     ThrowIfFailed(mCmdQ->Signal(mFence.Get(), mFenceValues[mFenceIdx]));
     ThrowIfFailed(mFence->SetEventOnCompletion(mFenceValues[mFenceIdx], mFenceEvent));
     WaitForSingleObjectEx(mFenceEvent, INFINITE, FALSE);
@@ -1045,7 +1045,7 @@ BMDPixelFormatToMLAviImageFormat(BMDPixelFormat t)
 }
 
 void
-MLDX12App::UpdateCaptureImg(void)
+MainApp::UpdateCaptureImg(void)
 {
     HRESULT hr = S_OK;
 
@@ -1081,13 +1081,13 @@ MLDX12App::UpdateCaptureImg(void)
 }
 
 void
-MLDX12App::MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt)
+MainApp::MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt)
 {
     // VideoFormatの変更イベントは解像度が変わったときと、ピクセルフォーマットが変わったときに起きるようだ。
 }
 
 void
-MLDX12App::ShowVideoCaptureWindow(void)
+MainApp::ShowVideoCaptureWindow(void)
 {
     HRESULT hr = S_OK;
     char s[MAX_PATH * 3];
@@ -1255,7 +1255,7 @@ MLDX12App::ShowVideoCaptureWindow(void)
 }
 
 void
-MLDX12App::ShowSettingsWindow(void) {
+MainApp::ShowSettingsWindow(void) {
     ImGui::Begin("Settings");
 
     if (ImGui::BeginPopupModal("ErrorSettingsPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -1451,7 +1451,7 @@ PathNameToExtensionType(const wchar_t* path)
 }
 
 HRESULT
-MLDX12App::ReadImg(void)
+MainApp::ReadImg(void)
 {
     HRESULT hr = 0;
 
@@ -1488,7 +1488,7 @@ MLDX12App::ReadImg(void)
 
 
 void
-MLDX12App::ShowImageFileRWWindow(void)
+MainApp::ShowImageFileRWWindow(void)
 {
     char path[MAX_PATH];
     memset(path, 0, sizeof path);
@@ -1574,7 +1574,7 @@ MLDX12App::ShowImageFileRWWindow(void)
 }
 
 void
-MLDX12App::ImGuiCommands(void)
+MainApp::ImGuiCommands(void)
 {
     if (mShowImGui) {
         //ImGui::ShowDemoWindow();
@@ -1600,7 +1600,7 @@ MLDX12App::ImGuiCommands(void)
 }
 
 bool
-MLDX12App::UpdateImgTexture(void)
+MainApp::UpdateImgTexture(void)
 {
     mMutex.lock();
 
@@ -1624,7 +1624,7 @@ MLDX12App::UpdateImgTexture(void)
 }
 
 void
-MLDX12App::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx)
+MainApp::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx)
 {
     DXGI_FORMAT pixelFormat;
     int         pixelBytes;

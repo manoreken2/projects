@@ -9,7 +9,7 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
-#include "MLDX12App.h"
+#include "MainApp.h"
 #include "MLWinApp.h"
 
 int APIENTRY
@@ -28,7 +28,7 @@ wWinMain(
         coInitialized = true;
     }
 
-    MLDX12App app(1920, 1080, MLDX12App::OE_HDR10);
+    MainApp app(1920, 1080, MainApp::OE_HDR10);
 
     int rv = MLWinApp::Run(&app, hInstance, nCmdShow, L"HDR10Capture");
 

@@ -334,3 +334,5 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+/HDR10Capture2019/shaderColorConvPS.inc
+/HDR10Capture2019/shaderVS.inc
