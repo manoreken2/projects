@@ -1,8 +1,8 @@
 #pragma once
 
-#include "MLImage.h"
+#include "MLImage2.h"
 
-const char* MLImage::MLImageFileFormatTypeToStr(MLImage::ImageFileFormatType t) {
+const char* MLImage2::MLImageFileFormatTypeToStr(MLImage2::ImageFileFormatType t) {
     switch (t) {
     case IFFT_None: return "None";
     case IFFT_OpenEXR: return "OpenEXR";
@@ -15,7 +15,7 @@ const char* MLImage::MLImageFileFormatTypeToStr(MLImage::ImageFileFormatType t) 
     }
 }
 
-const char* MLImage::MLImageBitFormatToStr(MLImage::BitFormatType t) {
+const char* MLImage2::MLImageBitFormatToStr(MLImage2::BitFormatType t) {
     switch (t) {
     case BFT_None: return "None";
     case BFT_HalfFloatR16G16B16A16: return "HalfFloatR16G16B16A16";
@@ -28,7 +28,7 @@ const char* MLImage::MLImageBitFormatToStr(MLImage::BitFormatType t) {
     }
 }
 
-const char* MLImage::GammaTypeToStr(MLImage::GammaType t) {
+const char* MLImage2::GammaTypeToStr(MLImage2::GammaType t) {
     switch (t) {
     case MLG_Linear: return "Linear";
     case MLG_G22: return "Gamma2.2";

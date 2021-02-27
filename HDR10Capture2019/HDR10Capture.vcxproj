@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\MLDX12Imgui2.h" />
+    <ClInclude Include="..\Common\MLImage2.h" />
     <ClInclude Include="MainApp.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
@@ -29,11 +31,11 @@
     <ClCompile Include="..\Common\MLConverter.cpp" />
     <ClCompile Include="..\Common\MLDX12.cpp" />
     <ClCompile Include="..\Common\MLDX12Common.cpp" />
-    <ClCompile Include="..\Common\MLDX12Imgui.cpp" />
+    <ClCompile Include="..\Common\MLDX12Imgui2.cpp" />
     <ClCompile Include="..\Common\MLEnumToStr.cpp" />
     <ClCompile Include="..\Common\MLExrReader.cpp" />
     <ClCompile Include="..\Common\MLExrWriter.cpp" />
-    <ClCompile Include="..\Common\MLImage.cpp" />
+    <ClCompile Include="..\Common\MLImage2.cpp" />
     <ClCompile Include="..\Common\MLPngReader.cpp" />
     <ClCompile Include="..\Common\MLPngWriter.cpp" />
     <ClCompile Include="..\Common\MLSaveSettings.cpp" />
@@ -141,10 +143,12 @@ type $(ProjectDir)shaderStrFooter.inc &gt;&gt;  $(ProjectDir)%(Filename).inc</Co
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <LibraryPath>..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

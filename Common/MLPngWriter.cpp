@@ -17,7 +17,7 @@ HtoNS(uint16_t v)
 /// PNGファイルを書き込む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。</returns>
-int MLPngWrite(const wchar_t* pngFilePath, const MLImage& img)
+int MLPngWrite(const wchar_t* pngFilePath, const MLImage2& img)
 {
     png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png) {
@@ -40,7 +40,7 @@ int MLPngWrite(const wchar_t* pngFilePath, const MLImage& img)
         // R8G8B8A8
         bitDepth = 8;
         switch (img.bitFormat) {
-        case MLImage::BFT_UIntR8G8B8A8:
+        case MLImage2::BFT_UIntR8G8B8A8:
             break;
         default:
             // 作ってない。
@@ -68,7 +68,7 @@ int MLPngWrite(const wchar_t* pngFilePath, const MLImage& img)
         // R10G10B10A2
         bitDepth = 16;
         switch (img.bitFormat) {
-        case MLImage::BFT_UIntR10G10B10A2:
+        case MLImage2::BFT_UIntR10G10B10A2:
             break;
         default:
             // 作ってない。

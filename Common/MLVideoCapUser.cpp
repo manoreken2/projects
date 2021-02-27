@@ -101,7 +101,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
     const MLVideoCaptureVideoFormat & vFmt = CurrentVideoFormat();
 
     //const int rowBytes = videoFrame->GetRowBytes();
-    MLImage::BitFormatType bft = MLImage::BFT_UIntR8G8B8A8;
+    MLImage2::BitFormatType bft = MLImage2::BFT_UIntR8G8B8A8;
     int originalBitDepth = 8;
     int originalNumCh = 4;
     int ml_ImgBytes = width * height * 4; //< 4==A,R,G,B
@@ -122,75 +122,75 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         break;
     }
 
-    MLImage::GammaType gamma = MLImage::MLG_G22;
+    MLImage2::GammaType gamma = MLImage2::MLG_G22;
     switch (vFmt.dynamicRange) {
     case bmdDynamicRangeSDR:
     default:
-        gamma = MLImage::MLG_G22;
+        gamma = MLImage2::MLG_G22;
         break;
     case bmdDynamicRangeHDRStaticPQ:
-        gamma = MLImage::MLG_ST2084;
+        gamma = MLImage2::MLG_ST2084;
         break;
     case bmdDynamicRangeHDRStaticHLG:
-        gamma = MLImage::MLG_HLG;
+        gamma = MLImage2::MLG_HLG;
         break;
     }
 
-    MLImage ci;
+    MLImage2 ci;
 
     // pixelFormatはMLVideoCapture::VideoInputFormatChangedで制限している。
     switch (fmt) {
     case bmdFormat8BitYUV:
-        bft = MLImage::BFT_UIntR8G8B8A8;
+        bft = MLImage2::BFT_UIntR8G8B8A8;
         originalBitDepth = 8;
         originalNumCh = 3;
         ml_ImgBytes = width * height * 4; //< 4==R8G8B8A8
 
-        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+        ci.Init(width, height, MLImage2::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
         mConv.Uyvy8bitToR8G8B8A8(colorSpace, (uint32_t*)buffer, (uint32_t*)ci.data, width, height);
         break;
     case bmdFormat10BitYUV:
-        bft = MLImage::BFT_UIntR10G10B10A2;
+        bft = MLImage2::BFT_UIntR10G10B10A2;
         originalBitDepth = 10;
         originalNumCh = 3;
         ml_ImgBytes = width * height * 4; //< 4==R10G10B10A2
 
-        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+        ci.Init(width, height, MLImage2::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
         mConv.Yuv422_10bitToR10G10B10A2(colorSpace, (uint32_t*)buffer, (uint32_t*)ci.data, width, height);
         break;
     case bmdFormat8BitARGB:
-        bft = MLImage::BFT_UIntR8G8B8A8;
+        bft = MLImage2::BFT_UIntR8G8B8A8;
         originalBitDepth = 8;
         originalNumCh = 4;
         ml_ImgBytes = width * height * 4; //< 4==R8B8G8A8
 
-        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+        ci.Init(width, height, MLImage2::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
         mConv.Argb8bitToR8G8B8A8((uint32_t*)buffer, (uint32_t*)ci.data, width, height);
         break;
     case bmdFormat10BitRGB:
-        bft = MLImage::BFT_UIntR10G10B10A2;
+        bft = MLImage2::BFT_UIntR10G10B10A2;
         originalBitDepth = 10;
         originalNumCh = 3;
         ml_ImgBytes = width * height * 4; //< 4==R10G10B10A2
 
-        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+        ci.Init(width, height, MLImage2::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
         mConv.Rgb10bitToR10G10B10A2((uint32_t*)buffer, (uint32_t*)ci.data, width, height, 0xff);
         break;
     case bmdFormat12BitRGB:
-        bft = MLImage::BFT_UIntR10G10B10A2;
+        bft = MLImage2::BFT_UIntR10G10B10A2;
         originalBitDepth = 12;
         originalNumCh = 3;
         ml_ImgBytes = width * height * 4; //< 4==R10G10B10A2
 
-        ci.Init(width, height, MLImage::IFFT_CapturedImg,
+        ci.Init(width, height, MLImage2::IFFT_CapturedImg,
             bft, gamut, gamma, originalBitDepth, originalNumCh,
             ml_ImgBytes, new uint8_t[ml_ImgBytes]);
         mConv.Rgb12bitToR10G10B10A2((uint32_t*)buffer, (uint32_t*)ci.data, width, height, 0xff);
@@ -203,7 +203,7 @@ MLVideoCapUser::MLVideoCaptureCallback_VideoInputFrameArrived(
         // 詰まっているとき。古いデータを消す。
         ++mFrameSkipCount;
 
-        MLImage & img = mCapturedImages.front();
+        MLImage2 & img = mCapturedImages.front();
         img.Term();
         mCapturedImages.pop_front();
     }
@@ -247,7 +247,7 @@ MLVideoCapUser::CapturedImageCount(void)
 }
 
 HRESULT
-MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
+MLVideoCapUser::CreateCopyOfCapturedImg(MLImage2& img_return)
 {
     HRESULT hr = S_OK;
 
@@ -277,7 +277,7 @@ MLVideoCapUser::CreateCopyOfCapturedImg(MLImage& img_return)
 }
 
 void
-MLVideoCapUser::UpdateImageGamma(MLImage::GammaType g)
+MLVideoCapUser::UpdateImageGamma(MLImage2::GammaType g)
 {
     mMutex->lock();
     if (mCapturedImages.size() != 0) {
@@ -287,7 +287,7 @@ MLVideoCapUser::UpdateImageGamma(MLImage::GammaType g)
 }
 
 HRESULT
-MLVideoCapUser::PopCapturedImg(MLImage& img_return)
+MLVideoCapUser::PopCapturedImg(MLImage2& img_return)
 {
     HRESULT hr = S_OK;
 
@@ -321,7 +321,7 @@ MLVideoCapUser::ClearCapturedImageList(void)
     mMutex->lock();
 
     while (0 < mCapturedImages.size()) {
-        MLImage & img = mCapturedImages.front();
+        MLImage2 & img = mCapturedImages.front();
         img.Term();
 
         mCapturedImages.pop_front();

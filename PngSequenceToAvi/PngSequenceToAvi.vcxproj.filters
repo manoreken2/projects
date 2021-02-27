@@ -33,7 +33,7 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\Common\MLImage.cpp">
+    <ClCompile Include="..\Common\MLImage2.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
@@ -50,7 +50,7 @@
     <ClInclude Include="..\Common\MLConverter.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\MLImage.h">
+    <ClInclude Include="..\Common\MLImage2.h">
       <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>

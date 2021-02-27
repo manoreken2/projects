@@ -38,6 +38,7 @@ public:
     virtual void OnRender(void);
     virtual void OnDestroy(void);
     virtual void OnKeyDown(int key) { }
+    virtual void OnDropFiles(HDROP hDrop) override { }
     virtual void OnKeyUp(int key);
     virtual void OnSizeChanged(int width, int height, bool minimized);
     

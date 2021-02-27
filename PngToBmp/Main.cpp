@@ -18,7 +18,7 @@ wmain(int argc, wchar_t *argv[])
     const wchar_t* inPngFile = argv[1];
     const wchar_t* outBmpFile = argv[2];
 
-    MLImage img;
+    MLImage2 img;
     if (0 != MLPngRead(inPngFile, img)) {
         printf("Error reading PNG file. %S\n", inPngFile);
         PrintUsage();

@@ -5,7 +5,7 @@
 #include "MLColorGamut.h"
 
 
-struct MLImage {
+struct MLImage2 {
     enum ImageFileFormatType {
         IFFT_None,
         IFFT_OpenEXR,
@@ -74,7 +74,7 @@ struct MLImage {
         data = nullptr;
     }
 
-    void DeepCopyFrom(const MLImage &r) {
+    void DeepCopyFrom(const MLImage2 &r) {
         assert(data == nullptr);
 
         data = nullptr;

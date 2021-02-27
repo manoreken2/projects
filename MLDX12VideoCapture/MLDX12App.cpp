@@ -46,8 +46,6 @@ MLDX12App::MLDX12App(UINT width, UINT height):
     mCaptureMsg[0] = 0;
     mPlayMsg[0] = 0;
 
-    mConverter.CreateGammaTable(2.2f, 1.0f, 1.0f, 1.0f);
-
     // YUV 10bit v210
     mPlayBufferBytes = 3840 * 2160 * 8 / 3;
     mPlayBuffer = new uint8_t[mPlayBufferBytes];
@@ -264,8 +262,8 @@ MLDX12App::LoadAssets(void) {
         NAME_D3D12_OBJECT(mRootSignature);
     }
 
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersRGB.hlsl", mPipelineStateRGB);
-    MLDX12Common::SetupPSO(mDevice.Get(), mRootSignature.Get(), L"shadersYUV.hlsl", mPipelineStateYUV);
+    MLDX12Common::SetupPSO(mDevice.Get(), DXGI_FORMAT_R8G8B8A8_UNORM, mRootSignature.Get(), L"shadersRGB.hlsl", L"shadersRGB.hlsl", mPipelineStateRGB);
+    MLDX12Common::SetupPSO(mDevice.Get(), DXGI_FORMAT_R8G8B8A8_UNORM, mRootSignature.Get(), L"shadersYUV.hlsl", L"shadersYUV.hlsl", mPipelineStateYUV);
     NAME_D3D12_OBJECT(mPipelineStateRGB);
     NAME_D3D12_OBJECT(mPipelineStateYUV);
 
@@ -290,10 +288,12 @@ MLDX12App::LoadAssets(void) {
 
         const UINT vbBytes = sizeof verts;
 
+        const CD3DX12_HEAP_PROPERTIES heapType_Upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        const CD3DX12_RESOURCE_DESC resDesc_UploadByfSz = CD3DX12_RESOURCE_DESC::Buffer(vbBytes);
         ThrowIfFailed(mDevice->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            &heapType_Upload,
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(vbBytes),
+            &resDesc_UploadByfSz,
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&mVertexBuffer)));
@@ -353,8 +353,9 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
         texDesc.SampleDesc.Quality = 0;
         texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
+        const CD3DX12_HEAP_PROPERTIES heapTypeDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         ThrowIfFailed(mDevice->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            &heapTypeDefault,
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
@@ -364,10 +365,12 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
 
         const UINT64 uploadBufferSize = GetRequiredIntermediateSize(tex.Get(), 0, 1);
 
+        const CD3DX12_HEAP_PROPERTIES heapTypeUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        const CD3DX12_RESOURCE_DESC resDescUploadBufSz = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
         ThrowIfFailed(mDevice->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            &heapTypeUpload,
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+            &resDescUploadBufSz,
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&texUploadHeap)));
@@ -378,8 +381,12 @@ MLDX12App::CreateVideoTexture(ComPtr<ID3D12Resource> &tex, int texIdx, int w, in
         textureData.SlicePitch = textureData.RowPitch * h;
 
         UpdateSubresources(mCmdList.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+        
+        const CD3DX12_RESOURCE_BARRIER barrierTransitionCopyToPS
+            = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+            D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+        mCmdList->ResourceBarrier(1, &barrierTransitionCopyToPS);
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
         srvHandle.Offset(texIdx, mSrvDescSize);
@@ -427,8 +434,9 @@ MLDX12App::CreateImguiTexture(void) {
     texDesc.SampleDesc.Quality = 0;
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
+    const CD3DX12_HEAP_PROPERTIES heapTypeDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     ThrowIfFailed(mDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        &heapTypeDefault,
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
@@ -439,10 +447,12 @@ MLDX12App::CreateImguiTexture(void) {
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexImgui.Get(), 0, 1);
 
     // Create the GPU upload buffer.
+    const CD3DX12_HEAP_PROPERTIES heapTypeUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    const CD3DX12_RESOURCE_DESC resDescUploadBufSz = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
     ThrowIfFailed(mDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        &heapTypeUpload,
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+        &resDescUploadBufSz,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&texUploadHeap)));
@@ -453,8 +463,12 @@ MLDX12App::CreateImguiTexture(void) {
     textureData.SlicePitch = textureData.RowPitch * height;
 
     UpdateSubresources(mCmdList.Get(), mTexImgui.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexImgui.Get(),
-        D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+    const CD3DX12_RESOURCE_BARRIER barrierTransitionCopyToPS
+        = CD3DX12_RESOURCE_BARRIER::Transition(mTexImgui.Get(),
+        D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    mCmdList->ResourceBarrier(1, &barrierTransitionCopyToPS);
 
     ThrowIfFailed(mCmdList->Close());
     ID3D12CommandList* ppCommandLists[] = {mCmdList.Get()};
@@ -624,9 +638,12 @@ MLDX12App::PopulateCommandList(void) {
     ThrowIfFailed(mCmdAllocators[mFrameIdx]->Reset());
     ThrowIfFailed(mCmdList->Reset(mCmdAllocators[mFrameIdx].Get(), mPipelineStateRGB.Get()));
 
-    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET));
+    const CD3DX12_RESOURCE_BARRIER barrierTransPresentToRenderTgt
+        = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mFrameIdx].Get(),
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    mCmdList->ResourceBarrier(1, &barrierTransPresentToRenderTgt);
 
     {   // clear screen
         const float clearColorRGBA[] = {0.4f, 0.4f, 0.4f, 1.0f};
@@ -655,9 +672,13 @@ MLDX12App::PopulateCommandList(void) {
     mDx12Imgui.Render(ImGui::GetDrawData(), mCmdList.Get(), mFrameIdx);
 
     // Indicate that the back buffer will now be used to present.
-    mCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        mRenderTargets[mFrameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT));
+    const CD3DX12_RESOURCE_BARRIER barrierTransRenderTgtToPresent
+        = CD3DX12_RESOURCE_BARRIER::Transition(
+            mRenderTargets[mFrameIdx].Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT);
+
+    mCmdList->ResourceBarrier(1, &barrierTransRenderTgtToPresent);
 
     ThrowIfFailed(mCmdList->Close());
 }
@@ -776,7 +797,7 @@ MLDX12App::ShowCaptureWindow(void) {
 
                         bool bRv = mAviWriter.Start(path, mVideoCapture.Width(),
                             mVideoCapture.Height(), (int)(ts / 1000),
-                            MLIF_YUV422v210, true);
+                            MLIF_YUV422_v210, true);
                         if (bRv) {
                             mState = S_Recording;
                             mCaptureMsg[0] = 0;
@@ -802,7 +823,7 @@ MLDX12App::ShowCaptureWindow(void) {
                 ImGui::Text("Record filename : %s", mWritePath);
                 {
                     // hour:min:sec:frameを算出。
-                    auto vt = MLFrameNrToTime(mAviWriter.FramesPerSec(), mAviWriter.TotalVideoFrames());
+                    auto vt = MLFrameNrToTime((int)mAviWriter.FramesPerSec(), mAviWriter.TotalVideoFrames());
                     ImGui::Text("%02d:%02d:%02d:%02d",
                         vt.hour, vt.min, vt.sec, vt.frame);
                 }
@@ -828,7 +849,7 @@ MLDX12App::ShowCaptureWindow(void) {
                     ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
                     ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
 
-                    mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
+                    mConverter.CreateBMGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
                 }
             }
 
@@ -954,7 +975,7 @@ MLDX12App::ShowPlaybackWindow(void) {
                 ImGui::DragFloat("Preview Gain G", &mDrawGainG, 0.01f, 0.5f, 2.0f);
                 ImGui::DragFloat("Preview Gain B", &mDrawGainB, 0.01f, 0.5f, 2.0f);
 
-                mConverter.CreateGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
+                mConverter.CreateBMGammaTable(mDrawGamma, mDrawGainR, mDrawGainG, mDrawGainB);
             }
         }
     }
@@ -1059,13 +1080,13 @@ MLDX12App::MLVideoCaptureCallback_VideoInputFrameArrived(
     switch (fmt) {
     case bmdFormat10BitRGB:
         {
-            MLConverter::Rgb10bitToRGBA(pFrom, pTo, width, height, alpha);
+            MLConverter::Rgb10bitToRGBA8bit(pFrom, pTo, width, height, alpha);
             ci.imgMode = MLImage::IM_RGB;
         }
         break;
     case bmdFormat10BitYUV:
         if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, width, height, alpha);
+            mConverter.BMRawYuvV210ToRGBA(pFrom, pTo, width, height, alpha);
             ci.imgMode = MLImage::IM_RGB;
         } else {
             MLConverter::YuvV210ToYuvA(pFrom, pTo, width, height, alpha);
@@ -1159,7 +1180,7 @@ MLDX12App::UpdatePlayVideoTexture(void) {
     uint32_t *pTo = (uint32_t *)ci.data;
     if (bi.biCompression == MLFOURCC_v210) {
         if (mRawSDI) {
-            mConverter.RawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
+            mConverter.BMRawYuvV210ToRGBA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
             ci.imgMode = MLImage::IM_RGB;
         } else {
             MLConverter::YuvV210ToYuvA(pFrom, pTo, bi.biWidth, bi.biHeight, alpha);
@@ -1205,8 +1226,9 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texI
         texDesc.SampleDesc.Quality = 0;
         texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
+        const CD3DX12_HEAP_PROPERTIES heapTypeDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         ThrowIfFailed(mDevice->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            &heapTypeDefault,
             D3D12_HEAP_FLAG_NONE,
             &texDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
@@ -1225,8 +1247,12 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texI
         srvDesc.Texture2D.MipLevels = 1;
         mDevice->CreateShaderResourceView(tex.Get(), &srvDesc, srvHandle);
     } else {
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST));
+        const CD3DX12_RESOURCE_BARRIER barrierTransResToCopyDest
+            = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_COPY_DEST);
+
+        mCmdListTexUpload->ResourceBarrier(1, &barrierTransResToCopyDest);
     }
 
     // texUploadHeapがスコープから外れる前にcommandListを実行しなければならない。
@@ -1235,10 +1261,12 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texI
         const UINT64 uploadBufferSize = GetRequiredIntermediateSize(tex.Get(), 0, 1);
 
         // Create the GPU upload buffer.
+        const CD3DX12_HEAP_PROPERTIES heapTypeUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        const CD3DX12_RESOURCE_DESC resDescUploadBufSz = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
         ThrowIfFailed(mDevice->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            &heapTypeUpload,
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+            &resDescUploadBufSz,
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&texUploadHeap)));
@@ -1248,8 +1276,13 @@ MLDX12App::UpdateVideoTexture(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texI
         textureData.RowPitch = ci.width * pixelBytes;
         textureData.SlicePitch = textureData.RowPitch * ci.height;
         UpdateSubresources(mCmdListTexUpload.Get(), tex.Get(), texUploadHeap.Get(), 0, 0, 1, &textureData);
-        mCmdListTexUpload->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
-            D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+        const CD3DX12_RESOURCE_BARRIER barrierTransCopyDestToRes
+            = CD3DX12_RESOURCE_BARRIER::Transition(tex.Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+        mCmdListTexUpload->ResourceBarrier(1, &barrierTransCopyDestToRes);
     }
 
     ThrowIfFailed(mCmdListTexUpload->Close());

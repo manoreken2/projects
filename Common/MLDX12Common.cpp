@@ -6,7 +6,11 @@ std::wstring GetAssetFullPath(const std::wstring & assetsPath, const wchar_t * a
 }
 
 void
-MLDX12Common::SetupPSO(ID3D12Device *device, DXGI_FORMAT rtvFormat, ID3D12RootSignature * rootSignature, const wchar_t* vsShaderName, const wchar_t *psShaderName, ComPtr<ID3D12PipelineState> & pso) {
+MLDX12Common::SetupPSO(ID3D12Device *device, DXGI_FORMAT rtvFormat,
+        ID3D12RootSignature * rootSignature,
+        const wchar_t* vsShaderName, const wchar_t *psShaderName,
+        ComPtr<ID3D12PipelineState> & pso)
+{
     WCHAR s[512];
     GetAssetsPath(s, _countof(s));
     std::wstring assetsPath = s;
@@ -40,7 +44,7 @@ MLDX12Common::SetupPSO(ID3D12Device *device, DXGI_FORMAT rtvFormat, ID3D12RootSi
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
     };
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};

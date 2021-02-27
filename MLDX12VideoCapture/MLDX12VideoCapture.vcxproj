@@ -11,46 +11,34 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Common.h" />
-    <ClInclude Include="d3dx12.h" />
-    <ClInclude Include="MLAVICommon.h" />
-    <ClInclude Include="MLAviReader.h" />
-    <ClInclude Include="MLAviWriter.h" />
-    <ClInclude Include="MLDX12Common.h" />
-    <ClInclude Include="MLImage.h" />
-    <ClInclude Include="MLConverter.h" />
-    <ClInclude Include="MLDrawings.h" />
-    <ClInclude Include="MLDX12.h" />
-    <ClInclude Include="MLDX12App.h" />
+    <ClInclude Include="..\Common\MLAVICommon.h" />
+    <ClInclude Include="..\Common\MLAviReader.h" />
+    <ClInclude Include="..\Common\MLAviWriter.h" />
+    <ClInclude Include="..\Common\MLConverter.h" />
+    <ClInclude Include="..\Common\MLDX12.h" />
+    <ClInclude Include="..\Common\MLDX12Common.h" />
+    <ClInclude Include="..\Common\MLVideoTime.h" />
+    <ClInclude Include="..\Common\MLWinApp.h" />
     <ClInclude Include="MLDX12Imgui.h" />
-    <ClInclude Include="DXSampleHelper.h" />
-    <ClInclude Include="imconfig.h" />
-    <ClInclude Include="imgui.h" />
-    <ClInclude Include="imgui_impl_win32.h" />
-    <ClInclude Include="imgui_internal.h" />
-    <ClInclude Include="imstb_rectpack.h" />
-    <ClInclude Include="imstb_textedit.h" />
-    <ClInclude Include="imstb_truetype.h" />
-    <ClInclude Include="MLVideoTime.h" />
-    <ClInclude Include="WinApp.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MLAviCommon.cpp" />
-    <ClCompile Include="MLAviReader.cpp" />
-    <ClCompile Include="MLAviWriter.cpp" />
-    <ClCompile Include="MLConverter.cpp" />
+    <ClCompile Include="..\Common\imgui.cpp" />
+    <ClCompile Include="..\Common\imgui_demo.cpp" />
+    <ClCompile Include="..\Common\imgui_draw.cpp" />
+    <ClCompile Include="..\Common\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Common\imgui_widgets.cpp" />
+    <ClCompile Include="..\Common\MLAviCommon.cpp" />
+    <ClCompile Include="..\Common\MLAviReader.cpp" />
+    <ClCompile Include="..\Common\MLAviWriter.cpp" />
+    <ClCompile Include="..\Common\MLConverter.cpp" />
+    <ClCompile Include="..\Common\MLDX12.cpp" />
+    <ClCompile Include="..\Common\MLDX12Common.cpp" />
+    <ClCompile Include="..\Common\MLVideoTime.cpp" />
+    <ClCompile Include="..\Common\MLWinApp.cpp" />
     <ClCompile Include="MLDrawings.cpp" />
-    <ClCompile Include="MLDX12.cpp" />
     <ClCompile Include="MLDX12App.cpp" />
-    <ClCompile Include="MLDX12Imgui.cpp" />
-    <ClCompile Include="imgui.cpp" />
-    <ClCompile Include="imgui_demo.cpp" />
-    <ClCompile Include="imgui_draw.cpp" />
-    <ClCompile Include="imgui_impl_win32.cpp" />
-    <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="MLDX12Common.cpp" />
-    <ClCompile Include="MLVideoTime.cpp" />
+    <ClCompile Include="MLDX12Imgui.cpp" />
     <ClCompile Include="WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -79,27 +67,27 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MLDecklinkCapture\MLDecklinkCapture.vcxproj">
-      <Project>{29c9d62f-2b59-48e7-9f79-d843554b8f0d}</Project>
+      <Project>{9b2a14dc-4f72-4eb7-8deb-b10d7be0610c}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{CE193FA5-5C7C-4DB2-A940-CEE9AC97304E}</ProjectGuid>
+    <ProjectGuid>{5F02AB60-C082-4772-8DA3-7505E0A63850}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>MLDX12VideoCapture</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -117,9 +105,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <LibraryPath>..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <LibraryPath>..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -132,14 +124,15 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\MLDecklinkCapture;..\Common;..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Half-2_5_static_d.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -158,16 +151,17 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile />
-      <AdditionalIncludeDirectories>..\MLDecklinkCapture</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\MLDecklinkCapture;..\Common;..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Half-2_5_static.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>

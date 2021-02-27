@@ -13,51 +13,51 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="HDR10Capture">
-      <UniqueIdentifier>{5f731e82-8318-4c1e-9cf4-13299cb343bf}</UniqueIdentifier>
+    <Filter Include="Common">
+      <UniqueIdentifier>{189698b9-e8df-425a-880c-f9d3c06d021e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\HDR10Capture2019\MLAviCommon.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Capture2019\MLAviReader.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Capture2019\MLAviWriter.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Capture2019\MLExrWriter.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Capture2019\MLImage.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
-    <ClCompile Include="..\HDR10Capture2019\MLConverter.cpp">
-      <Filter>HDR10Capture</Filter>
-    </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\MLAviCommon.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLAviReader.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLAviWriter.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLConverter.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLExrWriter.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLImage2.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\HDR10Capture2019\MLAVICommon.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLAVICommon.h">
+      <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Capture2019\MLAviReader.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLAviReader.h">
+      <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Capture2019\MLAviWriter.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLAviWriter.h">
+      <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Capture2019\MLExrWriter.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLConverter.h">
+      <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Capture2019\MLImage.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLExrWriter.h">
+      <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\HDR10Capture2019\MLConverter.h">
-      <Filter>HDR10Capture</Filter>
+    <ClInclude Include="..\Common\MLImage2.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

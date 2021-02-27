@@ -11,16 +11,17 @@
 
 #pragma once
 #include "MLDX12.h"
-#include "MLDX12Imgui.h"
+#include "MLDX12Imgui2.h"
 #include <mutex>
 #include <list>
-#include "MLImage.h"
+#include "MLImage2.h"
 #include "MLColorGamut.h"
 #include <stdint.h>
 #include "MLColorConvShaderConstants.h"
 #include "MLSaveSettings.h"
 #include "MLVideoCapUser.h"
 #include "MLExrWriter.h"
+#include "MLAviReader.h"
 
 
 using namespace DirectX;
@@ -113,8 +114,8 @@ private:
     ComPtr<ID3D12Resource>       mTexImgui;
 
 
-    MLImage                      mRenderImg;
-    MLImage                      mWriteImg;
+    MLImage2                      mRenderImg;
+    MLImage2                      mWriteImg;
 
     /// <summary>
     /// 描画中テクスチャをアップロードするとクラッシュするので。
@@ -147,8 +148,8 @@ private:
 
     char mErrorSettingsMsg[512] = {};
     char mErrorFileReadMsg[512] = {};
-
     wchar_t mImgFilePath[512] = {};
+
     bool mRequestReadImg = false;
 
     ComPtr<ID3D12GraphicsCommandList> mCmdListTexUpload;
@@ -169,12 +170,13 @@ private:
     void CreateImguiTexture(void);
     void ImGuiCommands(void);
 
-    void DrawFullscreenTexture(TextureEnum texId, MLImage & drawMode);
+    void DrawFullscreenTexture(TextureEnum texId, MLImage2 & drawMode);
 
     void ShowSettingsWindow(void);
     void ShowImageFileRWWindow(void);
+    void ShowVideoPlaybackWindow(void);
 
-    void UploadImgToGpu(MLImage &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
+    void UploadImgToGpu(MLImage2 &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
     void AdjustFullScreenQuadAspectRatio(int w, int h);
     void ReInit(void);
 
@@ -210,7 +212,7 @@ private:
     VideoCaptureState mVCState = VCS_PreInit;
     char mErrorVCMsg[512] = {};
     wchar_t mAviFilePath[512] = {};
-    MLImage::GammaType mCaptureImgGamma = MLImage::MLG_G22;
+    MLImage2::GammaType mCaptureImgGamma = MLImage2::MLG_G22;
     void MLVideoCapUserCallback_VideoInputFormatChanged(const MLVideoCaptureVideoFormat & vFmt);
 
     /// <summary>
@@ -224,4 +226,9 @@ private:
     /// ファイル名がmImgFilePathの画像を読み込み、mRenderImgにセットする。
     /// </summary>
     HRESULT ReadImg(void);
+
+    // AVIの読み出し。
+    MLAviReader mAviReader;
+    char mPlayMsg[512] = {};
+    int mPlayFrameNr = 0;
  };

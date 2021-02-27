@@ -8,7 +8,7 @@
 /// BMPファイルを読む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。1:BMPファイルでは無かった。</returns>
-int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
+int MLBmpRead(const wchar_t* filePath, MLImage2& img_return) {
     FILE* fp = nullptr;
 
     int ercd = _wfopen_s(&fp, filePath, L"rb");
@@ -49,38 +49,38 @@ int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
     int orig_bit_depth = 8;
     int orig_num_channels = 3;
     MLColorGamutType colorGamut = ML_CG_Rec709;
-    MLImage::GammaType gammaType = MLImage::MLG_G22;
-    MLImage::BitFormatType bitFmt = MLImage::BFT_UIntR8G8B8A8;
+    MLImage2::GammaType gammaType = MLImage2::MLG_G22;
+    MLImage2::BitFormatType bitFmt = MLImage2::BFT_UIntR8G8B8A8;
     switch (bmpih.biBitCount) {
     case 24:
         orig_bit_depth = 8;
         orig_num_channels = 3;
-        bitFmt = MLImage::BFT_UIntR8G8B8A8;
+        bitFmt = MLImage2::BFT_UIntR8G8B8A8;
         colorGamut = ML_CG_Rec709;
-        gammaType = MLImage::MLG_G22;
+        gammaType = MLImage2::MLG_G22;
         break;
     case 32:
         orig_bit_depth = 8;
         orig_num_channels = 4;
-        bitFmt = MLImage::BFT_UIntR8G8B8A8;
+        bitFmt = MLImage2::BFT_UIntR8G8B8A8;
         colorGamut = ML_CG_Rec709;
-        gammaType = MLImage::MLG_G22;
+        gammaType = MLImage2::MLG_G22;
         break;
     case 48:
         orig_bit_depth = 16;
         orig_num_channels = 3;
         // 16bit画像の時HDR10 PQ画像が入っているという想定。
-        bitFmt = MLImage::BFT_UIntR16G16B16A16;
+        bitFmt = MLImage2::BFT_UIntR16G16B16A16;
         colorGamut = ML_CG_Rec2020;
-        gammaType = MLImage::MLG_ST2084;
+        gammaType = MLImage2::MLG_ST2084;
         break;
     case 64:
         orig_bit_depth = 16;
         orig_num_channels = 4;
         // 16bit画像の時HDR10 PQ画像が入っているという想定。
-        bitFmt = MLImage::BFT_UIntR16G16B16A16;
+        bitFmt = MLImage2::BFT_UIntR16G16B16A16;
         colorGamut = ML_CG_Rec2020;
-        gammaType = MLImage::MLG_ST2084;
+        gammaType = MLImage2::MLG_ST2084;
         break;
     default:
         // ここには来ない。
@@ -103,7 +103,7 @@ int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
 
     if (orig_bit_depth == 8) {
         img_return.Term();
-        img_return.Init(width, height, MLImage::IFFT_BMP, bitFmt,
+        img_return.Init(width, height, MLImage2::IFFT_BMP, bitFmt,
             colorGamut,
             gammaType,
             orig_bit_depth,
@@ -113,7 +113,7 @@ int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 // 24bit BMPはBGR、左から右、下から上の順に値が入っている。
-                // MLImageはRGBA、左から右、上から下の順。
+                // MLImage2はRGBA、左から右、上から下の順。
                 int readP = (x + (height - y - 1) * width) * orig_num_channels;
                 int writeP = (x + y * width) * 4;
 
@@ -129,7 +129,7 @@ int MLBmpRead(const wchar_t* filePath, MLImage& img_return) {
         }
     } else if (orig_bit_depth == 16) {
         img_return.Term();
-        img_return.Init(width, height, MLImage::IFFT_BMP, bitFmt,
+        img_return.Init(width, height, MLImage2::IFFT_BMP, bitFmt,
             colorGamut,
             gammaType,
             orig_bit_depth,

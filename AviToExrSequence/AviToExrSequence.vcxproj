@@ -45,11 +45,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>..\HDR10Capture2019\Contrib\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>..\Contrib\lib;$(LibraryPath)</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>..\HDR10Capture2019\Contrib\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>..\Contrib\lib;$(LibraryPath)</LibraryPath>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -57,7 +59,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\HDR10Capture2019;..\HDR10Capture2019\Contrib\include;..\HDR10Capture2019\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common;..\Contrib\include;..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -73,7 +76,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\HDR10Capture2019;..\HDR10Capture2019\Contrib\include;..\HDR10Capture2019\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Common;..\Contrib\include;..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -84,21 +88,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\HDR10Capture2019\MLAviCommon.cpp" />
-    <ClCompile Include="..\HDR10Capture2019\MLAviReader.cpp" />
-    <ClCompile Include="..\HDR10Capture2019\MLAviWriter.cpp" />
-    <ClCompile Include="..\HDR10Capture2019\MLConverter.cpp" />
-    <ClCompile Include="..\HDR10Capture2019\MLExrWriter.cpp" />
-    <ClCompile Include="..\HDR10Capture2019\MLImage.cpp" />
+    <ClCompile Include="..\Common\MLAviCommon.cpp" />
+    <ClCompile Include="..\Common\MLAviReader.cpp" />
+    <ClCompile Include="..\Common\MLAviWriter.cpp" />
+    <ClCompile Include="..\Common\MLConverter.cpp" />
+    <ClCompile Include="..\Common\MLExrWriter.cpp" />
+    <ClCompile Include="..\Common\MLImage2.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\HDR10Capture2019\MLAVICommon.h" />
-    <ClInclude Include="..\HDR10Capture2019\MLAviReader.h" />
-    <ClInclude Include="..\HDR10Capture2019\MLAviWriter.h" />
-    <ClInclude Include="..\HDR10Capture2019\MLConverter.h" />
-    <ClInclude Include="..\HDR10Capture2019\MLExrWriter.h" />
-    <ClInclude Include="..\HDR10Capture2019\MLImage.h" />
+    <ClInclude Include="..\Common\MLAVICommon.h" />
+    <ClInclude Include="..\Common\MLAviReader.h" />
+    <ClInclude Include="..\Common\MLAviWriter.h" />
+    <ClInclude Include="..\Common\MLConverter.h" />
+    <ClInclude Include="..\Common\MLExrWriter.h" />
+    <ClInclude Include="..\Common\MLImage2.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

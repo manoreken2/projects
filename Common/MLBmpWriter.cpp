@@ -18,7 +18,7 @@ FloatToUint16(float v) {
 /// 24bit BMP または 48bit BMPファイルを書き込む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。</returns>
-int MLBmpWrite(const wchar_t* filePath, MLImage& img)
+int MLBmpWrite(const wchar_t* filePath, MLImage2& img)
 {
     FILE* fp = nullptr;
     int ercd = _wfopen_s(&fp, filePath, L"wb");
@@ -30,7 +30,7 @@ int MLBmpWrite(const wchar_t* filePath, MLImage& img)
     int64_t imgBytes = 0;
     uint8_t* imgTo = nullptr;
     int biBitCount = 0;
-    if (img.bitFormat == MLImage::BFT_UIntR8G8B8A8) {
+    if (img.bitFormat == MLImage2::BFT_UIntR8G8B8A8) {
         // 24bit BGR画像データ作成。
         biBitCount = 24;
         imgBytes = (int64_t)img.width * img.height * 3 * sizeof(uint8_t); // 3==書き込みデータのnumCh

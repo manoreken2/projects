@@ -4,83 +4,83 @@
     <ClCompile Include="Main.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\Common\imgui.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\imgui_demo.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\imgui_draw.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\imgui_impl_win32.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\imgui_widgets.cpp">
+    <ClCompile Include="MainApp.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLAviCommon.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLAviReader.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLAviWriter.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLBmpReader.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLBmpWriter.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLColorGamut.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLConverter.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLDX12.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLDX12Common.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\MLDX12Imgui.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLEnumToStr.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLExrReader.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLExrWriter.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\MLImage.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLPngReader.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLPngWriter.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLSaveSettings.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLVideoCapUser.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLVideoTime.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLWinApp.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="MainApp.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="..\Common\imgui.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\imgui_demo.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\imgui_draw.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\imgui_impl_win32.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\imgui_widgets.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLDX12Imgui2.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLImage2.cpp">
+      <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -89,6 +89,12 @@
     </ClInclude>
     <ClInclude Include="MainApp.h">
       <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\MLDX12Imgui2.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\MLImage2.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -117,6 +123,9 @@
     </Filter>
     <Filter Include="Code Fragments">
       <UniqueIdentifier>{fa117538-9b7b-4efb-94cf-a89f8a03e50a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{703b5ac8-1816-4ba9-9aee-f5d991b3dd8f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

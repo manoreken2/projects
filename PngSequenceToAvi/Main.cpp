@@ -1,7 +1,7 @@
 #include "MLPngReader.h"
 #include "MLAviWriter.h"
 #include "MLConverter.h"
-#include "MLImage.h"
+#include "MLImage2.h"
 
 static void
 PrintUsage(void) {
@@ -51,7 +51,7 @@ wmain(int argc, wchar_t* argv[]) {
     }
 
     // 最初のPNGを取り出しサイズとビットフォーマットを調べます。
-    MLImage* firstImg = new MLImage();
+    MLImage2* firstImg = new MLImage2();
     rv = MLPngRead(pngFileList.front().c_str(), *firstImg);
     if (rv < 0) {
         printf("Error: png read failed. %S\n", pngFileList.front().c_str());
@@ -100,7 +100,7 @@ wmain(int argc, wchar_t* argv[]) {
         aviW.Start(toAviFile, w, h, fps, aviImgFmt, false);
 
         for (const std::wstring& pngPath : pngFileList) {
-            MLImage img;
+            MLImage2 img;
             rv = MLPngRead(pngPath.c_str(), img);
             if (rv < 0) {
                 printf("Error: png read failed. %S\n", pngPath.c_str());
@@ -114,12 +114,12 @@ wmain(int argc, wchar_t* argv[]) {
                 return 1;
             }
 
-            if (img.bitFormat == MLImage::BFT_UIntR8G8B8A8) {
+            if (img.bitFormat == MLImage2::BFT_UIntR8G8B8A8) {
                 conv.R8G8B8A8ToB8G8R8_DIB((const uint32_t*)img.data, imgBuf, w, h);
-            } else if (img.bitFormat == MLImage::BFT_UIntR16G16B16A16) {
+            } else if (img.bitFormat == MLImage2::BFT_UIntR16G16B16A16) {
                 conv.R16G16B16A16ToR210((const uint16_t*)img.data, (uint32_t*)imgBuf, w, h);
             } else {
-                printf("Error: img bitformat is unsupported. %s\n", MLImage::MLImageBitFormatToStr(img.bitFormat));
+                printf("Error: img bitformat is unsupported. %s\n", MLImage2::MLImageBitFormatToStr(img.bitFormat));
                 PrintUsage();
                 return 1;
             }

@@ -98,7 +98,7 @@ MLVideoCapture::Init(IDeckLink *device)
     m_deckLink = device;
     m_deckLink->AddRef();
 
-    IDeckLinkAttributes*            deckLinkAttributes = nullptr;
+	IDeckLinkAttributes_v10_11*     deckLinkAttributes = nullptr;
     IDeckLinkDisplayModeIterator*   displayModeIterator = nullptr;
     IDeckLinkDisplayMode*           displayMode = nullptr;
     BSTR                            deviceNameBSTR = nullptr;

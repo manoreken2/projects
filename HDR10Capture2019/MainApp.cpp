@@ -7,7 +7,7 @@
 #include "MLEnumToStr.h"
 #include "MLExrReader.h"
 #include "half.h"
-#include "MLImage.h"
+#include "MLImage2.h"
 #include "MLPngReader.h"
 #include "MLPngWriter.h"
 #include "MLBmpReader.h"
@@ -69,7 +69,7 @@ MainApp::MainApp(UINT width, UINT height, UINT options)
 
     mShaderConsts.colorConvMat = XMMatrixIdentity();
     mShaderConsts.outOfRangeColor = XMFLOAT4(outOfRangeR / 255.0f, outOfRangeG / 255.0f, outOfRangeB / 255.0f, 1.0f);
-    mShaderConsts.imgGammaType = MLImage::MLG_Linear;
+    mShaderConsts.imgGammaType = MLImage2::MLG_Linear;
     mShaderConsts.flags = 0;
     mShaderConsts.outOfRangeNits = (float)outOfRangeNits;
     mShaderConsts.scale = 1.0f;
@@ -558,7 +558,7 @@ MainApp::SetDefaultImgTexture(void)
     mMutex.lock();
 
     mRenderImg.Term();
-    mRenderImg.Init(texW, texH, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloatR16G16B16A16, ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4, pixelBytes, nullptr);
+    mRenderImg.Init(texW, texH, MLImage2::IFFT_OpenEXR, MLImage2::BFT_HalfFloatR16G16B16A16, ML_CG_Rec2020, MLImage2::MLG_Linear, 16, 4, pixelBytes, nullptr);
 
     mMutex.unlock();
 
@@ -656,9 +656,9 @@ MainApp::CreateTexture(ComPtr<ID3D12Resource>& tex, int texIdx,
         NAME_D3D12_OBJECT(tex);
 
         const UINT64 uploadBufferSize = GetRequiredIntermediateSize(tex.Get(), 0, 1);
-        const CD3DX12_RESOURCE_DESC resDescUploadBufSz = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 
         const CD3DX12_HEAP_PROPERTIES heapTypeUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        const CD3DX12_RESOURCE_DESC resDescUploadBufSz = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
         ThrowIfFailed(mDevice->CreateCommittedResource(
             &heapTypeUpload,
             D3D12_HEAP_FLAG_NONE,
@@ -966,7 +966,7 @@ MainApp::PopulateCommandList(void)
 }
 
 void
-MainApp::DrawFullscreenTexture(TextureEnum texId, MLImage& img)
+MainApp::DrawFullscreenTexture(TextureEnum texId, MLImage2& img)
 {
     // シェーダーの選択。
     mCmdList->SetPipelineState(mPipelineState.Get());
@@ -1052,7 +1052,7 @@ MainApp::UpdateCaptureImg(void)
     if (mRenderImg.data == nullptr) {
         // mRenderImgをGPUに送り終えるとdata == nullptrになる。
 
-        MLImage newImg;
+        MLImage2 newImg;
         hr = mVCU.PopCapturedImg(newImg);
         if (SUCCEEDED(hr)) {
             // 新しい表示用キャプチャー画像がある場合、GPUに送り出す。
@@ -1062,9 +1062,9 @@ MainApp::UpdateCaptureImg(void)
             const MLVideoCaptureVideoFormat& fmt = mVCU.CurrentVideoFormat();
             if (fmt.colorSpace == bmdColorspaceRec2020
                 && fmt.dynamicRange == bmdDynamicRangeHDRStaticPQ) {
-                mCaptureImgGamma = MLImage::MLG_ST2084;
+                mCaptureImgGamma = MLImage2::MLG_ST2084;
             } else {
-                mCaptureImgGamma = MLImage::MLG_G22;
+                mCaptureImgGamma = MLImage2::MLG_G22;
             }
 
             mWriteImg.Term();
@@ -1177,7 +1177,7 @@ MainApp::ShowVideoCaptureWindow(void)
                         BMDDetectedVideoInputFormatFlagsToStr(mVCU.DetectedVideoInputFormatFlags()).c_str());
                 }
 
-                ImGui::Text("Captured image gamma = %s", MLImage::GammaTypeToStr(mCaptureImgGamma));
+                ImGui::Text("Captured image gamma = %s", MLImage2::GammaTypeToStr(mCaptureImgGamma));
 
                 ImGui::Text("Frame Skip : %d", mVCU.FrameSkipCount());
 
@@ -1224,7 +1224,7 @@ MainApp::ShowVideoCaptureWindow(void)
                 vt.hour, vt.min, vt.sec, vt.frame);
         }
 
-        ImGui::Text("Captured image gamma = %s", MLImage::GammaTypeToStr(mCaptureImgGamma));
+        ImGui::Text("Captured image gamma = %s", MLImage2::GammaTypeToStr(mCaptureImgGamma));
 
         ImGui::Text("Display Queue size : %d", mVCU.CapturedImageCount());
         ImGui::Text("Rec Queue size : %d", mVCU.AviWriter().RecQueueSize());
@@ -1371,15 +1371,15 @@ MainApp::ShowSettingsWindow(void) {
     }
 
     if (mState == S_ImageViewing && mVCState == VCS_PreInit) {
-        MLImage& img = mRenderImg;
+        MLImage2& img = mRenderImg;
 
         if (ImGui::TreeNodeEx("Image Properties", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             ImGui::Text("Original is %d bit %d ch %s",
                 img.originalNumChannels * img.originalBitDepth,
                 img.originalNumChannels,
-                MLImage::MLImageFileFormatTypeToStr(img.imgFileFormat));
+                MLImage2::MLImageFileFormatTypeToStr(img.imgFileFormat));
             ImGui::Text("%d x %d, %s",
-                img.width, img.height, MLImage::MLImageBitFormatToStr(img.bitFormat));
+                img.width, img.height, MLImage2::MLImageBitFormatToStr(img.bitFormat));
 
             ImGui::SliderFloat("Image Brightness Scaling", &mShaderConsts.scale, 0.001f, 100.0f);
             ImGui::SameLine();
@@ -1414,7 +1414,7 @@ MainApp::ShowSettingsWindow(void) {
             ImGui::RadioButton("Linear ##IGC", &cg, 0);
             ImGui::RadioButton("Gamma 2.2 ##IGC", &cg, 1);
             ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
-            img.gamma = (MLImage::GammaType)cg;
+            img.gamma = (MLImage2::GammaType)cg;
         }
     }
 
@@ -1574,6 +1574,76 @@ MainApp::ShowImageFileRWWindow(void)
 }
 
 void
+MainApp::ShowVideoPlaybackWindow(void) {
+    char path[MAX_PATH];
+    memset(path, 0, sizeof path);
+
+    ImGui::Begin("Playback Control");
+
+    if (ImGui::BeginPopupModal("ErrorPlayPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(mPlayMsg);
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+            mPlayMsg[0] = 0;
+        }
+        ImGui::EndPopup();
+    }
+
+    {
+        memset(path, 0, sizeof path);
+        WideCharToMultiByte(CP_UTF8, 0, mAviFilePath, -1, path, sizeof path - 1, nullptr, nullptr);
+        if (ImGui::InputText("Read filename", path, sizeof path - 1)) {
+            // text has changed. update mImgFilePath.
+            MultiByteToWideChar(CP_UTF8, 0, path, -1, mAviFilePath, _countof(mAviFilePath) - 1);
+        }
+    }
+
+    if (mAviReader.NumFrames() <= 0) {
+        if (ImGui::Button("Open")) {
+            if (mAviReader.Open(mAviFilePath)) {
+                const MLBitmapInfoHeader& bi = mAviReader.ImageFormat();
+
+                if (bi.biCompression != 0) {
+                    sprintf_s(mPlayMsg, "Error: Not supported AVI format : %S", mAviFilePath);
+                    ImGui::OpenPopup("ErrorPlayPopup");
+                    mAviReader.Close();
+                } else {
+                    // success
+                    mPlayMsg[0] = 0;
+                    mPlayFrameNr = 0;
+                }
+            } else {
+                sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %S", mAviFilePath);
+                ImGui::OpenPopup("ErrorPlayPopup");
+            }
+        }
+    } else {
+        if (ImGui::Button("Close")) {
+            mAviReader.Close();
+        }
+
+        ImGui::Text("%d x %d, %d fps, %.1f sec",
+            mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
+            mAviReader.FramesPerSec(), mAviReader.DurationSec());
+
+        {
+            // hour:min:sec:frameを算出。
+            auto vt = MLFrameNrToTime(mAviReader.FramesPerSec(), mPlayFrameNr);
+
+            ImGui::Text("%02d:%02d:%02d:%02d",
+                vt.hour, vt.min, vt.sec, vt.frame);
+        }
+
+        // シークバー。
+        ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1);
+
+        const MLBitmapInfoHeader& bi = mAviReader.ImageFormat();
+    }
+
+    ImGui::End();
+}
+
+void
 MainApp::ImGuiCommands(void)
 {
     if (mShowImGui) {
@@ -1581,6 +1651,7 @@ MainApp::ImGuiCommands(void)
 
         // 順番が重要。キャプチャー画像を保存するため。
         ShowVideoCaptureWindow();
+        ShowVideoPlaybackWindow();
         ShowImageFileRWWindow();
         ShowSettingsWindow();
     } else {
@@ -1624,25 +1695,25 @@ MainApp::UpdateImgTexture(void)
 }
 
 void
-MainApp::UploadImgToGpu(MLImage& ci, ComPtr<ID3D12Resource>& tex, int texIdx)
+MainApp::UploadImgToGpu(MLImage2& ci, ComPtr<ID3D12Resource>& tex, int texIdx)
 {
     DXGI_FORMAT pixelFormat;
     int         pixelBytes;
 
     switch (ci.bitFormat) {
-    case MLImage::BFT_UIntR8G8B8A8:
+    case MLImage2::BFT_UIntR8G8B8A8:
         pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
         pixelBytes = 4;
         break;
-    case MLImage::BFT_UIntR10G10B10A2:
+    case MLImage2::BFT_UIntR10G10B10A2:
         pixelFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
         pixelBytes = 4;
         break;
-    case MLImage::BFT_UIntR16G16B16A16:
+    case MLImage2::BFT_UIntR16G16B16A16:
         pixelFormat = DXGI_FORMAT_R16G16B16A16_UNORM;
         pixelBytes = 8;
         break;
-    case MLImage::BFT_HalfFloatR16G16B16A16:
+    case MLImage2::BFT_HalfFloatR16G16B16A16:
         pixelFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
         pixelBytes = 8;
         break;

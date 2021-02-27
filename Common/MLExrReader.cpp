@@ -6,7 +6,7 @@ using namespace IMATH_NAMESPACE;
 using namespace std;
 
 int
-MLExrRead(const char* exrFilePath, MLImage& img_return)
+MLExrRead(const char* exrFilePath, MLImage2& img_return)
 {
     img_return.data = nullptr;
 
@@ -23,8 +23,8 @@ MLExrRead(const char* exrFilePath, MLImage& img_return)
     }
 
     img_return.Term();
-    img_return.Init(w, h, MLImage::IFFT_OpenEXR, MLImage::BFT_HalfFloatR16G16B16A16,
-        ML_CG_Rec2020, MLImage::MLG_Linear, 16, 4,
+    img_return.Init(w, h, MLImage2::IFFT_OpenEXR, MLImage2::BFT_HalfFloatR16G16B16A16,
+        ML_CG_Rec2020, MLImage2::MLG_Linear, 16, 4,
         w * h * 4 * 2, // 4==numCh, 2== sizeof(half)
         new uint8_t[w * h * 4 * 2]);
 

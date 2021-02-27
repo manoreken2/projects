@@ -3,7 +3,7 @@
 #include "IMLVideoCaptureCallback.h"
 #include "MLVideoCapture.h"
 #include "MLVideoCaptureDeviceEnum.h"
-#include "MLImage.h"
+#include "MLImage2.h"
 #include <list>
 #include <mutex>
 #include "MLConverter.h"
@@ -57,9 +57,9 @@ public:
     /// </summary>
     int CapturedImageCount(void);
 
-    void UpdateImageGamma(MLImage::GammaType g);
-    HRESULT PopCapturedImg(MLImage& img_return);
-    HRESULT CreateCopyOfCapturedImg(MLImage& img_return);
+    void UpdateImageGamma(MLImage2::GammaType g);
+    HRESULT PopCapturedImg(MLImage2& img_return);
+    HRESULT CreateCopyOfCapturedImg(MLImage2& img_return);
 
     BMDDetectedVideoInputFormatFlags DetectedVideoInputFormatFlags(void) const {
         return mVC.DetectedVideoInputFormatFlags();
@@ -75,7 +75,7 @@ private:
     void MLVideoCaptureCallback_VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioPacket);
     MLVideoCaptureDeviceEnum mDE;
     MLVideoCapture mVC;
-    std::list<MLImage> mCapturedImages;
+    std::list<MLImage2> mCapturedImages;
     int mFrameSkipCount = 0;
 
     MLConverter mConv;

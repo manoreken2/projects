@@ -27,11 +27,11 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
 
     MLConverter::ColorSpace cs = MLConverter::CS_Rec709;
     MLColorGamutType gamut = ML_CG_Rec709;
-    MLImage::GammaType gamma = MLImage::MLG_G22;
+    MLImage2::GammaType gamma = MLImage2::MLG_G22;
     if (PQ) {
         cs = MLConverter::CS_Rec2020;
         gamut = ML_CG_Rec2020;
-        gamma = MLImage::MLG_ST2084;
+        gamma = MLImage2::MLG_ST2084;
     }
 
     uint8_t* buf1 = nullptr;
@@ -86,10 +86,10 @@ Process(const wchar_t* inAviPath, const char* outExrPrefix, const bool PQ) {
                 assert(0);
             }
 
-            MLImage mi;
+            MLImage2 mi;
             mi.Init(imgFmt.biWidth, imgFmt.biHeight,
-                MLImage::IFFT_CapturedImg,
-                MLImage::BFT_UIntR10G10B10A2,
+                MLImage2::IFFT_CapturedImg,
+                MLImage2::BFT_UIntR10G10B10A2,
                 gamut, gamma,
                 10, 3, imgFmt.biSizeImage, buf2);
 

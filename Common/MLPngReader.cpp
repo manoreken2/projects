@@ -22,7 +22,7 @@ static const char* PngColorTypeToStr(int t) {
 /// PNGファイルを読む。
 /// </summary>
 /// <returns>0:成功。負の数:失敗。1:PNGファイルでは無かった。</returns>
-int MLPngRead(const wchar_t* pngFilePath, MLImage& img_return)
+int MLPngRead(const wchar_t* pngFilePath, MLImage2& img_return)
 {
     FILE* fp = nullptr;
     int ercd = _wfopen_s(&fp, pngFilePath, L"rb");
@@ -110,10 +110,10 @@ int MLPngRead(const wchar_t* pngFilePath, MLImage& img_return)
     if (orig_bit_depth == 8) {
         img_return.Term();
         img_return.Init(width, height,
-            MLImage::IFFT_PNG,
-            MLImage::BFT_UIntR8G8B8A8,
+            MLImage2::IFFT_PNG,
+            MLImage2::BFT_UIntR8G8B8A8,
             ML_CG_Rec709, 
-            MLImage::MLG_G22, 
+            MLImage2::MLG_G22, 
             orig_bit_depth,
             orig_num_channels,
             width * height * 4 * sizeof(uint8_t), // 4==numCh
@@ -137,10 +137,10 @@ int MLPngRead(const wchar_t* pngFilePath, MLImage& img_return)
     } else if (orig_bit_depth == 16) {
         img_return.Term();
         img_return.Init(width, height,
-            MLImage::IFFT_PNG,
-            MLImage::BFT_UIntR16G16B16A16,
+            MLImage2::IFFT_PNG,
+            MLImage2::BFT_UIntR16G16B16A16,
             ML_CG_Rec2020, 
-            MLImage::MLG_ST2084, 
+            MLImage2::MLG_ST2084, 
             orig_bit_depth,
             orig_num_channels,
             width * height * 4 * sizeof(uint16_t), // 4==numCh
