@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{794d3702-b5a5-447e-a659-4c9c447b7a5b}</ProjectGuid>
-    <RootNamespace>PngToBmp</RootNamespace>
+    <ProjectGuid>{dc2e9a6b-7e79-4a14-ad14-0b7f4815a02b}</ProjectGuid>
+    <RootNamespace>PngSequenceToAvi</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -45,11 +45,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(ProjectDir)..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>..\Contrib\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>$(ProjectDir)..\Contrib\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>..\Contrib\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -57,13 +57,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Common;$(ProjectDir)..\Contrib\include;$(ProjectDir)..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Contrib\include;..\Contrib\include\OpenExr;..\Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Shlwapi.lib;libpng16_staticd.lib;zlibstaticd.lib;Imath-2_5_static_d.lib;IlmThread-2_5_static_d.lib;IlmImfUtil-2_5_static_d.lib;IlmImf-2_5_static_d.lib;IexMath-2_5_static_d.lib;Iex-2_5_static_d.lib;Half-2_5_static_d.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;libpng16_staticd.lib;zlibstaticd.lib;Imath-2_5_static_d.lib;IlmThread-2_5_static_d.lib;IlmImfUtil-2_5_static_d.lib;IlmImf-2_5_static_d.lib;IexMath-2_5_static_d.lib;Iex-2_5_static_d.lib;Half-2_5_static_d.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -74,7 +74,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Common;$(ProjectDir)..\Contrib\include;$(ProjectDir)..\Contrib\include\OpenEXR</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Contrib\include;..\Contrib\include\OpenExr;..\Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -82,16 +82,22 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Shlwapi.lib;libpng16_static.lib;zlibstatic.lib;Imath-2_5_static.lib;IlmThread-2_5_static.lib;IlmImfUtil-2_5_static.lib;IlmImf-2_5_static.lib;IexMath-2_5_static.lib;Iex-2_5_static.lib;Half-2_5_static.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;libpng16_static.lib;zlibstatic.lib;Imath-2_5_static.lib;IlmThread-2_5_static.lib;IlmImfUtil-2_5_static.lib;IlmImf-2_5_static.lib;IexMath-2_5_static.lib;Iex-2_5_static.lib;Half-2_5_static.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\MLBmpWriter.cpp" />
+    <ClCompile Include="..\Common\MLAviCommon.cpp" />
+    <ClCompile Include="..\Common\MLAviWriter.cpp" />
+    <ClCompile Include="..\Common\MLConverter.cpp" />
+    <ClCompile Include="..\Common\MLImage.cpp" />
     <ClCompile Include="..\Common\MLPngReader.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\MLBmpWriter.h" />
+    <ClInclude Include="..\Common\MLAVICommon.h" />
+    <ClInclude Include="..\Common\MLAviWriter.h" />
+    <ClInclude Include="..\Common\MLConverter.h" />
+    <ClInclude Include="..\Common\MLImage.h" />
     <ClInclude Include="..\Common\MLPngReader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

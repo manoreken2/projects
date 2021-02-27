@@ -15,6 +15,19 @@ public:
     MLAviWriter(void);
     ~MLAviWriter(void);
 
+    /*
+    使用方法
+        Start()
+        AddImage()
+        StopBlocking()
+
+    または
+        Start()
+        AddImage()
+        StopAsync()
+        while (!PollThreadEnd()) { }
+    */
+
     bool Start(std::wstring path, int width, int height, double fps, MLAviImageFormat imgFmt,
             bool bAudio);
 
@@ -23,7 +36,7 @@ public:
     void AddAudio(const uint8_t * buff, int frames);
 
     // send thread to flush remaining data and end.
-    // StopAsync() then call PallThreadEnd() every frame until PollThreadEnd() returns true
+    // StopAsync() then call PollThreadEnd() every frame until PollThreadEnd() returns true
     void StopAsync(void);
 
     // returns true when writing thread ends
@@ -131,8 +144,8 @@ private:
     void StopThreadAsync(void);
 
     /// <summary>
-    ///  new[] で確保し、キャプチャー画像を変換またはコピーします。
+    /// toBytes_returnをnew[]で確保、そこに画像をコピーまたはAVIで保存できる形式に変換書き込みします。
     /// </summary>
-    uint8_t* ConvCapturedImg(const uint8_t* imgFrom, int fromBytes, int * toBytes_return);
+    uint8_t* ConvImg(const uint8_t* imgFrom, int fromBytes, int * toBytes_return);
 };
 

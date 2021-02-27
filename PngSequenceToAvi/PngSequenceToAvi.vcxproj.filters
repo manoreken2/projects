@@ -14,25 +14,43 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="Common">
-      <UniqueIdentifier>{56ed3e02-009a-4979-83c3-e9443212374e}</UniqueIdentifier>
+      <UniqueIdentifier>{79e844e4-d8df-4a6b-aa52-61ad77c158f8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\MLBmpWriter.cpp">
+    <ClCompile Include="..\Common\MLAviWriter.cpp">
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\MLPngReader.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\MLAviCommon.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLConverter.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLImage.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\MLBmpWriter.h">
+    <ClInclude Include="..\Common\MLAviWriter.h">
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="..\Common\MLPngReader.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\MLAVICommon.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\MLConverter.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\MLImage.h">
       <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>

@@ -236,6 +236,101 @@ MLConverter::MLConverter(void)
     }
 }
 
+
+void
+MLConverter::R8G8B8A8ToB8G8R8_DIB(const uint32_t* pFrom, uint8_t* pTo, const int width, const int height)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = x + y * width;
+
+            // BMPは上下反転する。
+            const int posW = 3 * (x + (height - y - 1) * width);
+
+            const uint32_t w = pFrom[posR];
+
+            const uint8_t r = (w >> 0) & 0xff;
+            const uint8_t g = (w >> 8) & 0xff;
+            const uint8_t b = (w >> 16) & 0xff;
+            pTo[posW + 0] = b;
+            pTo[posW + 1] = g;
+            pTo[posW + 2] = r;
+        }
+    }
+}
+
+
+void
+MLConverter::R8G8B8A8ToB8G8R8A8_DIB(const uint32_t* pFrom, uint8_t* pTo, const int width, const int height)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = x + y * width;
+            // BMPは上下反転する。
+            const int posW = 4 * (x + (height - y - 1) * width);
+
+            const uint32_t w = pFrom[posR];
+
+            const uint8_t r = (w >> 0) & 0xff;
+            const uint8_t g = (w >> 8) & 0xff;
+            const uint8_t b = (w >> 16) & 0xff;
+            const uint8_t a = (w >> 24) & 0xff;
+
+            pTo[posW + 0] = b;
+            pTo[posW + 1] = g;
+            pTo[posW + 2] = r;
+            pTo[posW + 3] = a;
+        }
+    }
+}
+
+
+void
+MLConverter::R8G8B8ToB8G8R8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = 3 * (x + y * width);
+            // BMPは上下反転する。
+            const int posW = 3 * (x + (height-y-1) * width);
+
+            const uint8_t r = pFrom[posR + 0];
+            const uint8_t g = pFrom[posR + 1];
+            const uint8_t b = pFrom[posR + 2];
+            pTo[posW + 0] = b;
+            pTo[posW + 1] = g;
+            pTo[posW + 2] = r;
+        }
+    }
+}
+
+
+void
+MLConverter::R8G8B8ToB8G8R8A8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height, const uint8_t alpha)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = 3 * (x + y * width);
+            // BMPは上下反転する。
+            const int posW = 4 * (x + (height - y - 1) * width);
+
+            const uint8_t r = pFrom[posR + 0];
+            const uint8_t g = pFrom[posR + 1];
+            const uint8_t b = pFrom[posR + 2];
+            const uint8_t a = alpha;
+            pTo[posW + 0] = b;
+            pTo[posW + 1] = g;
+            pTo[posW + 2] = r;
+            pTo[posW + 3] = a;
+        }
+    }
+}
+
+
 void
 MLConverter::Uyvy8bitToR8G8B8A8(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height)
 {
@@ -530,6 +625,35 @@ MLConverter::R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int w
 
             const uint32_t r210 = (a << 30) + (r << 20) + (g << 10) + b;
             pTo[pos] = HtoNL(r210);
+        }
+    }
+}
+
+/// <summary>
+/// 16bit RGBA to R210
+/// </summary>
+void
+MLConverter::R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int width, const int height)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = 4 * x + y * width;
+            const int posW = x + y * width;
+
+            // quantize to 10bit
+            const uint32_t r = (pFrom[posR + 0] >> 6) & 0x3ff;
+            const uint32_t g = (pFrom[posR + 1] >> 6) & 0x3ff;
+            const uint32_t b = (pFrom[posR + 2] >> 6) & 0x3ff;
+
+            // alpha: quantize to 2bit
+            const uint32_t a = (pFrom[posR + 3] >> 14) & 0x3;
+
+            // bmdFormat10BitRGB
+            // ビッグエンディアンのX2R10G10B10
+
+            const uint32_t r210 = (a << 30) + (r << 20) + (g << 10) + b;
+            pTo[posW] = HtoNL(r210);
         }
     }
 }

@@ -51,6 +51,7 @@ MLAviWriter::Start(std::wstring path, int width, int height, double fps, MLAviIm
     mAudio = bAudio;
 
     switch (mInputImgFmt) {
+    case MLIF_B8G8R8:
     case MLIF_YUV422_v210:
     case MLIF_RGB10bit_r210:
         // そのままAVIファイルに保存する。
@@ -150,10 +151,11 @@ MLAviWriter::Start(std::wstring path, int width, int height, double fps, MLAviIm
 }
 
 uint8_t*
-MLAviWriter::ConvCapturedImg(const uint8_t* imgFrom, int fromBytes, int * toBytes_return)
+MLAviWriter::ConvImg(const uint8_t* imgFrom, int fromBytes, int * toBytes_return)
 {
     uint8_t* imgTo = nullptr;
     switch (mInputImgFmt) {
+    case MLIF_B8G8R8:
     case MLIF_YUV422_v210:
     case MLIF_RGB10bit_r210:
         {
@@ -193,7 +195,7 @@ MLAviWriter::AddImage(const uint8_t * img, int bytes)
     IncomingItem ii;
 
     int writeBytes;
-    ii.buf = ConvCapturedImg(img, bytes, &writeBytes);
+    ii.buf = ConvImg(img, bytes, &writeBytes);
 
     ii.bytes = writeBytes;
     ii.bAudio = false;
@@ -348,6 +350,8 @@ uint32_t
 MLAviWriter::ImageBytes(void) const
 {
     switch (mWriteImgFmt) {
+    case MLIF_B8G8R8:
+        return mWidth * mHeight * 3;
     case MLIF_YUV422_v210:
         return mWidth * mHeight * 8 / 3;
     case MLIF_RGB10bit_r210:
@@ -390,6 +394,8 @@ uint32_t
 MLAviImageFormatToFourcc(MLAviImageFormat t)
 {
     switch (t) {
+    case MLIF_B8G8R8:
+        return 0;
     case MLIF_YUV422_UYVY:
         return MLStringToFourCC("UYVY");
     case MLIF_YUV422_v210:
@@ -405,15 +411,38 @@ MLAviImageFormatToFourcc(MLAviImageFormat t)
 }
 
 int
-MLAviImageFormatToBitsPerPixel(MLAviImageFormat t)
+MLAviImageFormatToBiBitCount(MLAviImageFormat t)
 {
+    // BitmapInfoHeaderのbiBitCountに書き込む値。
+    // ファイル上で1ピクセルが占めるサイズは以下の値よりも大きい場合がある！
     switch (t) {
+    case MLIF_B8G8R8:
+        return 24;
     case MLIF_YUV422_UYVY:
         return 16;
     case MLIF_YUV422_v210:
         return 20;
     case MLIF_RGB10bit_r210:
-        return 30;
+        return 30; //< これが異なる。各ピクセルに要素xが2ビットを占める。
+    case MLIF_RGB12bit_R12B:
+        return 36;
+    default:
+        assert(0);
+        return 0;
+    }
+}
+int
+MLAviImageFormatToBitsPerPixel2(MLAviImageFormat t)
+{
+    switch (t) {
+    case MLIF_B8G8R8:
+        return 24;
+    case MLIF_YUV422_UYVY:
+        return 16;
+    case MLIF_YUV422_v210:
+        return 20;
+    case MLIF_RGB10bit_r210:
+        return 32;
     case MLIF_RGB12bit_R12B:
         return 36;
     default:
@@ -487,7 +516,7 @@ MLAviWriter::WriteBitmapInfoHeader(void)
     ih.biWidth = mWidth;
     ih.biHeight = mHeight;
     ih.biPlanes = 1;
-    ih.biBitCount = MLAviImageFormatToBitsPerPixel(mWriteImgFmt);
+    ih.biBitCount = MLAviImageFormatToBiBitCount(mWriteImgFmt);
     ih.biCompression = MLAviImageFormatToFourcc(mWriteImgFmt);
     ih.biSizeImage = ImageBytes();
     ih.biXPelsPerMeter = 0;

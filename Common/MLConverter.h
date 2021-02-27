@@ -15,6 +15,18 @@ public:
     };
 
     /// <summary>
+    /// R8G8B8A8 to B8G8R8 for BMP save
+    /// </summary>
+    static void R8G8B8A8ToB8G8R8_DIB(const uint32_t* pFrom, uint8_t* pTo, const int width, const int height);
+    static void R8G8B8A8ToB8G8R8A8_DIB(const uint32_t* pFrom, uint8_t* pTo, const int width, const int height);
+
+    /// <summary>
+    /// R8G8B8 to B8G8R8 for BMP save
+    /// </summary>
+    static void R8G8B8ToB8G8R8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height);
+    static void R8G8B8ToB8G8R8A8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height, const uint8_t alpha);
+
+    /// <summary>
     /// bmdFormat8BitYUV UYVY Å® DXGI_FORMAT_R8G8B8A8_UNORM
     /// </summary>
     static void Uyvy8bitToR8G8B8A8(const ColorSpace colorSpace, const uint32_t* pFrom, uint32_t* pTo, const int width, const int height);
@@ -74,6 +86,11 @@ public:
     /// DXGI_FORMAT_R10G10B10A2_UNORM Å® bmdFormat10BitRGB(r210)
     /// </summary>
     static void R10G10B10A2ToR210(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
+
+    /// <summary>
+    /// 16bit RGBA to R210
+    /// </summary>
+    static void R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int width, const int height);
 
 private:
     half mGammaInv22_10bit[1024];

@@ -11,6 +11,7 @@ enum MLAviImageFormat {
     MLIF_Unknown = -1,
     MLIF_YUV422_UYVY,
     MLIF_YUV422_v210,
+    MLIF_B8G8R8,
     MLIF_RGB10bit_r210,
     MLIF_RGB12bit_R12B,
 };
@@ -18,9 +19,18 @@ enum MLAviImageFormat {
 uint32_t
 MLAviImageFormatToFourcc(MLAviImageFormat t);
 
+/// <summary>
+/// 注意！この値はAVIのBitmapInfoHeaderのbiBitCountに書き込む値。
+/// ファイルの上で1ピクセルが占めるビット数はMLAviImageFormatToBitsPerPixel2()で取得して下さい。
+/// </summary>
 int
-MLAviImageFormatToBitsPerPixel(MLAviImageFormat t);
+MLAviImageFormatToBiBitCount(MLAviImageFormat t);
 
+/// <summary>
+/// ファイル上で1ピクセルが占めるビット数。
+/// </summary>
+int
+MLAviImageFormatToBitsPerPixel2(MLAviImageFormat t);
 
 enum MLFOURCC {
     MLFOURCC_RIFF = 0x46464952,
