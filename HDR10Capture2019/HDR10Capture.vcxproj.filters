@@ -1,190 +1,94 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="imgui.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_demo.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_draw.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_impl_win32.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_widgets.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="Main.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="MLDX12.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="MLDX12App.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLDX12Common.cpp">
+    <ClCompile Include="..\Common\imgui.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLDX12Imgui.cpp">
+    <ClCompile Include="..\Common\imgui_demo.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLColorGamut.cpp">
+    <ClCompile Include="..\Common\imgui_draw.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLImage.cpp">
+    <ClCompile Include="..\Common\imgui_impl_win32.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLSaveSettings.cpp">
+    <ClCompile Include="..\Common\imgui_widgets.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLExrReader.cpp">
+    <ClCompile Include="..\Common\MLAviCommon.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLBmpReader.cpp">
+    <ClCompile Include="..\Common\MLAviReader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLPngReader.cpp">
+    <ClCompile Include="..\Common\MLAviWriter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLEnumToStr.cpp">
+    <ClCompile Include="..\Common\MLBmpReader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLWinApp.cpp">
+    <ClCompile Include="..\Common\MLBmpWriter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLVideoCapUser.cpp">
+    <ClCompile Include="..\Common\MLColorGamut.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLConverter.cpp">
+    <ClCompile Include="..\Common\MLConverter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLPngWriter.cpp">
+    <ClCompile Include="..\Common\MLDX12.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLAviCommon.cpp">
+    <ClCompile Include="..\Common\MLDX12Common.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLAviReader.cpp">
+    <ClCompile Include="..\Common\MLDX12Imgui.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLAviWriter.cpp">
+    <ClCompile Include="..\Common\MLEnumToStr.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLVideoTime.cpp">
+    <ClCompile Include="..\Common\MLExrReader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="MLExrWriter.cpp">
+    <ClCompile Include="..\Common\MLExrWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLImage.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLPngReader.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLPngWriter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLSaveSettings.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLVideoCapUser.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLVideoTime.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\MLWinApp.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="DXSampleHelper.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imconfig.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui_impl_win32.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui_internal.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imstb_rectpack.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imstb_textedit.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="imstb_truetype.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLDX12.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="MLDX12App.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLDX12Common.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLDX12Imgui.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLImage.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLColorGamut.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLColorConvShaderConstants.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Contrib\include\OpenEXR\half.h">
-      <Filter>Contrib</Filter>
-    </ClInclude>
-    <ClInclude Include="Contrib\include\OpenEXR\OpenEXRConfig.h">
-      <Filter>Contrib</Filter>
-    </ClInclude>
-    <ClInclude Include="MLSaveSettings.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLBmpReader.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLExrReader.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLPngReader.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLEnumToStr.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Common.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLWinApp.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Resources</Filter>
-    </ClInclude>
-    <ClInclude Include="MLVideoCapUser.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLConverter.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLPngWriter.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLAVICommon.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLAviReader.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLAviWriter.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLVideoTime.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MLExrWriter.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="IMLVideoCapUserCallback.h">
-      <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

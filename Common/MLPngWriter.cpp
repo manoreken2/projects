@@ -102,7 +102,7 @@ int MLPngWrite(const wchar_t* pngFilePath, const MLImage& img)
     FILE* fp = nullptr;
     int ercd = _wfopen_s(&fp, pngFilePath, L"wb");
     if (0 != ercd || !fp) {
-        printf("Error: PngWrite failed. %s\n", pngFilePath);
+        printf("Error: PngWrite failed. %S\n", pngFilePath);
 
         png_free(png, rows);
         rows = nullptr;
