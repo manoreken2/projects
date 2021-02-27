@@ -40,6 +40,12 @@
     <ClInclude Include="..\Common\MLVideoTime.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="MLDrawings.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MLDX12App.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

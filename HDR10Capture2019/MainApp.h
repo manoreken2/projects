@@ -22,6 +22,7 @@
 #include "MLVideoCapUser.h"
 #include "MLExrWriter.h"
 #include "MLAviReader.h"
+#include "MLConverter.h"
 
 
 using namespace DirectX;
@@ -174,7 +175,7 @@ private:
 
     void ShowSettingsWindow(void);
     void ShowImageFileRWWindow(void);
-    void ShowVideoPlaybackWindow(void);
+    void ShowAviPlaybackWindow(void);
 
     void UploadImgToGpu(MLImage2 &ci, ComPtr<ID3D12Resource> &tex, int texIdx);
     void AdjustFullScreenQuadAspectRatio(int w, int h);
@@ -231,4 +232,18 @@ private:
     MLAviReader mAviReader;
     char mPlayMsg[512] = {};
     int mPlayFrameNr = 0;
+    uint8_t* mAviImgBuf = nullptr;
+    int mAviImgBufBytes = 0;
+    MLConverter mConverter;
+    enum AviPlayState {
+        APS_PreInit,
+        APS_Stopped,
+        APS_Playing,
+    };
+    AviPlayState mAviPlayState = APS_PreInit;
+    bool mRequestReadAvi = false;
+
+    bool UpdateAviTexture(void);
+
+    static const char* AviPlayStateToStr(AviPlayState t);
  };

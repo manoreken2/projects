@@ -31,9 +31,9 @@ struct MLImage2 {
 
     /// <summary>
     /// new[]で確保して下さい。
-    /// RGBAの順、ピクセル値を左から右、上から下に並べます。
     /// </summary>
     uint8_t *data = nullptr;
+
     int bytes = 0;
     int width = 0;
     int height = 0;
@@ -41,9 +41,24 @@ struct MLImage2 {
     BitFormatType bitFormat = BFT_None;
     MLColorGamutType colorGamut = ML_CG_Rec709;
     GammaType gamma = MLG_G22;
+
+    /// <summary>
+    /// ビットデプス。8bit, 10bit等。
+    /// </summary>
     int originalBitDepth = 8;
+
+    /// <summary>
+    /// チャンネル数。RGBのとき3、RGBAのとき4。
+    /// </summary>
     int originalNumChannels = 3;
 
+    /// <summary>
+    /// すべてのメンバ変数をセットします。
+    /// </summary>
+    /// <param name="aOriginalBitDepth">ビットデプス。8bit、10bit等。</param>
+    /// <param name="aOriginalNumChannels">チャンネル数。RGBのとき3、RGBAのとき4。</param>
+    /// <param name="aBytes">aDataのバイト数。</param>
+    /// <param name="aData">画像が入っているバッファ。new[]で確保して渡します。</param>
     void Init(int aW, int aH, ImageFileFormatType iff, BitFormatType bf, MLColorGamutType cg, GammaType ga, int aOriginalBitDepth, int aOriginalNumChannels, int aBytes, uint8_t *aData) {
         data = aData;
         bytes = aBytes;

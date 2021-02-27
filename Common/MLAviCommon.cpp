@@ -20,6 +20,8 @@ uint32_t MLStringToFourCC(const char *s)
     return fcc;
 }
 
+
+
 const std::string
 MLFourCCtoString(uint32_t fourcc)
 {
@@ -29,6 +31,16 @@ MLFourCCtoString(uint32_t fourcc)
     s[1] = (fourcc >> 8) & 0xff;
     s[2] = (fourcc >> 16) & 0xff;
     s[3] = (fourcc >> 24) & 0xff;
+
+    for (int i = 0; i < 4; ++i) {
+        if (s[i] < 0) {
+            // ASCIIではない文字。
+            s[i] = '?';
+        } else if (s[i] < 0x20) {
+            // 制御文字をスペースにする。
+            s[i] = ' ';
+        }
+    }
 
     return std::string(s);
 }

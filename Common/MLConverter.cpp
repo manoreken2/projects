@@ -351,11 +351,28 @@ MLConverter::R8G8B8ToB8G8R8A8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int 
             const uint8_t r = pFrom[posR + 0];
             const uint8_t g = pFrom[posR + 1];
             const uint8_t b = pFrom[posR + 2];
-            const uint8_t a = alpha;
             pTo[posW + 0] = b;
             pTo[posW + 1] = g;
             pTo[posW + 2] = r;
-            pTo[posW + 3] = a;
+            pTo[posW + 3] = alpha;
+        }
+    }
+}
+
+void
+MLConverter::B8G8R8DIBToR8G8B8A8(const uint8_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int posR = 3 * (x + y * width);
+            // BMP‚Íã‰º”½“]‚·‚éB
+            const int posW = x + (height - y - 1) * width;
+
+            const uint8_t b = pFrom[posR + 0];
+            const uint8_t g = pFrom[posR + 1];
+            const uint8_t r = pFrom[posR + 2];
+            pTo[posW] = r + (g << 8) + (b << 16) + (alpha << 24);
         }
     }
 }
@@ -827,7 +844,7 @@ MLConverter::R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int 
 #pragma omp parallel for
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            const int posR = 4 * x + y * width;
+            const int posR = 4 * (x + y * width);
             const int posW = x + y * width;
 
             // quantize to 10bit

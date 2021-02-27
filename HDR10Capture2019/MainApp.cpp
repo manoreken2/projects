@@ -16,6 +16,7 @@
 #include "MLExrWriter.h"
 #include <shlwapi.h>
 #include <shellapi.h>
+#include <assert.h>
 
 // shader source code as string
 #include "shaderVS.inc"
@@ -77,29 +78,35 @@ MainApp::MainApp(UINT width, UINT height, UINT options)
 
 MainApp::~MainApp(void)
 {
-    // WriteToFile()まで消えないバッファーを作る。
-    char imgPath[MAX_PATH * 3];
-    memset(imgPath, 0, sizeof imgPath);
-    WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, imgPath, sizeof imgPath - 1, nullptr, nullptr);
-    mSettings.SaveStringA("ImgFilePath", imgPath);
+    // 設定の書き出し。
+    {
+        // WriteToFile()まで消えないバッファーを作る。
+        char imgPath[MAX_PATH * 3];
+        memset(imgPath, 0, sizeof imgPath);
+        WideCharToMultiByte(CP_UTF8, 0, mImgFilePath, -1, imgPath, sizeof imgPath - 1, nullptr, nullptr);
+        mSettings.SaveStringA("ImgFilePath", imgPath);
 
-    // WriteToFile()まで消えないバッファーを作る。
-    char aviPath[MAX_PATH * 3];
-    memset(aviPath, 0, sizeof aviPath);
-    WideCharToMultiByte(CP_UTF8, 0, mAviFilePath, -1, aviPath, sizeof aviPath - 1, nullptr, nullptr);
-    mSettings.SaveStringA("AviFilePath", aviPath);
+        // WriteToFile()まで消えないバッファーを作る。
+        char aviPath[MAX_PATH * 3];
+        memset(aviPath, 0, sizeof aviPath);
+        WideCharToMultiByte(CP_UTF8, 0, mAviFilePath, -1, aviPath, sizeof aviPath - 1, nullptr, nullptr);
+        mSettings.SaveStringA("AviFilePath", aviPath);
 
-    int outOfRangeR = (int)(mShaderConsts.outOfRangeColor.x * 255.0f);
-    int outOfRangeG = (int)(mShaderConsts.outOfRangeColor.y * 255.0f);
-    int outOfRangeB = (int)(mShaderConsts.outOfRangeColor.z * 255.0f);
-    mSettings.SaveInt("OutOfRangeR", outOfRangeR);
-    mSettings.SaveInt("OutOfRangeG", outOfRangeG);
-    mSettings.SaveInt("OutOfRangeB", outOfRangeB);
-    mSettings.SaveDouble("OutOfRangeNits", mShaderConsts.outOfRangeNits);
+        int outOfRangeR = (int)(mShaderConsts.outOfRangeColor.x * 255.0f);
+        int outOfRangeG = (int)(mShaderConsts.outOfRangeColor.y * 255.0f);
+        int outOfRangeB = (int)(mShaderConsts.outOfRangeColor.z * 255.0f);
+        mSettings.SaveInt("OutOfRangeR", outOfRangeR);
+        mSettings.SaveInt("OutOfRangeG", outOfRangeG);
+        mSettings.SaveInt("OutOfRangeB", outOfRangeB);
+        mSettings.SaveDouble("OutOfRangeNits", mShaderConsts.outOfRangeNits);
 
-    mSettings.SaveInt("DisplayColorGamut", mDisplayColorGamut);
+        mSettings.SaveInt("DisplayColorGamut", mDisplayColorGamut);
 
-    mSettings.WriteToFile();
+        mSettings.WriteToFile();
+    }
+
+    delete[] mAviImgBuf;
+    mAviImgBuf = nullptr;
 }
 
 void
@@ -821,9 +828,21 @@ MainApp::OnKeyUp(int key)
 void
 MainApp::OnDropFiles(HDROP hDrop)
 {
-    UINT rv = DragQueryFile(hDrop, 0, mImgFilePath, _countof(mImgFilePath) - 1);
+    wchar_t path[MAX_PATH];
+    memset(path, 0, sizeof path);
+
+    UINT rv = DragQueryFile(hDrop, 0, path, _countof(path) - 1);
     if (0 < rv) {
-        mRequestReadImg = true;
+        size_t sz = wcslen(path);
+
+        if (0 == _wcsicmp(L".avi", &path[sz - 4])) {
+            // AVIファイル。
+            wcscpy_s(mAviFilePath, path);
+            mRequestReadAvi = true;
+        } else {
+            wcscpy_s(mImgFilePath, path);
+            mRequestReadImg = true;
+        }
     }
 }
 
@@ -1573,12 +1592,28 @@ MainApp::ShowImageFileRWWindow(void)
     ImGui::End();
 }
 
+const char *
+MainApp::AviPlayStateToStr(AviPlayState t)
+{
+    switch (t) {
+    case APS_PreInit:
+        return "PreInit";
+    case APS_Playing:
+        return "Playing";
+    case APS_Stopped:
+        return "Stopped";
+    default:
+        assert(0);
+        return "Unknown";
+    }
+}
+
 void
-MainApp::ShowVideoPlaybackWindow(void) {
+MainApp::ShowAviPlaybackWindow(void) {
     char path[MAX_PATH];
     memset(path, 0, sizeof path);
 
-    ImGui::Begin("Playback Control");
+    ImGui::Begin("AVI Playback Control");
 
     if (ImGui::BeginPopupModal("ErrorPlayPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text(mPlayMsg);
@@ -1599,11 +1634,14 @@ MainApp::ShowVideoPlaybackWindow(void) {
     }
 
     if (mAviReader.NumFrames() <= 0) {
-        if (ImGui::Button("Open")) {
+        if (mRequestReadAvi || ImGui::Button("Open")) {
+            mRequestReadAvi = false;
             if (mAviReader.Open(mAviFilePath)) {
                 const MLBitmapInfoHeader& bi = mAviReader.ImageFormat();
 
-                if (bi.biCompression != 0) {
+                if (bi.biCompression != 0
+                        && bi.biCompression != MLFOURCC_r210
+                        && bi.biCompression != MLFOURCC_v210) {
                     sprintf_s(mPlayMsg, "Error: Not supported AVI format : %S", mAviFilePath);
                     ImGui::OpenPopup("ErrorPlayPopup");
                     mAviReader.Close();
@@ -1611,6 +1649,32 @@ MainApp::ShowVideoPlaybackWindow(void) {
                     // success
                     mPlayMsg[0] = 0;
                     mPlayFrameNr = 0;
+
+                    const MLBitmapInfoHeader& bmpih = mAviReader.ImageFormat();
+
+                    // bitsPerPixelを求めます。
+                    int bitsPerPixel = 0;
+                    switch (bi.biCompression) {
+                    case 0:
+                        bitsPerPixel = bmpih.biBitCount;
+                        break;
+                    case MLFOURCC_r210:
+                        bitsPerPixel = 32; //< X2R10G10B10
+                        break;
+                    case MLFOURCC_v210:
+                        bitsPerPixel = 24; //< 若干多めに確保する。
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+
+                    mAviImgBufBytes = bmpih.biWidth * bmpih.biHeight * bitsPerPixel / 8;
+
+                    delete[] mAviImgBuf;
+                    mAviImgBuf = nullptr;
+                    mAviImgBuf = new uint8_t[mAviImgBufBytes];
+                    mAviPlayState = APS_Playing;
                 }
             } else {
                 sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %S", mAviFilePath);
@@ -1618,13 +1682,11 @@ MainApp::ShowVideoPlaybackWindow(void) {
             }
         }
     } else {
-        if (ImGui::Button("Close")) {
-            mAviReader.Close();
-        }
-
-        ImGui::Text("%d x %d, %d fps, %.1f sec",
+        ImGui::Text("%s %d x %d, %d fps, %.1f sec %s",
+            AviPlayStateToStr(mAviPlayState),
             mAviReader.ImageFormat().biWidth, mAviReader.ImageFormat().biHeight,
-            mAviReader.FramesPerSec(), mAviReader.DurationSec());
+            mAviReader.FramesPerSec(), mAviReader.DurationSec(),
+            MLFourCCtoString(mAviReader.ImageFormat().biCompression).c_str());
 
         {
             // hour:min:sec:frameを算出。
@@ -1635,14 +1697,92 @@ MainApp::ShowVideoPlaybackWindow(void) {
         }
 
         // シークバー。
-        ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1);
+        if (ImGui::DragInt("Frame number", &mPlayFrameNr, 1.0f, 0, mAviReader.NumFrames() - 1)) {
+            // ユーザー操作によりフレーム番号が変更。
+            UpdateAviTexture();
+        }
 
-        const MLBitmapInfoHeader& bi = mAviReader.ImageFormat();
+        switch (mAviPlayState) {
+        case APS_Stopped:
+            if (ImGui::Button("Play")) {
+                mAviPlayState = APS_Playing;
+            }
+            break;
+        case APS_Playing:
+            if (ImGui::Button("Stop")) {
+                mAviPlayState = APS_Stopped;
+            } else {
+                // 再生中。次のフレームの画像を読んで表示します。
+                ++mPlayFrameNr;
+                if (mAviReader.NumFrames() <= mPlayFrameNr) {
+                    mPlayFrameNr = 0;
+                }
+
+                UpdateAviTexture();
+            }
+            break;
+        case APS_PreInit:
+            assert(0);
+            break;
+        }
+
+        if (ImGui::Button("Close")) {
+            mAviReader.Close();
+            mAviPlayState = APS_PreInit;
+        }
     }
 
     ImGui::End();
 }
 
+bool
+MainApp::UpdateAviTexture(void)
+{
+    assert(mRenderImg.data == nullptr);
+
+    if (mAviReader.NumFrames() == 0) {
+        return false;
+    }
+
+    if (mPlayFrameNr < 0 || mAviReader.NumFrames() <= mPlayFrameNr) {
+        return false;
+    }
+
+    int bytes = mAviReader.GetImage(mPlayFrameNr, mAviImgBufBytes, mAviImgBuf);
+    if (bytes < 0) {
+        return false;
+    }
+
+    const MLBitmapInfoHeader& bi = mAviReader.ImageFormat();
+
+    if (bi.biCompression == 0 && bi.biBitCount == 24) {
+        int rgbaBytes = bi.biWidth * bi.biHeight * 4;
+        uint8_t* rgbaBuf = new uint8_t[rgbaBytes];
+
+        mRenderImg.Init(bi.biWidth, bi.biHeight, MLImage2::IFFT_BMP, MLImage2::BFT_UIntR8G8B8A8,
+                ML_CG_Rec709, MLImage2::MLG_G22, 8, 3, bytes, rgbaBuf);
+        mConverter.B8G8R8DIBToR8G8B8A8(mAviImgBuf, (uint32_t*)rgbaBuf, bi.biWidth, bi.biHeight, 0xff);
+    } else if (bi.biCompression == MLFOURCC_r210) {
+        int rgbaBytes = bi.biWidth * bi.biHeight * 4;
+        uint8_t* rgbaBuf = new uint8_t[rgbaBytes];
+
+        mRenderImg.Init(bi.biWidth, bi.biHeight, MLImage2::IFFT_BMP, MLImage2::BFT_UIntR10G10B10A2,
+                ML_CG_Rec2020, MLImage2::MLG_ST2084, 10, 3, bytes, rgbaBuf);
+        mConverter.Rgb10bitToR10G10B10A2((const uint32_t*)mAviImgBuf, (uint32_t*)rgbaBuf, bi.biWidth, bi.biHeight, 0xff);
+    } else if (bi.biCompression == MLFOURCC_v210) {
+        int rgbaBytes = bi.biWidth * bi.biHeight * 4;
+        uint8_t* rgbaBuf = new uint8_t[rgbaBytes];
+
+        mRenderImg.Init(bi.biWidth, bi.biHeight, MLImage2::IFFT_BMP, MLImage2::BFT_UIntR10G10B10A2,
+                ML_CG_Rec2020, MLImage2::MLG_ST2084, 10, 3, bytes, rgbaBuf);
+        mConverter.Yuv422_10bitToR10G10B10A2(
+                MLConverter::CS_Rec2020, (const uint32_t*)mAviImgBuf, (uint32_t*)rgbaBuf, bi.biWidth, bi.biHeight, 0xff);
+    } else {
+        assert(0);
+    }
+
+    return true;
+}
 void
 MainApp::ImGuiCommands(void)
 {
@@ -1651,7 +1791,7 @@ MainApp::ImGuiCommands(void)
 
         // 順番が重要。キャプチャー画像を保存するため。
         ShowVideoCaptureWindow();
-        ShowVideoPlaybackWindow();
+        ShowAviPlaybackWindow();
         ShowImageFileRWWindow();
         ShowSettingsWindow();
     } else {
@@ -1661,6 +1801,21 @@ MainApp::ImGuiCommands(void)
         case VCS_CapturePreview:
         case VCS_Recording:
             UpdateCaptureImg();
+            break;
+        default:
+            break;
+        }
+
+        // AVIの次のフレームの画像を読んで表示。
+        switch (mAviPlayState) {
+        case APS_Playing:
+            // 再生中。次のフレームの画像を読んで表示します。
+            ++mPlayFrameNr;
+            if (mAviReader.NumFrames() <= mPlayFrameNr) {
+                mPlayFrameNr = 0;
+            }
+
+            UpdateAviTexture();
             break;
         default:
             break;

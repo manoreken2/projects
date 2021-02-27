@@ -25,6 +25,7 @@ public:
     /// </summary>
     static void R8G8B8ToB8G8R8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height);
     static void R8G8B8ToB8G8R8A8_DIB(const uint8_t* pFrom, uint8_t* pTo, const int width, const int height, const uint8_t alpha);
+    static void B8G8R8DIBToR8G8B8A8(const uint8_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
 
     /// <summary>
     /// bmdFormat8BitYUV UYVY Å® DXGI_FORMAT_R8G8B8A8_UNORM

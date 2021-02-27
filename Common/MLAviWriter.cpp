@@ -423,7 +423,7 @@ MLAviImageFormatToBiBitCount(MLAviImageFormat t)
     case MLIF_YUV422_v210:
         return 20;
     case MLIF_RGB10bit_r210:
-        return 30; //< これが異なる。各ピクセルに要素xが2ビットを占める。
+        return 30; //< これが異なる。X2R10G10B10なので。
     case MLIF_RGB12bit_R12B:
         return 36;
     default:

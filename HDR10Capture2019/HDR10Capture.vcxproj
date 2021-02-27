@@ -11,8 +11,25 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\MLAVICommon.h" />
+    <ClInclude Include="..\Common\MLAviReader.h" />
+    <ClInclude Include="..\Common\MLAviWriter.h" />
+    <ClInclude Include="..\Common\MLBmpReader.h" />
+    <ClInclude Include="..\Common\MLBmpWriter.h" />
+    <ClInclude Include="..\Common\MLColorGamut.h" />
+    <ClInclude Include="..\Common\MLConverter.h" />
+    <ClInclude Include="..\Common\MLDX12.h" />
+    <ClInclude Include="..\Common\MLDX12Common.h" />
     <ClInclude Include="..\Common\MLDX12Imgui2.h" />
+    <ClInclude Include="..\Common\MLEnumToStr.h" />
+    <ClInclude Include="..\Common\MLExrReader.h" />
+    <ClInclude Include="..\Common\MLExrWriter.h" />
     <ClInclude Include="..\Common\MLImage2.h" />
+    <ClInclude Include="..\Common\MLPngReader.h" />
+    <ClInclude Include="..\Common\MLPngWriter.h" />
+    <ClInclude Include="..\Common\MLSaveSettings.h" />
+    <ClInclude Include="..\Common\MLVideoCapUser.h" />
+    <ClInclude Include="..\Common\MLWinApp.h" />
     <ClInclude Include="MainApp.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

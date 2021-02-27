@@ -5,6 +5,9 @@
 
 uint32_t MLStringToFourCC(const char* s);
 
+/// <summary>
+/// 画面表示のためFourCCを文字列にする。
+/// </summary>
 const std::string MLFourCCtoString(uint32_t fourcc);
 
 enum MLAviImageFormat {
@@ -42,6 +45,9 @@ enum MLFOURCC {
     MLFOURCC_vids = 0x73646976,
     MLFOURCC_auds = 0x73647561,
     MLFOURCC_v210 = 0x30313276,
+    MLFOURCC_r210 = 0x30313272,
+    MLFOURCC_UYVY = 0x59565955,
+    MLFOURCC_R12B = 0x42323152,
     MLFOURCC_AVIX = 0x58495641,
     MLFOURCC_movi = 0x69766f6d,
     MLFOURCC_00db = 0x62643030,
@@ -100,6 +106,9 @@ struct MLBitmapInfoHeader {
     int biWidth;
     int biHeight;
     short biPlanes;
+    /// <summary>
+    /// biBitCountは、画像の1ピクセルの占めるサイズでは必ずしも無い。
+    /// </summary>
     short biBitCount;
 
     uint32_t biCompression;

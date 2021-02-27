@@ -19,6 +19,8 @@
     <ClInclude Include="..\Common\MLDX12Common.h" />
     <ClInclude Include="..\Common\MLVideoTime.h" />
     <ClInclude Include="..\Common\MLWinApp.h" />
+    <ClInclude Include="MLDrawings.h" />
+    <ClInclude Include="MLDX12App.h" />
     <ClInclude Include="MLDX12Imgui.h" />
   </ItemGroup>
   <ItemGroup>
