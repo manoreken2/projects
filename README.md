@@ -3,9 +3,9 @@ HDR10Capture project : HDR10 Image Viewer / video Capture app
 
 Enable HDR on Windows Display Settings to display images with HDR10. HDR10 PQ Image is displayed on HDR10 monitor connected to Windows PC. 
 
-Image displaying finctionarity: supports 24bit/32bit/48bit BMP, 24bit/48bit PNG and Half float OpenEXR files. Drop image file to App to display it.
+Image displaying functionality: supports 24bit/32bit/48bit BMP, 24bit/48bit PNG and Half float OpenEXR files. Drop image file to App to display it.
 
-Video capture functionarity: App works with DeckLink devices. Tested on DeckLink Mini recorder 4K. Captured video is saved as Uncompressed AVI. Screenshot can be saved as OpenEXR image.
+Video capture functionality: App works with DeckLink devices. Tested on DeckLink Mini recorder 4K. Captured video is saved as Uncompressed AVI. Screenshot can be saved as OpenEXR image.
 
 ### About AVI file output of HDR10Capture
 
@@ -61,7 +61,7 @@ How to build
 
 Decklink SDK 10.11.4 is necessary to build.
 Copy Blackmagic DeckLink SDK 10.11.4\Win\include\* to MLDecklinkCapture\Decklink directory.
-Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2017 and build.
+Open MLDX12VideoCapture\MLDX12VideoCapture.sln using Visual Studio 2019 and build.
 
 ### About output AVI file of MLDX12VideoCapture 
 
