@@ -838,6 +838,7 @@ MainApp::OnDropFiles(HDROP hDrop)
         if (APS_Playing == mAviPlayState) {
             mAviReader.Close();
             mAviPlayState = APS_PreInit;
+            mState = S_Init;
         }
 
         if (0 == _wcsicmp(L".avi", &path[sz - 4])) {
@@ -1297,6 +1298,7 @@ MainApp::ShowSettingsWindow(void) {
 
     ImGui::Text("ALT+Enter to toggle fullscreen.");
     ImGui::Text("F7 to show/hide UI.");
+    ImGui::Text("Drop file to display it.");
 
     switch (mState) {
     case S_Init:
@@ -1305,8 +1307,11 @@ MainApp::ShowSettingsWindow(void) {
     case S_ImageViewing:
         ImGui::Text("Image loaded.");
         break;
+    case S_VideoViewing:
+        ImGui::Text("Video viewing.");
+        break;
     case S_Capturing:
-        ImGui::Text("Captureing.");
+        ImGui::Text("Video Capturing.");
         break;
     default:
         assert(0);
@@ -1422,18 +1427,6 @@ MainApp::ShowSettingsWindow(void) {
             }
         }
 
-        if (ImGui::TreeNodeEx("Image Quantization Range (Set Full for HDR)", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
-            int cg = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_LimitedRange);
-            ImGui::RadioButton("Full ##ICG", &cg, 0);
-            ImGui::RadioButton("Limited ##ICG", &cg, 1);
-
-            if (cg) {
-                mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_LimitedRange;
-            } else {
-                mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_LimitedRange);
-            }
-        }
-
         if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
 
@@ -1451,6 +1444,18 @@ MainApp::ShowSettingsWindow(void) {
             ImGui::RadioButton("Gamma 2.2 ##IGC", &cg, 1);
             ImGui::RadioButton("ST.2084 PQ ##IGC", &cg, 2);
             img.gamma = (MLImage2::GammaType)cg;
+        }
+    }
+
+    if (ImGui::TreeNodeEx("Image Quantization Range (Set Full for HDR)", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+        int cg = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_LimitedRange);
+        ImGui::RadioButton("Full ##ICG", &cg, 0);
+        ImGui::RadioButton("Limited ##ICG", &cg, 1);
+
+        if (cg) {
+            mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_LimitedRange;
+        } else {
+            mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_LimitedRange);
         }
     }
 
@@ -1692,6 +1697,7 @@ MainApp::ShowAviPlaybackWindow(void) {
                     mAviImgBuf = nullptr;
                     mAviImgBuf = new uint8_t[mAviImgBufBytes];
                     mAviPlayState = APS_Playing;
+                    mState = S_VideoViewing;
                 }
             } else {
                 sprintf_s(mPlayMsg, "Read AVI Failed.\nFile open error : %S", mAviFilePath);
@@ -1746,6 +1752,7 @@ MainApp::ShowAviPlaybackWindow(void) {
         if (ImGui::Button("Close")) {
             mAviReader.Close();
             mAviPlayState = APS_PreInit;
+            mState = S_Init;
         }
     }
 

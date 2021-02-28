@@ -65,6 +65,7 @@ private:
     enum State {
         S_Init,
         S_ImageViewing,
+        S_VideoViewing,
         S_Capturing,
     };
 
