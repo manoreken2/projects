@@ -17,6 +17,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MLDX12VideoCapture", "..\ML
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MLDecklinkCapture", "..\MLDecklinkCapture\MLDecklinkCapture.vcxproj", "{9B2A14DC-4F72-4EB7-8DEB-B10D7BE0610C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PngToExr", "..\PngToExr\PngToExr.vcxproj", "{4C49B532-4946-47C3-AD29-90DDDAB2F45A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -51,6 +53,10 @@ Global
 		{9B2A14DC-4F72-4EB7-8DEB-B10D7BE0610C}.Debug|x64.Build.0 = Debug|x64
 		{9B2A14DC-4F72-4EB7-8DEB-B10D7BE0610C}.Release|x64.ActiveCfg = Release|x64
 		{9B2A14DC-4F72-4EB7-8DEB-B10D7BE0610C}.Release|x64.Build.0 = Release|x64
+		{4C49B532-4946-47C3-AD29-90DDDAB2F45A}.Debug|x64.ActiveCfg = Debug|x64
+		{4C49B532-4946-47C3-AD29-90DDDAB2F45A}.Debug|x64.Build.0 = Debug|x64
+		{4C49B532-4946-47C3-AD29-90DDDAB2F45A}.Release|x64.ActiveCfg = Release|x64
+		{4C49B532-4946-47C3-AD29-90DDDAB2F45A}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -14,6 +14,11 @@ public:
         CS_Rec2020,
     };
 
+    enum QuantizationRange {
+        QR_Full,
+        QR_Limited,
+    };
+
     /// <summary>
     /// R8G8B8A8 to B8G8R8 for BMP save
     /// </summary>
@@ -92,6 +97,10 @@ public:
     /// 16bit RGBA to R210
     /// </summary>
     static void R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int width, const int height);
+
+    static void R16G16B16A16ToExrHalfFloat(const uint16_t* pFrom, uint16_t* pTo, const int width, const int height);
+    static void R8G8B8A8ToExrHalfFloat(
+            const uint8_t* pFrom, uint16_t* pTo, const int width, const int height, QuantizationRange qr);
 
     void BMRawYuvV210ToRGBA(uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
 

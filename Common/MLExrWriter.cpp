@@ -44,6 +44,14 @@ MLExrWriter::Write(const char* exrFilePath, const MLImage2& img)
         buff = new uint8_t[buffBytes];
         memcpy(buff, img.data, buffBytes);
         break;
+    case MLImage2::BFT_UIntR16G16B16A16:
+        buff = new uint8_t[buffBytes];
+        mConv.R16G16B16A16ToExrHalfFloat((uint16_t*)img.data, (uint16_t*)buff, img.width, img.height);
+        break;
+    case MLImage2::BFT_UIntR8G8B8A8:
+        buff = new uint8_t[buffBytes];
+        mConv.R8G8B8A8ToExrHalfFloat((uint8_t*)img.data, (uint16_t*)buff, img.width, img.height, (MLConverter::QuantizationRange)img.quantizationRange);
+        break;
     default:
         // çÏÇ¡ÇƒÇ»Ç¢ÅB
         return E_NOTIMPL;

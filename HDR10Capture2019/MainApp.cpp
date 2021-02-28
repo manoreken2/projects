@@ -1417,6 +1417,18 @@ MainApp::ShowSettingsWindow(void) {
             }
         }
 
+        if (ImGui::TreeNodeEx("Image Quantization Range (Set Full for HDR)", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
+            int cg = 0 != (mShaderConsts.flags & MLColorConvShaderConstants::FLAG_LimitedRange);
+            ImGui::RadioButton("Full ##ICG", &cg, 0);
+            ImGui::RadioButton("Limited ##ICG", &cg, 1);
+
+            if (cg) {
+                mShaderConsts.flags |= MLColorConvShaderConstants::FLAG_LimitedRange;
+            } else {
+                mShaderConsts.flags = mShaderConsts.flags & (~MLColorConvShaderConstants::FLAG_LimitedRange);
+            }
+        }
+
         if (ImGui::TreeNodeEx("Image Color Gamut", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_CollapsingHeader)) {
             //ImGui::Text("Color Gamut is %s", MLColorGamutToStr(img.colorGamut));
 

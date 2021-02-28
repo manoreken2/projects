@@ -30,6 +30,14 @@ struct MLImage2 {
     };
 
     /// <summary>
+    /// MLConverter::QuantizationRangeと同じ。
+    /// </summary>
+    enum QuantizationRange {
+        QR_Full,
+        QR_Limited,
+    };
+
+    /// <summary>
     /// new[]で確保して下さい。
     /// </summary>
     uint8_t *data = nullptr;
@@ -41,6 +49,7 @@ struct MLImage2 {
     BitFormatType bitFormat = BFT_None;
     MLColorGamutType colorGamut = ML_CG_Rec709;
     GammaType gamma = MLG_G22;
+    QuantizationRange quantizationRange = QR_Full;
 
     /// <summary>
     /// ビットデプス。8bit, 10bit等。

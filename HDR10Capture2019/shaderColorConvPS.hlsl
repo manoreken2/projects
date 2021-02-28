@@ -100,6 +100,17 @@ float3 ST2084_to_scRGB_Linear(float3 rgb) {
     return L * pq_C * (1.0f / 80.0f);
 }
 
+float3 ProcessQuantizationRange(float3 v)
+{
+    if ((c_flags & 4) != 0)
+    {
+        // Limited to Full
+        v = (v - 16.0f/255.0f) * 255.0f / 219.0f;
+    }
+    
+    return v;
+}
+
 float3 ApplyGamma(float3 rgb) {
     if (c_gammaType == 0) {
         // MLG_Linear : 100nits == 1.0
@@ -144,6 +155,8 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     rgba = SwapRedBlue(rgba);
 
+    rgba.rgb = ProcessQuantizationRange(rgba.rgb);
+    
     rgba.rgb = ApplyGamma(rgba.rgb);
 
     rgba = mul(rgba, c_mat);

@@ -198,6 +198,14 @@ Yuv10ToRgb10(
 // ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 // ガンマカーブ 
 
+static float
+SRGBtoLinear(float v)
+{
+    // Approximately pow(color, 2.2)
+    v = v < 0.04045f ? v / 12.92f : pow(abs(v + 0.055f) / 1.055f, 2.4f);
+    return v;
+}
+
 static const float pq_m1 = 0.1593017578125f; // ( 2610.0 / 4096.0 ) / 4.0;
 static const float pq_m2 = 78.84375f; // ( 2523.0 / 4096.0 ) * 128.0;
 static const float pq_c1 = 0.8359375f; // 3424.0 / 4096.0 or pq_c3 - pq_c2 + 1.0;
@@ -863,6 +871,74 @@ MLConverter::R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int 
         }
     }
 }
+
+
+void
+MLConverter::R16G16B16A16ToExrHalfFloat(const uint16_t* pFrom, uint16_t* pTo, const int width, const int height)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pos = 4 * (x + y * width);
+
+            const float rF = ST2084toExrLinear(pFrom[pos + 0] / 65535.0f);
+            const float gF = ST2084toExrLinear(pFrom[pos + 1] / 65535.0f);
+            const float bF = ST2084toExrLinear(pFrom[pos + 2] / 65535.0f);
+            const float aF =                   pFrom[pos + 3] / 65535.0f; //< アルファチャンネルは別の計算式。
+
+            const half& rH = rF;
+            const half& gH = gF;
+            const half& bH = bF;
+            const half& aH = aF;
+
+            pTo[pos + 0] = rH.bits();
+            pTo[pos + 1] = gH.bits();
+            pTo[pos + 2] = bH.bits();
+            pTo[pos + 3] = aH.bits();
+        }
+    }
+}
+
+
+void
+MLConverter::R8G8B8A8ToExrHalfFloat(
+        const uint8_t* pFrom, uint16_t* pTo, const int width, const int height, QuantizationRange qr)
+{
+#pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int pos = 4 * (x + y * width);
+
+            uint8_t r = pFrom[pos + 0];
+            uint8_t g = pFrom[pos + 1];
+            uint8_t b = pFrom[pos + 2];
+            uint8_t a = pFrom[pos + 3];
+
+            if (qr == QR_Limited) {
+                r = (uint8_t)((r - 16) * 255 / 219);
+                g = (uint8_t)((g - 16) * 255 / 219);
+                b = (uint8_t)((b - 16) * 255 / 219);
+            }
+
+            // Quantization range == full
+            const float rF = SRGBtoLinear(r / 255.0f);
+            const float gF = SRGBtoLinear(g / 255.0f);
+            const float bF = SRGBtoLinear(b / 255.0f);
+            const float aF = a / 255.0f; //< アルファチャンネルは別の計算式。
+
+            const half& rH = rF;
+            const half& gH = gF;
+            const half& bH = bF;
+            const half& aH = aF;
+
+            pTo[pos + 0] = rH.bits();
+            pTo[pos + 1] = gH.bits();
+            pTo[pos + 2] = bH.bits();
+            pTo[pos + 3] = aH.bits();
+        }
+    }
+}
+
 
 /// <summary>
 /// bmdFormat12BitRGB → DXGI_FORMAT_R8G8B8A8_UNORM

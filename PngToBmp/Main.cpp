@@ -1,4 +1,3 @@
-#include <iostream>
 #include "MLPngReader.h"
 #include "MLBmpWriter.h"
 

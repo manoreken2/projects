@@ -147,6 +147,9 @@
     <ClInclude Include="..\Common\MLWinApp.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="MLColorConvShaderConstants.h">
+      <Filter>Sources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="shaderColorConvPS.hlsl">
