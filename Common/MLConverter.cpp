@@ -43,6 +43,40 @@ Saturate01(const float v)
 }
 
 // ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+// Quantization range conversion for R,G,B and Y
+
+/// Limited: 16 to 235
+/// Full:    0 to 255
+static uint8_t
+LimitedToFull_8bit(uint8_t v)
+{
+    return (uint8_t)((v - 16) * 255 / 219);
+}
+
+/// Full:    0 to 255
+/// Limited: 16 to 235
+static uint8_t
+FullToLimited_8bit(uint8_t v)
+{
+    return (uint8_t)(16 + 219 * v / 255);
+}
+
+/// Limited: 64 to 940
+/// Full:    0 to 1023
+static uint16_t
+LimitedToFull_10bit(uint16_t v)
+{
+    return (uint16_t)((v - 64) * 1023 / 876);
+}
+
+/// Full:    0 to 1023
+/// Limited: 64 to 940
+static uint16_t
+FullToLimited_10bit(uint16_t v) {
+    return (uint16_t)(64 + 876 * v / 1023);
+}
+
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 // YUV ⇔ RGB
 // https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.2020_conversion
 
@@ -753,11 +787,9 @@ MLConverter::Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const i
     }
 }
 
-/// <summary>
-/// R10G10B10A2_UNorm → half float for Exr write
-/// </summary>
 void
-MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, const int width, const int height, const uint8_t alpha, GammaType gamma)
+MLConverter::R10G10B10A2ToExrHalfFloat(
+        const uint32_t* pFrom, uint16_t* pTo, const int width, const int height, const uint8_t alpha, GammaType gamma, QuantizationRange qr)
 {
     // アルファチャンネルは別の計算式。
     // 0.0～1.0の範囲の値。
@@ -774,14 +806,20 @@ MLConverter::R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, con
             // XXRRRRRR RRRRGGGG GGGGGGBB BBBBBBBB
             // --987654 32109876 54321098 76543210
 
-            // 10bit RGB値。
-            const uint32_t r = (v >> 20) & 0x3ff;
-            const uint32_t g = (v >> 10) & 0x3ff;
-            const uint32_t b = (v >> 0) & 0x3ff;
+            // 10bit RGB値。0～1023。
+            uint16_t r = (v >> 20) & 0x3ff;
+            uint16_t g = (v >> 10) & 0x3ff;
+            uint16_t b = (v >> 0) & 0x3ff;
 
             switch (gamma){
             case GT_SDR_22:
                 {
+                    if (qr == QR_Limited) {
+                        r = LimitedToFull_10bit(r);
+                        g = LimitedToFull_10bit(g);
+                        b = LimitedToFull_10bit(b);
+                    }
+
                     const half& rF = mGammaInv22_10bit[r];
                     const half& gF = mGammaInv22_10bit[g];
                     const half& bF = mGammaInv22_10bit[b];
@@ -874,7 +912,8 @@ MLConverter::R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int 
 
 
 void
-MLConverter::R16G16B16A16ToExrHalfFloat(const uint16_t* pFrom, uint16_t* pTo, const int width, const int height)
+MLConverter::R16G16B16A16ToExrHalfFloat(
+        const uint16_t* pFrom, uint16_t* pTo, const int width, const int height)
 {
 #pragma omp parallel for
     for (int y = 0; y < height; ++y) {
@@ -900,6 +939,7 @@ MLConverter::R16G16B16A16ToExrHalfFloat(const uint16_t* pFrom, uint16_t* pTo, co
 }
 
 
+
 void
 MLConverter::R8G8B8A8ToExrHalfFloat(
         const uint8_t* pFrom, uint16_t* pTo, const int width, const int height, QuantizationRange qr)
@@ -915,9 +955,9 @@ MLConverter::R8G8B8A8ToExrHalfFloat(
             uint8_t a = pFrom[pos + 3];
 
             if (qr == QR_Limited) {
-                r = (uint8_t)((r - 16) * 255 / 219);
-                g = (uint8_t)((g - 16) * 255 / 219);
-                b = (uint8_t)((b - 16) * 255 / 219);
+                r = LimitedToFull_8bit(r);
+                g = LimitedToFull_8bit(g);
+                b = LimitedToFull_8bit(b);
             }
 
             // Quantization range == full

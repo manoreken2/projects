@@ -19,6 +19,12 @@ public:
         QR_Limited,
     };
 
+    enum GammaType {
+        GT_Linear = -1,
+        GT_SDR_22,
+        GT_HDR_PQ,
+    };
+
     /// <summary>
     /// R8G8B8A8 to B8G8R8 for BMP save
     /// </summary>
@@ -57,21 +63,11 @@ public:
     /// </summary>
     static void Rgb10bitToR10G10B10A2(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
 
-    enum GammaType {
-        GT_Linear = -1,
-        GT_SDR_22,
-        GT_HDR_PQ,
-    };
-
-    /// <summary>
-    /// R10G10B10A2_Unorm Å® half float to write to Exr
-    /// </summary>
-    void R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo, const int width, const int height, const uint8_t alpha, GammaType gamma);
-
     /// <summary>
     /// bmdFormat12BitRGB Å® DXGI_FORMAT_R8G8B8A8_UNORM
     /// </summary>
-    static void Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
+    static void Rgb12bitToR8G8B8A8(const uint32_t* pFrom, uint32_t* pTo,
+            const int width, const int height, const uint8_t alpha);
     
     /// <summary>
     /// bmdFormat12BitRGB Å® DXGI_FORMAT_R10G10B10A2_UNORM
@@ -98,9 +94,25 @@ public:
     /// </summary>
     static void R16G16B16A16ToR210(const uint16_t* pFrom, uint32_t* pTo, const int width, const int height);
 
-    static void R16G16B16A16ToExrHalfFloat(const uint16_t* pFrom, uint16_t* pTo, const int width, const int height);
+    /// <summary>
+    /// Å° Gamma 2.2 Å° R8G8B8A8_Unorm Å® half float to write to exr
+    /// </summary>
+    /// <param name="qr">Quantization range of source surface</param>
     static void R8G8B8A8ToExrHalfFloat(
-            const uint8_t* pFrom, uint16_t* pTo, const int width, const int height, QuantizationRange qr);
+        const uint8_t* pFrom, uint16_t* pTo, const int width, const int height, QuantizationRange qr = QR_Full);
+
+    /// <summary>
+    /// Å° ST.2084 or Gamma 2.2 Å° R10G10B10A2_Unorm Å® half float to write to Exr
+    /// </summary>
+    /// <param name="qr">Quantization range of source surface (applicable when gamma == GT_SDR_22)</param>
+    void R10G10B10A2ToExrHalfFloat(const uint32_t* pFrom, uint16_t* pTo,
+        const int width, const int height, const uint8_t alpha, GammaType gamma, QuantizationRange qr = QR_Full);
+
+    /// <summary>
+    /// Å° ST.2084 Å° R16G16B16A16_Unorm Å® half float to write to exr
+    /// </summary>
+    static void R16G16B16A16ToExrHalfFloat(
+            const uint16_t* pFrom, uint16_t* pTo, const int width, const int height);
 
     void BMRawYuvV210ToRGBA(uint32_t* pFrom, uint32_t* pTo, const int width, const int height, const uint8_t alpha);
 
