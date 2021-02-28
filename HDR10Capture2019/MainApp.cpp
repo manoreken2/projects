@@ -835,6 +835,11 @@ MainApp::OnDropFiles(HDROP hDrop)
     if (0 < rv) {
         size_t sz = wcslen(path);
 
+        if (APS_Playing == mAviPlayState) {
+            mAviReader.Close();
+            mAviPlayState = APS_PreInit;
+        }
+
         if (0 == _wcsicmp(L".avi", &path[sz - 4])) {
             // AVIファイル。
             wcscpy_s(mAviFilePath, path);
