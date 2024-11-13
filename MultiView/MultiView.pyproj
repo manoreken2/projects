@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{775057ea-c427-41d9-a3e6-bd6618c331b2}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>Run_TwoCam_LeastSquare.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId />
+    <IsWindowsApplication>False</IsWindowsApplication>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="README.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AryTest.py" />
+    <Compile Include="Common.py" />
+    <Compile Include="DeltaTest.py" />
+    <Compile Include="FNSEllipRegressor.py" />
+    <Compile Include="FNSTwoCamRegressor.py" />
+    <Compile Include="Fundamental_to_CamParams.py" />
+    <Compile Include="PlotTest.py" />
+    <Compile Include="Rank_Correction.py" />
+    <Compile Include="Ransac.py" />
+    <Compile Include="Run_Ellip_FNSRansac.py" />
+    <Compile Include="Run_GenerateTwoCameraPoints.py" />
+    <Compile Include="Run_TwoCam_FNSRansac.py" />
+    <Compile Include="Run_TwoCam_LeastSquare.py" />
+    <Compile Include="Sandbox.py" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

@@ -1,12 +1,9 @@
-import matplotlib.pyplot as plt
-import csv
+from Common import BuildXi_F, BuildV0_F, BuildM, BuildL
+from Ransac import Ransac, RegresserBase
 import numpy as np
 from numpy.linalg import eigh
-import math
-from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM, BuildL
-from Ransac import Ransac, RegresserBase
 
-class FNSEllipRegressor(RegresserBase):
+class FNSTwoCamRegressor(RegresserBase):
     def __init__(self, MaxIter, ConvEPS, f0):
         self.ev = None
         self.MaxIter = MaxIter
@@ -26,15 +23,17 @@ class FNSEllipRegressor(RegresserBase):
         return self
 
     # N個のロス値を戻します。
-    def calc_loss(self, x_list: np.ndarray, y_list: np.ndarray):
-        N = x_list.shape[0]
-        assert N == y_list.shape[0]
+    def calc_loss(self, x0_list, y0_list, x1_list, y1_list):
+        N = x0_list.shape[0]
+        assert N == y0_list.shape[0]
+        assert N == x1_list.shape[0]
+        assert N == y1_list.shape[0]
 
         theta = self.theta
-        xi_list = BuildXi(x_list, y_list, self.f0)
-        v0_list = BuildV0(x_list, y_list, self.f0)
+        xi_list = BuildXi_F(x0_list, y0_list, x1_list, y1_list, self.f0)
+        v0_list = BuildV0_F(x0_list, y0_list, x1_list, y1_list, self.f0)
 
-        # サンプソン誤差J：点(x,y)と楕円上の点までの距離の近似値。
+        # サンプソン誤差J
         J = np.zeros(N)
         for i in range(N):
             xi = xi_list[i]
@@ -96,24 +95,3 @@ class FNSEllipRegressor(RegresserBase):
 
         #print(f'Iteration {i}, ev: {theta}')
         return theta, w_list
-
-def main():
-    f0=1
-    MaxIter=100
-    ConvEPS=1e-5
-
-    x_list, y_list = ReadPointXY3('pointXY2.csv')
-    N=x_list.shape[0]
-    assert N == y_list.shape[0]
-
-    reg = Ransac(model=FNSEllipRegressor(MaxIter, ConvEPS, f0), t=1.0, d=N/3, k=300)
-    reg.fit(x_list, y_list)
-
-    theta = reg.get_theta()
-    c_list = reg.get_c_list()
-
-    Plot(theta, c_list, f0, x_list, y_list)            
-
-
-if __name__ == "__main__":
-    main()
