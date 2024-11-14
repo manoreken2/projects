@@ -75,8 +75,8 @@ def a_to_ax(a):
     return ax
 
 # 基礎行列F, カメラ0焦点距離f, カメラ1焦点距離fp, カメラ0点列、カメラ1点列から平行移動t, 回転行列Rを求める。
-def Fundamental_to_Trans_Rot(F, f, fp, f0,  x0_list, y0_list, x1_list, y1_list):
-    N=x0_list.shape[0]
+def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
+    N=xy0_list.shape[0]
 
     FF = np.eye(3)
     FF[0,0] = 1.0/f0
@@ -98,10 +98,10 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  x0_list, y0_list, x1_list, y1_list):
     xa_list = []
     xap_list = []
     for i in range(N):
-        x0 = x0_list[i]
-        y0 = y0_list[i]
-        x1 = x1_list[i]
-        y1 = y1_list[i]
+        x0 = xy0_list[i,0]
+        y0 = xy0_list[i,1]
+        x1 = xy1_list[i,0]
+        y1 = xy1_list[i,1]
 
         xa  = np.vstack([x0/f,  y0/f,  1.0])
         xap = np.vstack([x1/fp, y1/fp, 1.0])

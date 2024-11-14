@@ -243,18 +243,16 @@ def BuildXi(x_list, y_list, f0):
     return xi_list
 
 # xi fundamental mat 
-def BuildXi_F(x0_list, y0_list, x1_list, y1_list, f0):
-    N = x0_list.shape[0]
-    assert N == y0_list.shape[0]
-    assert N == x1_list.shape[0]
-    assert N == y1_list.shape[0]
-
+def BuildXi_F(xy0_list, xy1_list, f0):
+    N = xy0_list.shape[0]
+    assert N == xy1_list.shape[0]
+    
     xi_list = []
     for i in range(N):
-        x0 = x0_list[i]
-        y0 = y0_list[i]
-        x1 = x1_list[i]
-        y1 = y1_list[i]
+        x0 = xy0_list[i,0]
+        y0 = xy0_list[i,1]
+        x1 = xy1_list[i,0]
+        y1 = xy1_list[i,1]
 
         xi=np.vstack([ \
             x0*x1, x0*y1, f0*x0, \
@@ -284,18 +282,16 @@ def BuildV0(x_list, y_list, f0):
     return v0_list
 
 # V0 of Fundamental mat
-def BuildV0_F(x0_list, y0_list, x1_list, y1_list, f0):
-    N = x0_list.shape[0]
-    assert N == x1_list.shape[0]
-    assert N == y0_list.shape[0]
-    assert N == y1_list.shape[0]
-
+def BuildV0_F(xy0_list, xy1_list, f0):
+    N = xy0_list.shape[0]
+    assert N == xy1_list.shape[0]
+    
     v0_list = []
     for i in range(N):
-        x0 = x0_list[i]
-        x1 = x1_list[i]
-        y0 = y0_list[i]
-        y1 = y1_list[i]
+        x0 = xy0_list[i,0]
+        x1 = xy1_list[i,0]
+        y0 = xy0_list[i,1]
+        y1 = xy1_list[i,1]
 
         v0=np.zeros((9,9))
         v0[0,0] = x0*x0 + x1*x1
@@ -352,19 +348,17 @@ def ThetaToF(t):
     F[2,2] = t[8]
     return F
 
-def Epipolar_Constraint_Error(x0_list, y0_list, x1_list, y1_list, f0, F):
-    N = x0_list.shape[0]
-    assert N == x1_list.shape[0]
-    assert N == y0_list.shape[0]
-    assert N == y1_list.shape[0]
-
+def Epipolar_Constraint_Error(xy0_list, xy1_list, f0, F):
+    N = xy0_list.shape[0]
+    assert N == xy1_list.shape[0]
+    
     err_sum = 0.0
 
     for i in range(N):
-        x0 = x0_list[i]
-        y0 = y0_list[i]
-        x1 = x1_list[i]
-        y1 = y1_list[i]
+        x0 = xy0_list[i,0]
+        y0 = xy0_list[i,1]
+        x1 = xy1_list[i,0]
+        y1 = xy1_list[i,1]
 
         xy0 = np.vstack([
             x0/f0,
@@ -444,18 +438,14 @@ def BuildL(xi_list, w_list, v0_list, ev):
 
 def ReadTwoCamPoints(path):
     print(f"ReadTwoCamPoints({path})")
-    x0_list=[]
-    y0_list=[]
-    x1_list=[]
-    y1_list=[]
+    xy0_list=[]
+    xy1_list=[]
     with open(path) as f:
         r = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=',')
         for l in r:
-            x0_list.append(l[0])
-            y0_list.append(l[1])
-            x1_list.append(l[2])
-            y1_list.append(l[3])
-    return np.asarray(x0_list), np.asarray(y0_list), np.asarray(x1_list), np.asarray(y1_list)
+            xy0_list.append(np.array(l[0:2]))
+            xy1_list.append(np.array(l[2:4]))
+    return np.asarray(xy0_list), np.asarray(xy1_list)
 
 def ReadPointXY3(path):
     x_list=[]

@@ -34,7 +34,7 @@
     <Compile Include="Ransac.py" />
     <Compile Include="Run_Ellip_FNSRansac.py" />
     <Compile Include="Run_GenerateTwoCameraPoints.py" />
-    <Compile Include="Run_TwoCam_FNSRansac.py" />
+    <Compile Include="Run_TwoCam_Ransac.py" />
     <Compile Include="Run_TwoCam_LeastSquare.py" />
     <Compile Include="Sandbox.py" />
   </ItemGroup>
