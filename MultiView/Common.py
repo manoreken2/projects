@@ -52,16 +52,17 @@ def CamPoseXYZ(rx, ry, rz, pxyz):
     print(f'CamPoseXYZ=\n{m}')
     return m
 
+# 縦ベクトル
 def Proj(fovX, fovY, zNear, zFar):
     m = np.eye(4)
     w = 1.0/math.tan(fovX/2)
-    h = 1.0/math.tan(fovX/2)
+    h = 1.0/math.tan(fovY/2)
     q = zFar / (zFar - zNear)
     m[0,0] = w
     m[1,1] = h
     m[2,2] = q
-    m[2,3] = 1
-    m[3,2] = -q * zNear
+    m[3,2] = 1
+    m[2,3] = -q * zNear
     m[3,3] = 0
     return m
 
@@ -154,15 +155,16 @@ def Transform_PointList(p, M):
 # プロジェクション変換後の2次元座標が戻ります。
 def Project_PointList(p, M):
     ps = p.shape
-    r = np.zeros((ps[0], 2))
+    r = []
 
     for i in range(p.shape[0]):
         v = np.vstack([p[i, 0], p[i, 1], p[i, 2], 1])
         v = M @ v
         v /= v[3,0]
-        r[i, 0:2] = np.hstack(v)[0:2]
+        if 0 < v[2,0]:
+            r.append( np.hstack(v)[0:3])
 
-    return r
+    return np.array(r)
 
 
 def MergeMesh(p0, v0, p1, v1):
@@ -254,7 +256,10 @@ def BuildXi_F(x0_list, y0_list, x1_list, y1_list, f0):
         x1 = x1_list[i]
         y1 = y1_list[i]
 
-        xi=np.vstack([x0*x1, x0*y1, f0*x0, x1*y0, y0*y1, f0*y0, f0*x1, f0*y1, f0*f0])
+        xi=np.vstack([ \
+            x0*x1, x0*y1, f0*x0, \
+            x1*y0, y0*y1, f0*y0, \
+            f0*x1, f0*y1, f0*f0])
         xi_list.append(xi)
     return xi_list
 

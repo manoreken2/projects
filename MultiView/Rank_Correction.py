@@ -28,22 +28,23 @@ def ThetaToMHat(theta, xi_list, V0_list):
     return MHat
 
 def MHatToV0t(MHat, N):
-    # 行列MHatの固有値のリストl_listと
+    # 行列MHatの固有値のリストv_listと
     #           固有ベクトルのリストu_list
-    l_list, u_list=eigh(MHat)
+    v_list, u_list=eigh(MHat)
 
     # V0tを計算。
-    V0t = np.eye(9)
+    V0t = np.zeros((9,9))
     for i in range(9):
-        l = l_list[i]
-        u = u_list[:, i].reshape(9)
-        u = VectorScaleToUnitMagnitude(u);
+        v = v_list[i]
+        u = np.vstack(u_list[:, i].reshape(9))
+        ut=np.transpose(u)
 
-        #print(f"eVal={l}, eVec={u}")
-        V0t = V0t + (u @ np.transpose(u))/(l * N)
+        print(f"eVal={v}, eVec={u}")
+        V0t = V0t + (u @ ut)/(v * N)
     return V0t
 
 def Rank_Correction(theta, xi_list, V0_list):
+
     N = len(xi_list)
     threshold = 1e-6
     iter_limit = 10
@@ -68,5 +69,6 @@ def Rank_Correction(theta, xi_list, V0_list):
 
         d = abs(np.vdot(td, theta))
         if (d < threshold):
+            theta /= theta[8,0]
             return theta
 

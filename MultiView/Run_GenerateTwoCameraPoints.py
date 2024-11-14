@@ -28,16 +28,18 @@ def GenPoints():
 
 
 def PltPointsXY(pointsXY, C):
-    x_list = pointsXY[:,0]
-    y_list = pointsXY[:,1]
-    plt.scatter(x_list, y_list, s=1, marker=',', c=C)
+    if pointsXY.shape[0]==0:
+        return
+    else:
+        x_list = pointsXY[:,0]
+        y_list = pointsXY[:,1]
+        plt.scatter(x_list, y_list, s=1, marker=',', c=C)
 
 
 def main():
-    # 右手座標系、縦行列。
+    # 左手座標系、縦行列。
 
-    # 点群生成。中心(0, 0, 10) 半径5 円筒。
-
+    # 点群生成。
     p = GenPoints()
 
     fovX = math.pi/2
@@ -48,17 +50,17 @@ def main():
     print(f'proj=\n{proj}')
 
     # Refカメラ。原点 Z+向き。
-    camPoseRef = RotY(math.pi)
+    camPoseRef = np.eye(4)
 
     print(f'cpRef=\n{camPoseRef}')
 
     viewProjRef = proj @ np.linalg.inv(camPoseRef)
 
     # テストカメラ。pos=(-1,0,1) 大体Z+向き (平行の関係を避ける)
-    # テストカメラのほうが近い：円筒が大写しになる。
+    # テストカメラのほうが被写体から遠い。
     camPoseTest = CamPoseXYZ(
             math.pi/100,
-            math.pi + math.pi/20,
+            math.pi/20,
             0,
             np.array([-1/math.sqrt(2.0), 0, 1/math.sqrt(2.0)]))
     viewProjTest = np.matmul(proj, np.linalg.inv(camPoseTest))
@@ -71,17 +73,19 @@ def main():
 
     PltPointsXY(xyT, 'red')
 
-    GeneratePLY_TwoCamPoseZM(camPoseRef, camPoseTest, 'twoCamPointsCameras2.ply')
+    GeneratePLY_TwoCamPoseZP(camPoseRef, camPoseTest, 'twoCamPointsCameras2.ply')
     ExportPoints_Ply(p, 'twoCamPointsPointList2.ply')
 
     numPoints = xyR.shape[0]
+    numPointsT=xyT.shape[0]
+    assert(numPoints==numPointsT)
 
     with open('twoCamPoints2.csv', 'w') as f:
         for i in range(numPoints):
             f.write(f'{xyR[i,0]}, {xyR[i,1]}, {xyT[i,0]}, {xyT[i,1]}\n')
 
     plt.axis('equal')
-    plt.title("Camera Projected")
+    plt.title("Camera Projected. blue=ref")
     plt.show()
 
 if __name__ == "__main__":

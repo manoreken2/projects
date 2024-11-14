@@ -28,6 +28,8 @@ def TwoCam_LeastSquare(x0_list, y0_list, x1_list, y1_list, f0):
 
     theta = Rank_Correction(theta, xi_list, V0_list)
 
+    theta /= theta[8,0]
+
     return theta
 
 def main():
@@ -45,7 +47,8 @@ def main():
     assert N == y1_list.shape[0]
 
     theta = TwoCam_LeastSquare(x0_list, y0_list, x1_list, y1_list, f0)
-    #print(theta)
+    print(theta)
+    
     F = ThetaToF(theta)
     print(f"F={F}")
     err = Epipolar_Constraint_Error(x0_list, y0_list, x1_list, y1_list, f0, F)

@@ -27,7 +27,7 @@ namespace FMatrixComputation {
 
         t <<
             p0(0) * p1(0), p0(0)* p1(1), f0* p0(0),
-            p0(1)* p1(0), p0(1)* p1(1), f0* p0(1),
+            p0(1) * p1(0), p0(1)* p1(1), f0* p0(1),
             f0* p1(0), f0* p1(1), f0* f0;
 
         return t;
@@ -155,7 +155,7 @@ namespace FMatrixComputation {
         Vector9d     Xi;
         Matrix9d     M;
 
-        // Initialization
+        // 9x9行列。
         M = ZeroMat9;
 
         // Calc Moment Matrix
@@ -171,6 +171,7 @@ namespace FMatrixComputation {
         if (ES.info() != Success) return false;
         theta = ES.eigenvectors().col(0);
 
+        theta /= theta[8];
         return true;
     }
 
@@ -234,7 +235,7 @@ namespace FMatrixComputation {
             Vector9d eVec = ES.eigenvectors().col(i);
             eVec.normalize();
             //printf("eVal=%e ", ES.eigenvalues()(i));
-            //PrintVec9H("eVec", eVec);
+            PrintVec9H("eVec", eVec);
 
             V0th += ES.eigenvectors().col(i) * ES.eigenvectors().col(i).transpose()
                 / ES.eigenvalues()(i);
@@ -262,7 +263,7 @@ namespace FMatrixComputation {
             d = fabs(thdag.dot(theta));
         } while (d >= Conv_EPS);
 
-        // success
+        theta /= theta[8];
         return true;
     }
 }
