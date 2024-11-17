@@ -130,15 +130,15 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
     D = np.eye(3)
     D[2,2] = det(U @ Vh)
 
-    print(f"K=\n{K}")
-    print(f"U=\n{U}")
-    print(f"D=\n{D}")
-    print(f"Vh=\n{Vh}")
+    #print(f"K=\n{K}")
+    #print(f"U=\n{U}")
+    #print(f"D=\n{D}")
+    #print(f"Vh=\n{Vh}")
 
     R = U @ D @ Vh
 
-    print(f"DVht=\n{D @ Vh}")
+    #print(f"DVht=\n{D @ Vh}")
 
-    print(f"R=\n{R}")
+    #print(f"R=\n{R}")
 
     return t, R

@@ -1,25 +1,23 @@
-from Common import BuildXi_F, BuildV0_F, BuildM, BuildL
-from Ransac import Ransac, RegresserBase
+from Common import *
+from Rank_Correction import Rank_Correction
+from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, FundamentalToFocalLength
+from Ransac_TwoCam import *
 import numpy as np
 from numpy.linalg import eigh
 
-class FNSTwoCamRegressor(RegresserBase):
-    def __init__(self, MaxIter, ConvEPS, f0):
+class LSQTwoCamRegressor(RegresserBase_TwoCam):
+    def __init__(self, MaxIter=100, ConvEPS=0.01, f0=1.0):
         self.ev = None
         self.MaxIter = MaxIter
         self.ConvEPS = ConvEPS
         self.f0 = f0
         self.theta = None
-        self.w_list = None
 
     def get_theta(self):
         return self.theta
     
-    def get_w_list(self):
-        return self.w_list
-
-    def fit(self, x_list: np.ndarray, y_list: np.ndarray):
-        self.theta, self.w_list = self.LeastSquare(x_list, y_list)
+    def fit_tc(self, xy0_list: np.ndarray, xy1_list: np.ndarray):
+        self.theta = self.LeastSquare(xy0_list=xy0_list, xy1_list=xy1_list)
         return self
 
     # N個のロス値を戻します。
@@ -61,10 +59,13 @@ class FNSTwoCamRegressor(RegresserBase):
     
         theta = TwoCam_LeastSquare(xy0_list, xy1_list, f0)
 
-        theta = Rank_Correction(theta, xy0_list, xy1_list,f0)
-        print(theta)
+        theta = Rank_Correction(theta, xy0_list, xy1_list, f0)
+        #print(theta)
     
         F = ThetaToF(theta)
-        print(f"F={F}")
+        #print(f"F={F}")
 
-        return theta, w_list
+        return theta
+
+
+

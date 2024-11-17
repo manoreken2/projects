@@ -195,8 +195,8 @@ def Trans_Rot_to_TransformMat(t, R):
         [  R[2,0],  R[2,1],  R[2,2], t[2]], \
         [  0,       0,       0,      1] ])
 
-    print(f"R={R}")
-    print(f"M={M}")
+    #print(f"R={R}")
+    #print(f"M={M}")
     return M
 
 # 2つのカメラの関係図のPLYファイルを出力。
@@ -347,6 +347,21 @@ def ThetaToF(t):
     F[2,1] = t[7]
     F[2,2] = t[8]
     return F
+
+# 最小二乗法で最適解を求めます。
+def TwoCam_LeastSquare(xy0_list, xy1_list, f0):
+    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
+    
+    M = BuildM_LS(xi_list)
+    # Mの最小固有値に対応する固有ベクトルthetaを得る。
+    _, eig_vec=eigh(M)
+    theta = eig_vec[:, 0].reshape(9)
+    theta = np.vstack(theta)
+
+    # 定数項が1になるようにする。
+    theta /= theta[8, 0]
+
+    return theta
 
 def Epipolar_Constraint_Error(xy0_list, xy1_list, f0, F):
     N = xy0_list.shape[0]

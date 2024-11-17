@@ -4,6 +4,7 @@ import numpy as np
 from numpy.linalg import eigh
 import math
 from Common import *
+from numpy.random import default_rng
 
 def GenPoints():
     # 中心(0, 0, 10) 半径5 円筒。
@@ -26,6 +27,16 @@ def GenPoints():
 
     return p
 
+def AppendOutliers2D(f, N, scale):
+    p = np.zeros((N,3))
+    for i in range(N):
+        rng = default_rng()
+        x0=rng.random()*scale
+        y0=rng.random()*scale
+        x1=rng.random()*scale
+        y1=rng.random()*scale
+        
+        f.write(f'{x0}, {y0}, {x1}, {y1}\n')
 
 def PltPointsXY(pointsXY, C):
     if pointsXY.shape[0]==0:
@@ -41,7 +52,7 @@ def main():
 
     # 点群生成。
     p = GenPoints()
-
+    
     fovX = math.pi/2
     fovY = math.pi/2
     nearZ = 0.1
@@ -80,9 +91,10 @@ def main():
     numPointsT=xyT.shape[0]
     assert(numPoints==numPointsT)
 
-    with open('twoCamPoints2.csv', 'w') as f:
+    with open('twoCamPoints2_outlier10.csv', 'w') as f:
         for i in range(numPoints):
             f.write(f'{xyR[i,0]}, {xyR[i,1]}, {xyT[i,0]}, {xyT[i,1]}\n')
+        AppendOutliers2D(f, N=10, scale=10.0)
 
     plt.axis('equal')
     plt.title("Camera Projected. blue=ref")

@@ -1,48 +1,21 @@
 ﻿# 3章 手順3.1 2つの画像の対応点から基礎行列Fを求める。
 
-import matplotlib.pyplot as plt
-import csv
-import numpy as np
-from numpy.linalg import eigh
-import math
 from Common import *
-from Ransac import Ransac, RegresserBase
-from FNSTwoCamRegressor import FNSTwoCamRegressor
 from Rank_Correction import Rank_Correction
 from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, FundamentalToFocalLength
 
 
-# 最小二乗法で最適解を求めます。
-def TwoCam_LeastSquare(xy0_list, xy1_list, f0):
-    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
-    V0_list = BuildV0_F(xy0_list, xy1_list, f0)
-
-    M = BuildM_LS(xi_list)
-    # Mの最小固有値に対応する固有ベクトルthetaを得る。
-    _, eig_vec=eigh(M)
-    theta = eig_vec[:, 0].reshape(9)
-    theta = np.vstack(theta)
-
-    # 定数項が1になるようにする。
-    theta /= theta[8, 0]
-
-    theta = Rank_Correction(theta, xi_list, V0_list)
-
-    theta /= theta[8,0]
-
-    return theta
-
 def main():
     f0=1
-    #SampleCount=9 # smallest point count to solve
 
-    xy0_list, xy1_list = \
-            ReadTwoCamPoints('twoCamPoints2.csv')
+    xy0_list, xy1_list = ReadTwoCamPoints('twoCamPoints2.csv')
 
     N=xy0_list.shape[0]
     assert N == xy1_list.shape[0]
     
     theta = TwoCam_LeastSquare(xy0_list, xy1_list, f0)
+
+    theta = Rank_Correction(theta, xy0_list, xy1_list,f0)
     print(theta)
     
     F = ThetaToF(theta)

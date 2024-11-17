@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{775057ea-c427-41d9-a3e6-bd6618c331b2}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>Run_TwoCam_LeastSquare.py</StartupFile>
+    <StartupFile>Run_TwoCam_Ransac.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -27,10 +27,11 @@
     <Compile Include="Common.py" />
     <Compile Include="DeltaTest.py" />
     <Compile Include="FNSEllipRegressor.py" />
-    <Compile Include="FNSTwoCamRegressor.py" />
+    <Compile Include="LSQTwoCamRegressor.py" />
     <Compile Include="Fundamental_to_CamParams.py" />
     <Compile Include="PlotTest.py" />
     <Compile Include="Rank_Correction.py" />
+    <Compile Include="Ransac_TwoCam.py" />
     <Compile Include="Ransac.py" />
     <Compile Include="Run_Ellip_FNSRansac.py" />
     <Compile Include="Run_GenerateTwoCameraPoints.py" />

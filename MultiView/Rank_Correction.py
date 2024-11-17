@@ -2,7 +2,7 @@
 import numpy as np
 from numpy.linalg import eigh
 import math
-from Common import ThetaDagger
+from Common import ThetaDagger, BuildXi_F, BuildV0_F
 
 def VectorScaleToUnitMagnitude(v):
     magn = np.linalg.norm(v)
@@ -39,11 +39,13 @@ def MHatToV0t(MHat, N):
         u = np.vstack(u_list[:, i].reshape(9))
         ut=np.transpose(u)
 
-        print(f"eVal={v}, eVec={u}")
+        #print(f"eVal={v}, eVec={u}")
         V0t = V0t + (u @ ut)/(v * N)
     return V0t
 
-def Rank_Correction(theta, xi_list, V0_list):
+def Rank_Correction(theta, xy0_list, xy1_list,f0):
+    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
+    V0_list = BuildV0_F(xy0_list, xy1_list, f0)
 
     N = len(xi_list)
     threshold = 1e-6
@@ -71,4 +73,7 @@ def Rank_Correction(theta, xi_list, V0_list):
         if (d < threshold):
             theta /= theta[8,0]
             return theta
-
+    
+    theta /= theta[8,0]
+    return theta
+    

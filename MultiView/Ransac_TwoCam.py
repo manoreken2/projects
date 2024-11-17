@@ -1,4 +1,4 @@
-# https://en.wikipedia.org/wiki/Random_sample_consensus
+﻿# https://en.wikipedia.org/wiki/Random_sample_consensus
 from copy import copy
 import numpy as np
 from numpy.random import default_rng
@@ -6,17 +6,18 @@ from abc import ABC, abstractmethod
 
 rng = default_rng()
 
-class RegresserBase(ABC):
+class RegresserBase_TwoCam(ABC):
+    @abstractmethod
+    def fit_tc(x_list,y_list):
+        pass
+
     @abstractmethod
     def get_theta():
         pass
 
-    #@abstractmethod
-    #def get_w_list():
-    #    pass
 
-class Ransac:
-    def __init__(self, n=10, k=100, t=0.05, d=10, model=RegresserBase):
+class Ransac_TwoCam:
+    def __init__(self, n=8, k=100, t=0.05, d=100, model=RegresserBase_TwoCam):
         self.n = n              # `n`: Minimum number of data points to estimate parameters
         self.k = k              # `k`: Maximum iterations allowed
         self.t = t              # `t`: Threshold value to determine if points are fit well
@@ -29,46 +30,52 @@ class Ransac:
 
     def get_theta(self):
         return self.best_model.get_theta()
-
-    def get_w_list(self):
-        return self.best_model.get_w_list()
     
     def get_c_list(self):
         return self.c_list
 
-    def fit(self, X: np.ndarray, Y: np.ndarray):
-        N = X.shape[0]
-        assert N == Y.shape[0]
+    def fit(self, a: np.ndarray, b: np.ndarray):
+        N = a.shape[0]
+        assert N == b.shape[0]
 
         for i in range(self.k):
-            ids = rng.permutation(X.shape[0])
+            ids = rng.permutation(a.shape[0])
 
+            # self.n == 8点 picked up
             maybe_inliers = ids[: self.n]
-            maybe_model = copy(self.model).fit(X[maybe_inliers], Y[maybe_inliers])
+            maybe_model = copy(self.model)
+            ai = a[maybe_inliers, :]
+            bi = b[maybe_inliers, :]
+            maybe_model.fit_tc(xy0_list=ai, xy1_list=bi)
 
-            loss_list = maybe_model.calc_loss(X[ids][self.n :], Y[ids][self.n :])
+            # calc loss with all the other points
+            ids_the_other = ids[self.n :]
+            loss_list = maybe_model.calc_loss(a[ids_the_other, :], b[ids_the_other, :])
 
             thresholded = (
                 loss_list < self.t
             )
 
-            inlier_ids = ids[self.n :][np.flatnonzero(thresholded).flatten()]
+            inlier_ids = ids_the_other[np.flatnonzero(thresholded)]
 
             if inlier_ids.size > self.d:
                 inlier_points = np.hstack([maybe_inliers, inlier_ids])
-                better_model = copy(self.model).fit(X[inlier_points], Y[inlier_points])
+                a2=a[inlier_points, :]
+                b2=b[inlier_points, :]
+                better_model = copy(self.model)
+                better_model.fit_tc(a2, b2)
 
-                this_loss = better_model.calc_loss(X[inlier_points], Y[inlier_points]).mean()
+                this_loss = better_model.calc_loss(a2, b2).mean()
 
                 if this_loss < self.best_loss:
                     print(f"D: i={i}/{self.k} loss {this_loss}, inliers={inlier_ids.size}")
                     self.best_loss = this_loss
                     self.best_model = better_model
                 else:
-                    #print(f"D: inliner count is OK {inlier_ids.size}, but error is large {this_loss}")
+                    print(f"D: inliner count is OK {inlier_ids.size} > {self.d}, but error is large {this_loss} > {self.best_loss}")
                     pass
             else:
-                #print(f"D: not met inliers count condition {inlier_ids.size} < {self.d}. loss={loss_list.mean()}")
+                print(f"D: did not met inliers count condition {inlier_ids.size} < {self.d}. loss={loss_list.mean()}")
                 pass
 
         self.inlier_ids = inlier_ids
