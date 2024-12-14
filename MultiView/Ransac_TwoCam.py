@@ -17,7 +17,7 @@ class RegresserBase_TwoCam(ABC):
 
 
 class Ransac_TwoCam:
-    def __init__(self, n=8, k=100, t=0.05, d=100, model=RegresserBase_TwoCam):
+    def __init__(self, n=8, k=100, t=0.01, d=100, model=RegresserBase_TwoCam):
         self.n = n              # `n`: Minimum number of data points to estimate parameters
         self.k = k              # `k`: Maximum iterations allowed
         self.t = t              # `t`: Threshold value to determine if points are fit well
@@ -25,7 +25,7 @@ class Ransac_TwoCam:
         self.model = model      # `model`: class implementing `fit` and `predict`
         self.best_model = None
         self.best_loss = np.inf
-        self.inlier_ids = None
+        self.inlier_ids = []
         self.c_list = None
 
     def get_theta(self):
@@ -58,7 +58,9 @@ class Ransac_TwoCam:
 
             inlier_ids = ids_the_other[np.flatnonzero(thresholded)]
 
-            if inlier_ids.size > self.d:
+            inlier_ids_size = inlier_ids.size
+
+            if self.d <= inlier_ids_size:
                 inlier_points = np.hstack([maybe_inliers, inlier_ids])
                 a2=a[inlier_points, :]
                 b2=b[inlier_points, :]
@@ -68,26 +70,25 @@ class Ransac_TwoCam:
                 this_loss = better_model.calc_loss(a2, b2).mean()
 
                 if this_loss < self.best_loss:
-                    print(f"D: i={i}/{self.k} loss {this_loss}, inliers={inlier_ids.size}")
-                    self.best_loss = this_loss
+                    print(f"  i={i}/{self.k} loss {this_loss}, inliers={inlier_ids_size}")
+                    self.best_loss  = this_loss
                     self.best_model = better_model
+                    self.inlier_ids = inlier_ids
+
+                    # c_list[id] == 0 : inlier
+                    # c_list[id] == 1 : outlier
+                    self.c_list=N * [1]
+                    for id in self.inlier_ids:
+                        self.c_list[id] = 0
                 else:
-                    print(f"D: inliner count is OK {inlier_ids.size} > {self.d}, but error is large {this_loss} > {self.best_loss}")
+                    #print(f"D: inliner count is OK {linlier_ids_len} > {self.d}, but error is large {this_loss} > {self.best_loss}")
                     pass
             else:
-                print(f"D: did not met inliers count condition {inlier_ids.size} < {self.d}. loss={loss_list.mean()}")
+                #print(f"D: did not met inliers count condition {self.d} <= {inlier_ids_len}. loss={loss_list.mean()}")
                 pass
-
-        self.inlier_ids = inlier_ids
-
-        # c_list[id] == 0 : inlier 
-        # c_list[id] == 1 : outlier
-        self.c_list=N * [1.0]
-        for id in inlier_ids:
-            self.c_list[id] = 0.0
 
         return self
 
-    def calc_loss(self, x_list, y_list):
-        return self.best_model.calc_loss(x_list, y_list)
+    def calc_loss(self, a, b):
+        return self.best_model.calc_loss(a, b)
 

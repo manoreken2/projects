@@ -85,7 +85,7 @@ def main():
     PltPointsXY(xyT, 'red')
 
     GeneratePLY_TwoCamPoseZP(camPoseRef, camPoseTest, 'twoCamPointsCameras2.ply')
-    ExportPoints_Ply(p, 'twoCamPointsPointList2.ply')
+    PLY_Export_PointList(p, 'twoCamPointsPointList2.ply')
 
     numPoints = xyR.shape[0]
     numPointsT=xyT.shape[0]

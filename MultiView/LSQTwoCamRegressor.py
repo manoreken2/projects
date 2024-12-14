@@ -1,6 +1,6 @@
 from Common import *
 from Rank_Correction import Rank_Correction
-from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, FundamentalToFocalLength
+from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, Fundamental_to_FocalLength
 from Ransac_TwoCam import *
 import numpy as np
 from numpy.linalg import eigh

@@ -14,7 +14,7 @@ def MinEigVec(M):
 sqeuclidean = lambda x: np.vdot(x, x)
 
 # 基礎行列Fからカメラ0焦点距離f、カメラ1焦点距離fpを得る。
-def FundamentalToFocalLength(F, f0):
+def Fundamental_to_FocalLength(F, f0):
     k = np.array([[0],[0],[1]])
 
     Ft = np.transpose(F)
@@ -54,7 +54,7 @@ def FundamentalToFocalLength(F, f0):
     f  = f0 / math.sqrt(1.0 + xi)
     fp = f0 / math.sqrt(1.0 + eta)
 
-    return f,fp
+    return f, fp
 
 def Scalar_triplet(a, b, c):
     return np.vdot(a, np.cross(np.transpose(b), np.transpose(c)))
@@ -67,7 +67,7 @@ def a_to_ax(a):
     a3 = np.float64(a[2])
 
     # 書いてある通りにメモリに並ぶ。
-    ax = np.array([     \
+    ax = np.array([      \
         [ 0,  -a3,  a2], \
         [ a3,  0,  -a1], \
         [-a2,  a1,  0]   \
@@ -75,7 +75,7 @@ def a_to_ax(a):
     return ax
 
 # 基礎行列F, カメラ0焦点距離f, カメラ1焦点距離fp, カメラ0点列、カメラ1点列から平行移動t, 回転行列Rを求める。
-def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
+def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list):
     N=xy0_list.shape[0]
 
     FF = np.eye(3)
@@ -106,7 +106,7 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
         xa  = np.vstack([x0/f,  y0/f,  1.0])
         xap = np.vstack([x1/fp, y1/fp, 1.0])
         xa_list.append(xa)
-        xap_list.append(xap)    
+        xap_list.append(xap)
     s = 0.0
     for i in range(N):
         xa = xa_list[i]
@@ -114,8 +114,6 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
         s += Scalar_triplet(t, xa, E @ xap)
     if s <= 0:
         t = -t
-
-
 
     tx = a_to_ax(t)
     K = -tx @ E
@@ -142,3 +140,21 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  xy0_list, xy1_list):
     #print(f"R=\n{R}")
 
     return t, R
+
+def TwoCamMat(f0, fl0, fl1, t, R):
+    P0=np.array([          \
+        [fl0, 0,   0,  0], \
+        [0,   fl0, 0,  0], \
+        [0,   0,   f0, 0]])
+
+    RT = np.transpose(R)
+    RTt= RT @ t
+
+    RTtt = np.concat((RT, RTt), axis=1)
+
+    P1= np.array([     \
+        [fl1, 0,   0], \
+        [0,   fl1, 0], \
+        [0,   0,   f0]]) @ RTtt
+
+    return P0, P1

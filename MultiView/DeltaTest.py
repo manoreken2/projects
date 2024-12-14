@@ -116,8 +116,8 @@ def run(n, p):
     #plt.scatter(xEven, yEven, marker='.')
     #plt.scatter(xOdd, yOdd, marker='.')
 
-    xIntp_list, yIntp_list, c_list = sinc_interp(yEven, 2)
-    #plt.scatter(xIntp_list, yIntp_list, c=c_list, marker='.')
+    xIntp_list, yIntp_list, color_list = sinc_interp(yEven, 2)
+    #plt.scatter(xIntp_list, yIntp_list, c=color_list, marker='.')
     #plt.title(f"n={n} p={p}")
     plt.show()
 

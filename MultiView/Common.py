@@ -123,7 +123,7 @@ def ExportMesh_Ply(p, v, fileName):
             f.write(f'3 {int(v[i,0])} {int(v[i,1])} {int(v[i,2])}\n')
 
 # 3次元点群をPLYで保存。
-def ExportPoints_Ply(p, fileName):
+def PLY_Export_PointList(p, fileName):
     ps=p.shape
 
     with open(fileName, 'w', newline='\n') as f:
@@ -138,6 +138,34 @@ def ExportPoints_Ply(p, fileName):
 
         for i in range(ps[0]):
             f.write(f'{p[i,0]} {p[i,1]} {p[i,2]}\n')
+
+# 色付き3次元点群をPLYで保存。
+def ExportColoredPoints_Ply(p, c_list, fileName):
+    ps=p.shape
+
+    with open(fileName, 'w', newline='\n') as f:
+        f.write('ply\n')
+        f.write('format ascii 1.0\n')
+
+        f.write(f'element vertex {ps[0]}\n')
+        f.write('property float x\n')
+        f.write('property float y\n')
+        f.write('property float z\n')
+        f.write('property int r\n')
+        f.write('property int g\n')
+        f.write('property int b\n')
+        f.write('end_header\n')
+
+        for i in range(ps[0]):
+            c=c_list[i]
+            r=0
+            g=0
+            b=255
+            if c==0:
+                r=1
+                g=0
+                b=0
+            f.write(f'{p[i,0]} {p[i,1]} {p[i,2]} {r} {g} {b}\n')
 
 # 4x4行列Mに3次元座標p各点の縦ベクトルを右から掛ける。
 # 変換後の3次元座標が戻ります。
@@ -223,7 +251,7 @@ def GeneratePLY_TwoCamPoseZP(M0, M1, fileName):
     pW, vW = MergeMesh(p0, v, p1, v)
     ExportMesh_Ply(pW, vW, fileName)
 
-def GeneratePLY_TwoCamTransRotZP(t,R,fileName):
+def PLY_Export_TwoCam(t,R,fileName):
     E4 = np.eye(4)
     M = Trans_Rot_to_TransformMat(t,R)
 
@@ -261,6 +289,7 @@ def BuildXi_F(xy0_list, xy1_list, f0):
         xi_list.append(xi)
     return xi_list
 
+# ch2. p14. eq2.15
 def BuildV0(x_list, y_list, f0):
     N = x_list.shape[0]
     assert N == y_list.shape[0]
@@ -281,30 +310,36 @@ def BuildV0(x_list, y_list, f0):
         v0_list.append(v0)
     return v0_list
 
-# V0 of Fundamental mat
+# V0 of Fundamental mat. ch3. p38. eq3.12.
+def BuildV0_F1(xy0, xy1, f0):
+    x0 = xy0[0]
+    y0 = xy0[1]
+    x1 = xy1[0]
+    y1 = xy1[1]
+    v0=np.zeros((9,9))
+    v0[0,0] = x0*x0 + x1*x1
+    v0[1,1] = x0*x0                 + y1*y1
+    v0[3,3] =         x1*x1 + y0*y0
+    v0[4,4] =                 y0*y0 + y1*y1
+    v0[3,0] = v0[0,3] = v0[4,1] = v0[1,4] = x0*y0
+    v0[0,1] = v0[1,0] = v0[3,4] = v0[4,3] = x1*y1
+    v0[2,0] = v0[0,2] = v0[5,3] = v0[3,5] = f0*x1
+    v0[2,1] = v0[1,2] = v0[5,4] = v0[4,5] = f0*y1
+    v0[2,2] = v0[5,5] = v0[6,6] = v0[7,7] = f0*f0
+    v0[6,0] = v0[0,6] = v0[7,1] = v0[1,7] = f0*x0
+    v0[6,3] = v0[3,0] = f0*y0
+    return v0
+
+# V0 of Fundamental mat. ch3. p38. eq3.12.
 def BuildV0_F(xy0_list, xy1_list, f0):
     N = xy0_list.shape[0]
     assert N == xy1_list.shape[0]
     
     v0_list = []
     for i in range(N):
-        x0 = xy0_list[i,0]
-        x1 = xy1_list[i,0]
-        y0 = xy0_list[i,1]
-        y1 = xy1_list[i,1]
-
-        v0=np.zeros((9,9))
-        v0[0,0] = x0*x0 + x1*x1
-        v0[1,1] = x0*x0                 + y1*y1
-        v0[3,3] =         x1*x1 + y0*y0
-        v0[4,4] =                 y0*y0 + y1*y1
-        v0[3,0] = v0[0,3] = v0[4,1] = v0[1,4] = x0*y0
-        v0[0,1] = v0[1,0] = v0[3,4] = v0[4,3] = x1*y1
-        v0[2,0] = v0[0,2] = v0[5,3] = v0[3,5] = f0*x1
-        v0[2,1] = v0[1,2] = v0[5,4] = v0[4,5] = f0*y1
-        v0[2,2] = v0[5,5] = v0[6,6] = v0[7,7] = f0*f0
-        v0[6,0] = v0[0,6] = v0[7,1] = v0[1,7] = f0*x0
-        v0[6,3] = v0[3,0] = f0*y0
+        xy0 = xy0_list[i,:]
+        xy1 = xy1_list[i,:]
+        v0 = BuildV0_F1(xy0,xy1,f0)
         v0_list.append(v0)
     return v0_list
 
@@ -451,8 +486,8 @@ def BuildL(xi_list, w_list, v0_list, ev):
         L += a
     return L
 
-def ReadTwoCamPoints(path):
-    print(f"ReadTwoCamPoints({path})")
+def CSV_Read_TwoCamPointList(path):
+    #print(f"ReadTwoCamPoints({path})")
     xy0_list=[]
     xy1_list=[]
     with open(path) as f:
@@ -533,3 +568,113 @@ def Plot(ev, w_list, f0, x_list, y_list):
     plt.title("Ransac FNS")
     plt.show()
 
+# adjust xy0, xy1 point to intersect
+def AdjustTwoPoints1(xy0, xy1, theta, f0):
+    S0 = math.inf
+    S = 0
+    xyh0 = np.array(xy0)
+    xyh1 = np.array(xy1)
+    xyt0 = np.array([0,0])
+    xyt1 = np.array([0,0])
+
+    while np.abs(S - S0) > 1:
+        S0 = S
+        V0 = BuildV0_F1(xy0, xy1, f0)
+        xi_star = np.vstack(
+            [xyh0[0]*xyh1[0]+xyh1[0]*xyt0[0]+xyh0[0]*xyt1[0],
+             xyh0[0]*xyh1[1]+xyh1[1]*xyt0[0]+xyh0[0]*xyt1[1],
+             f0*(xyh0[0]+xyt0[0]),
+             xyh0[1]*xyh1[0]+xyh1[0]*xyt0[1]+xyh0[1]*xyt1[0],
+             xyh0[1]*xyh1[1]+xyh1[1]*xyt0[1]+xyh0[1]*xyt1[1],
+             f0*(xyh0[1]+xyt0[1]),
+             f0*(xyh1[0]+xyt1[0]),
+             f0*(xyh1[1]+xyt1[1]),
+             f0*f0 ])
+
+        t123 = np.array([
+            [theta[0], theta[1], theta[2] ],
+            [theta[3], theta[4], theta[5] ]]).reshape(2,3)
+        t147 = np.array([
+            [theta[0], theta[3], theta[6] ],
+            [theta[1], theta[4], theta[7] ]]).reshape(2,3)
+
+        xyfh0 = np.vstack([xyh0[0],
+                           xyh0[1],
+                           f0])
+        xyfh1 = np.vstack([xyh1[0],
+                           xyh1[1],
+                           f0])
+        s = np.vdot(xi_star, theta) / np.vdot(theta, V0 @ theta)
+        xyt0 = (s * (t123 @ xyfh1)).reshape(2)
+        xyt1 = (s * (t147 @ xyfh0)).reshape(2)
+
+        xyh0 = xy0 - xyt0
+        xyh1 = xy1 - xyt1
+
+        S = xyt0[0] * xyt0[0] + xyt0[1] * xyt0[1] + xyt1[0] * xyt1[0] + xyt1[1] * xyt1[1]
+
+    return xyh0, xyh1
+
+def AdjustTwoPoints(xy0_list, xy1_list, theta, f0):
+    N = xy0_list.shape[0]
+    assert N == xy1_list.shape[0]
+    
+    for i in range(N):
+        xy0_list[i,:],xy1_list[i,:] = AdjustTwoPoints1(xy0_list[i,:],xy1_list[i,:], theta, f0)
+
+    return xy0_list, xy1_list
+
+# triangulation ch4 p66 eq4.1
+def Triangulation(xy0_list, xy1_list, f0, P0, P1):
+    xyz_list = []
+    N = xy0_list.shape[0]
+    assert N == xy1_list.shape[0]
+    z_sign = 0
+    
+    for i in range(N):
+        xy0 = xy0_list[i,:]
+        xy1 = xy1_list[i,:]
+        T = np.array([
+        [f0*P0[0,0] - xy0[0]*P0[2,0], f0*P0[0,1] - xy0[0]*P0[2,1], f0*P0[0,2] - xy0[0]*P0[2,2]],
+        [f0*P0[1,0] - xy0[1]*P0[2,0], f0*P0[1,1] - xy0[1]*P0[2,1], f0*P0[1,2] - xy0[1]*P0[2,2]],
+        [f0*P1[0,0] - xy1[0]*P1[2,0], f0*P1[0,1] - xy1[0]*P1[2,1], f0*P1[0,2] - xy1[0]*P1[2,2]],
+        [f0*P1[1,0] - xy1[1]*P1[2,0], f0*P1[1,1] - xy1[1]*P1[2,1], f0*P1[1,2] - xy1[1]*P1[2,2]] ])
+
+        p = np.vstack([
+            f0*P0[0,3] - xy0[0]*P0[2,3],
+            f0*P0[1,3] - xy0[1]*P0[2,3],
+            f0*P1[0,3] - xy1[0]*P1[2,3],
+            f0*P1[1,3] - xy1[1]*P1[2,3]
+            ])
+
+        rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p)
+        xyz = rv[0].flatten()
+        xyz_list.append(xyz)
+        if 0 < xyz[0]:
+            z_sign = z_sign +1
+        else:
+            z_sign = z_sign -1
+
+    if z_sign < 0:
+        for i in range(N):
+            xyz_list[i] = - xyz_list[i]
+
+    # reject outliers that is z < 0 カメラの後ろにある点を除去。
+    #xyz_list2 = list(filter(lambda xyz: 0 < xyz[2], xyz_list))
+
+    return xyz_list
+
+def Delete_outliers(xy0_list,xy1_list,c_list,loss_list):
+    xy0_list2  = []
+    xy1_list2  = []
+    loss_list2 = []
+
+    N = xy0_list.shape[0]
+
+    for i in range(N):
+        if c_list[i]==0:
+            xy0_list2.append(xy0_list[i])
+            xy1_list2.append(xy1_list[i])
+            loss_list2.append(loss_list[i])
+
+    return np.array(xy0_list2), np.array(xy1_list2), np.array(loss_list2)

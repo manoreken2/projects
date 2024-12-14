@@ -75,9 +75,9 @@ class Ransac:
 
         # c_list[id] == 0 : inlier 
         # c_list[id] == 1 : outlier
-        self.c_list=N * [1.0]
+        self.c_list=N * [1]
         for id in inlier_ids:
-            self.c_list[id] = 0.0
+            self.c_list[id] = 0
 
         return self
 
