@@ -70,7 +70,7 @@ class Ransac_TwoCam:
                 this_loss = better_model.calc_loss(a2, b2).mean()
 
                 if this_loss < self.best_loss:
-                    print(f"  i={i}/{self.k} loss {this_loss}, inliers={inlier_ids_size}")
+                    print(f"  i={i}/{self.k} found better set. loss {this_loss}, inliers={inlier_ids_size}")
                     self.best_loss  = this_loss
                     self.best_model = better_model
                     self.inlier_ids = inlier_ids
@@ -81,10 +81,10 @@ class Ransac_TwoCam:
                     for id in self.inlier_ids:
                         self.c_list[id] = 0
                 else:
-                    #print(f"D: inliner count is OK {linlier_ids_len} > {self.d}, but error is large {this_loss} > {self.best_loss}")
+                    print(f"  i={i} inliner count is OK {inlier_ids_size} > {self.d}, but error is large {this_loss} > {self.best_loss}")
                     pass
             else:
-                #print(f"D: did not met inliers count condition {self.d} <= {inlier_ids_len}. loss={loss_list.mean()}")
+                print(f"  i={i} did not met inliers count condition {self.d} <= {inlier_ids_len}. loss={loss_list.mean()}")
                 pass
 
         return self

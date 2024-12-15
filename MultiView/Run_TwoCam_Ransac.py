@@ -5,6 +5,7 @@ from Rank_Correction import Rank_Correction
 from Fundamental_to_CamParams import *
 from Ransac_TwoCam import *
 from LSQTwoCamRegressor import LSQTwoCamRegressor
+from FNSTwoCamRegressor import FNSTwoCamRegressor
 from mpl_toolkits import mplot3d
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,18 +38,19 @@ def Plot3D(xyz_list, c_list):
 
 def main():
     f0=1
+    convEps=0.01
 
     xy0_list, xy1_list = CSV_Read_TwoCamPointList('twoCamPoints410_outlier10.csv')
     N=xy0_list.shape[0]
 
-    ran = Ransac_TwoCam(d=N//2, model=LSQTwoCamRegressor())
+    ran = Ransac_TwoCam(d=N//2, model=FNSTwoCamRegressor())
     ran.fit(xy0_list, xy1_list)
 
     theta     = ran.get_theta()
     c_list    = ran.get_c_list()
     loss_list = ran.calc_loss(xy0_list, xy1_list)
 
-    PlotValidPoints(xy0_list, c_list, loss_list);
+    #PlotValidPoints(xy0_list, c_list, loss_list);
 
     xy0_list2, xy1_list2, loss_list2 = Delete_outliers(xy0_list, xy1_list, c_list, loss_list)
 

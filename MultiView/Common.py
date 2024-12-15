@@ -383,6 +383,17 @@ def ThetaToF(t):
     F[2,2] = t[8]
     return F
 
+def Update_W(theta, v0_list):
+    N= len(v0_list)
+    w_list = np.asarray(N * [1.0])
+
+    for i in range(N):
+        v0   = v0_list[i]
+        v0ev = v0 @ theta
+        w_list[i] = 1.0 / (theta.T @ v0ev).item() # 1x1 mat to number
+
+    return w_list
+
 # 最小二乗法で最適解を求めます。
 def TwoCam_LeastSquare(xy0_list, xy1_list, f0):
     xi_list = BuildXi_F(xy0_list, xy1_list, f0)
@@ -395,6 +406,37 @@ def TwoCam_LeastSquare(xy0_list, xy1_list, f0):
 
     # 定数項が1になるようにする。
     theta /= theta[8, 0]
+
+    return theta
+
+# FNS method ch 2.5 p21 procedure 2.5
+def TwoCam_FNS(xy0_list, xy1_list, f0, convEPS, maxIter):
+    theta  = np.vstack(np.zeros(9))
+    theta0 = np.vstack(np.ones(9))
+
+    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
+    v0_list = BuildV0_F(xy0_list, xy1_list, f0)
+
+    N = len(xi_list)
+    w_list = np.asarray(N * [1.0])
+    
+    for i in range(maxIter):
+        M = BuildM_FNS(xi_list, w_list)
+        L = BuildL_FNS(xi_list, w_list, v0_list, theta)
+        X = M - L
+
+        _, eig_vec=eigh(X)
+        theta = eig_vec[:, 0].reshape(9)
+        theta = np.vstack(theta)
+
+        # 定数項が1になるようにする。符号の不確定性排除。
+        theta /= theta[8, 0]
+        diff = np.linalg.norm(theta - theta0)
+        #print(f"TwoCam_FNS i={i}, diff={diff}")
+        if diff < convEPS:
+            break
+        w_list = Update_W(theta, v0_list)
+        theta0 = np.array(theta)
 
     return theta
 
@@ -451,7 +493,7 @@ def BuildM_LS(xi_list):
 # 対称行列 M = (1/N) * Σw_i * xi_i * xi_i^T
 #                      i=0
 # FNS法。
-def BuildM(xi_list, w_list):
+def BuildM_FNS(xi_list, w_list):
     N = len(xi_list)
     assert N == w_list.shape[0]
 
@@ -468,7 +510,7 @@ def BuildM(xi_list, w_list):
 
 # 対称行列L
 # FNS法。
-def BuildL(xi_list, w_list, v0_list, ev):
+def BuildL_FNS(xi_list, w_list, v0_list, theta):
     N = len(xi_list)
     assert N == w_list.shape[0]
     assert N == len(v0_list)
@@ -480,9 +522,9 @@ def BuildL(xi_list, w_list, v0_list, ev):
         xi = xi_list[i]
         w  = w_list[i]
         v0 = v0_list[i]
-        xi_dot_ev = (xi.T @ ev).item()
+        xi_dot_theta = (xi.T @ theta).item()
 
-        a = (w*w/N) * xi_dot_ev * xi_dot_ev * v0
+        a = (w*w/N) * xi_dot_theta * xi_dot_theta * v0
         L += a
     return L
 
@@ -660,10 +702,11 @@ def Triangulation(xy0_list, xy1_list, f0, P0, P1):
             xyz_list[i] = - xyz_list[i]
 
     # reject outliers that is z < 0 カメラの後ろにある点を除去。
-    #xyz_list2 = list(filter(lambda xyz: 0 < xyz[2], xyz_list))
+    xyz_list2 = list(filter(lambda xyz: 0 < xyz[2], xyz_list))
 
     return xyz_list
 
+# c_listを参照、outlier pointsを除去した点リストを作成。
 def Delete_outliers(xy0_list,xy1_list,c_list,loss_list):
     xy0_list2  = []
     xy1_list2  = []

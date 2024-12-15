@@ -3,7 +3,7 @@ import csv
 import numpy as np
 from numpy.linalg import eigh
 import math
-from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM, BuildL
+from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM_FNS, BuildL_FNS
 from Ransac import Ransac, RegresserBase
 from FNSEllipRegressor import FNSEllipRegressor
 

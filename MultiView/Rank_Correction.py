@@ -43,6 +43,7 @@ def MHatToV0t(MHat, N):
         V0t = V0t + (u @ ut)/(v * N)
     return V0t
 
+# optimized rank correction procedure 3.4 ch 3.5 p43
 def Rank_Correction(theta, xy0_list, xy1_list,f0):
     xi_list = BuildXi_F(xy0_list, xy1_list, f0)
     V0_list = BuildV0_F(xy0_list, xy1_list, f0)

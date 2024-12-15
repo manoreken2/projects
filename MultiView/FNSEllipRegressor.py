@@ -1,4 +1,4 @@
-from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM, BuildL
+from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM_FNS, BuildL_FNS
 from Ransac import Ransac, RegresserBase
 import numpy as np
 from numpy.linalg import eigh
@@ -67,8 +67,8 @@ class FNSEllipRegressor(RegresserBase):
 
         theta0=np.vstack(np.zeros(6))
         for i in range(MaxIter):
-            M = BuildM(xi_list, w_list)
-            L = BuildL(xi_list, w_list, v0_list, theta0)
+            M = BuildM_FNS(xi_list, w_list)
+            L = BuildL_FNS(xi_list, w_list, v0_list, theta0)
 
             X = M - L
 
