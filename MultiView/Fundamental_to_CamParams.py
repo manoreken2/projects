@@ -107,6 +107,8 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list):
         xap = np.vstack([x1/fp, y1/fp, 1.0])
         xa_list.append(xa)
         xap_list.append(xap)
+    
+    # tの向きが反対かどうか調べる。
     s = 0.0
     for i in range(N):
         xa = xa_list[i]

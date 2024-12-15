@@ -270,6 +270,7 @@ def BuildXi(x_list, y_list, f0):
         xi_list.append(xi)
     return xi_list
 
+# ch2. p14. eq2.15
 # xi fundamental mat 
 def BuildXi_F(xy0_list, xy1_list, f0):
     N = xy0_list.shape[0]
@@ -289,7 +290,6 @@ def BuildXi_F(xy0_list, xy1_list, f0):
         xi_list.append(xi)
     return xi_list
 
-# ch2. p14. eq2.15
 def BuildV0(x_list, y_list, f0):
     N = x_list.shape[0]
     assert N == y_list.shape[0]
