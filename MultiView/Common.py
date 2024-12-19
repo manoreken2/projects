@@ -440,13 +440,15 @@ def TwoCam_FNS(xy0_list, xy1_list, f0, convEPS, maxIter):
 
     return theta
 
-def Epipolar_Constraint_Error(xy0_list, xy1_list, f0, F):
+def Epipolar_Constraint_Error(xy0_list, xy1_list, inlier_flag_list, f0, F):
     N = xy0_list.shape[0]
     assert N == xy1_list.shape[0]
-    
+    valid_count = 0
     err_sum = 0.0
 
     for i in range(N):
+        if inlier_flag_list[i] == False:
+            continue
         x0 = xy0_list[i,0]
         y0 = xy0_list[i,1]
         x1 = xy1_list[i,0]
@@ -469,7 +471,10 @@ def Epipolar_Constraint_Error(xy0_list, xy1_list, f0, F):
 
         err = np.vdot(xy0, Fxy1)
         err_sum += err
-    return err_sum / N
+
+        valid_count += 1
+
+    return err_sum / valid_count
 
 #                       N
 # 対称行列 M = (1/N) * Σ xi_i * xi_i^T
@@ -657,23 +662,29 @@ def AdjustTwoPoints1(xy0, xy1, theta, f0):
 
     return xyh0, xyh1
 
-def AdjustTwoPoints(xy0_list, xy1_list, theta, f0):
+def AdjustTwoPoints(xy0_list, xy1_list, inlier_flag_list, theta, f0):
     N = xy0_list.shape[0]
     assert N == xy1_list.shape[0]
     
     for i in range(N):
+        #if inlier_flag_list[i] == False:
+        #    continue
         xy0_list[i,:],xy1_list[i,:] = AdjustTwoPoints1(xy0_list[i,:],xy1_list[i,:], theta, f0)
 
     return xy0_list, xy1_list
 
 # triangulation ch4 p66 eq4.1
-def Triangulation(xy0_list, xy1_list, f0, P0, P1):
+def Triangulation(xy0_list, xy1_list, inlier_flag_list, f0, P0, P1):
     xyz_list = []
     N = xy0_list.shape[0]
     assert N == xy1_list.shape[0]
     z_sign = 0
     
     for i in range(N):
+        inlier = inlier_flag_list[i]
+        #if inlier_flag_list[i] == False:
+        #    xyz_list.append(np.array([0,0,0]))
+        #    continue
         xy0 = xy0_list[i,:]
         xy1 = xy1_list[i,:]
         T = np.array([
@@ -692,7 +703,7 @@ def Triangulation(xy0_list, xy1_list, f0, P0, P1):
         rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p)
         xyz = rv[0].flatten()
         xyz_list.append(xyz)
-        if 0 < xyz[0]:
+        if inlier and 0 < xyz[0]:
             z_sign = z_sign +1
         else:
             z_sign = z_sign -1
@@ -701,13 +712,17 @@ def Triangulation(xy0_list, xy1_list, f0, P0, P1):
         for i in range(N):
             xyz_list[i] = - xyz_list[i]
 
-    # reject outliers that is z < 0 カメラの後ろにある点を除去。
-    xyz_list2 = list(filter(lambda xyz: 0 < xyz[2], xyz_list))
+    # reject outliers that is z < 0 カメラの後ろにある点。
+    for i in range(N):
+        xyz = xyz_list[i]
+        if xyz[2] < 0:
+            inlier_flag_list[i] = False
 
-    return xyz_list
+    return np.array(xyz_list)
 
-# c_listを参照、outlier pointsを除去した点リストを作成。
-def Delete_outliers(xy0_list,xy1_list,c_list,loss_list):
+
+# outlier pointsを除去した点リストを作成。
+def Delete_outliers(xy0_list, xy1_list, inlier_flag_list, loss_list):
     xy0_list2  = []
     xy1_list2  = []
     loss_list2 = []
@@ -715,9 +730,21 @@ def Delete_outliers(xy0_list,xy1_list,c_list,loss_list):
     N = xy0_list.shape[0]
 
     for i in range(N):
-        if c_list[i]==0:
+        if inlier_flag_list[i] == True:
             xy0_list2.append(xy0_list[i])
             xy1_list2.append(xy1_list[i])
             loss_list2.append(loss_list[i])
 
     return np.array(xy0_list2), np.array(xy1_list2), np.array(loss_list2)
+
+def InlierPointList(xyz_list, inlier_flag_list):
+    N = xyz_list.shape[0]
+    xyz_list2 = []
+    for i in range(N):
+        if inlier_flag_list[i] == False:
+            continue
+        xyz = xyz_list[i]
+        xyz_list2.append(xyz)
+    return np.array(xyz_list2)
+
+

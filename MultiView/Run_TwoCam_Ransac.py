@@ -38,44 +38,43 @@ def Plot3D(xyz_list, c_list):
 
 def main():
     f0=1
-    convEps=0.01
 
     xy0_list, xy1_list = CSV_Read_TwoCamPointList('twoCamPoints410_outlier10.csv')
-    N=xy0_list.shape[0]
+    N = xy0_list.shape[0]
 
-    ran = Ransac_TwoCam(d=N//2, model=FNSTwoCamRegressor())
+    ran = Ransac_TwoCam(close_points=N//2, ite_count=300, model=FNSTwoCamRegressor())
     ran.fit(xy0_list, xy1_list)
 
-    theta     = ran.get_theta()
-    c_list    = ran.get_c_list()
-    loss_list = ran.calc_loss(xy0_list, xy1_list)
-
-    #PlotValidPoints(xy0_list, c_list, loss_list);
-
-    xy0_list2, xy1_list2, loss_list2 = Delete_outliers(xy0_list, xy1_list, c_list, loss_list)
-
+    theta = ran.get_theta()
     F = ThetaToF(theta)
-
-    err = Epipolar_Constraint_Error(xy0_list2, xy1_list2, f0, F)
-    print(f"Epipolar Constraint error = {err}")
 
     fl0, fl1 = Fundamental_to_FocalLength(F, f0)
     print(f"Focal length = {fl0}, {fl1}")
 
-    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, xy0_list2, xy1_list2)
+    inlier_flag_list = ran.get_inlier_flag_list()
+    inlier_core_flag_list = ran.get_inlier_core_flag_list()
+    loss_list = ran.calc_loss(xy0_list, xy1_list)
+
+    #PlotValidPoints(xy0_list, c_list, loss_list);
+
+    err = Epipolar_Constraint_Error(xy0_list, xy1_list, inlier_flag_list, f0, F)
+    print(f"Epipolar Constraint error = {err}")
+
+    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, xy0_list, xy1_list, inlier_flag_list)
     print(f"trans={t}\nrot={R}")
 
     PLY_Export_TwoCam(t, R, 'twoCamEst2r.ply')
 
     P0, P1 = TwoCamMat(f0, fl0, fl1, t, R)
 
-    xy0_list2, xy1_list2 = AdjustTwoPoints(xy0_list2, xy1_list2, theta, f0)
+    AdjustTwoPoints(xy0_list, xy1_list, inlier_flag_list, theta, f0)
 
-    xyz_list = Triangulation(xy0_list2, xy1_list2, f0, P0, P1)
+    xyz_list = Triangulation(xy0_list, xy1_list, inlier_flag_list, f0, P0, P1)
 
     #Plot3D(xyz_list, new_loss_list)
 
-    PLY_Export_PointList(np.array(xyz_list), "ResultPoints3D.ply")
+    PLY_Export_PointList(InlierPointList(xyz_list, inlier_flag_list), "ResultPoints3D.ply")
+    PLY_Export_PointList(InlierPointList(xyz_list, inlier_core_flag_list), "ResultCorePoints3D.ply")
 
 if __name__ == "__main__":
     main()

@@ -62,7 +62,7 @@ class FNSTwoCamRegressor(RegresserBase_TwoCam):
         theta = Rank_Correction(theta, xy0_list, xy1_list, f0)
         #print(theta)
     
-        F = ThetaToF(theta)
+        #F = ThetaToF(theta)
         #print(f"F={F}")
 
         return theta

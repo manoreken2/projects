@@ -75,7 +75,7 @@ def a_to_ax(a):
     return ax
 
 # 基礎行列F, カメラ0焦点距離f, カメラ1焦点距離fp, カメラ0点列、カメラ1点列から平行移動t, 回転行列Rを求める。
-def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list):
+def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list, inlier_flag_list):
     N=xy0_list.shape[0]
 
     FF = np.eye(3)
@@ -95,9 +95,10 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list):
     t = MinEigVec(E @ np.transpose(E))
 
     # tの向きが反対かどうか調べる。
-    xa_list = []
-    xap_list = []
+    s = 0.0
     for i in range(N):
+        if inlier_flag_list[i] == False:
+            continue
         x0 = xy0_list[i,0]
         y0 = xy0_list[i,1]
         x1 = xy1_list[i,0]
@@ -105,14 +106,6 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list):
 
         xa  = np.vstack([x0/f,  y0/f,  1.0])
         xap = np.vstack([x1/fp, y1/fp, 1.0])
-        xa_list.append(xa)
-        xap_list.append(xap)
-    
-    # tの向きが反対かどうか調べる。
-    s = 0.0
-    for i in range(N):
-        xa = xa_list[i]
-        xap = xap_list[i]
         s += Scalar_triplet(t, xa, E @ xap)
     if s <= 0:
         t = -t
