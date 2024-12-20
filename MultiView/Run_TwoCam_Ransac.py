@@ -10,12 +10,12 @@ from mpl_toolkits import mplot3d
 import numpy as np
 import matplotlib.pyplot as plt
 
-def PlotValidPoints(xy_list, c_list, loss_list):
-    plt.scatter(xy_list[:,0], xy_list[:,1], s=3, c=c_list, marker='.', cmap='bwr')
+def PlotValidPoints(pp, loss_list):
+    plt.scatter(pp.a[:,0], pp.a[:,1], s=3, c=loss_list, marker='.', cmap='bwr')
 
-    for i, l in enumerate(loss_list):
-        v = float(l)
-        plt.annotate(f"{i}:{v:.1f}", (xy_list[i,0], xy_list[i,1]), )
+    #for i, l in enumerate(loss_list):
+    #    v = float(l)
+    #    plt.annotate(f"{i}:{v:.1f}", (xy_list[i,0], xy_list[i,1]), )
 
     plt.axis('equal')
     plt.colorbar()
@@ -54,10 +54,7 @@ def main():
     valid_bitmap  = ran.get_valid_bitmap()
     picked_up_ids = ran.get_picked_up_ids()
 
-    # アウトライアーを含む全ての点について、ロス値を算出。
-    loss_list = ran.calc_loss(pp)
-
-    #PlotValidPoints(xy0_list, c_list, loss_list);
+    PlotValidPoints(pp, valid_bitmap);
 
     err = Epipolar_Constraint_Error(pp, valid_bitmap, f0, F)
     print(f"Epipolar Constraint error = {err}")
