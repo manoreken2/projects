@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    "eigen3",
+    "opencv4"
+  ]
+
+}
