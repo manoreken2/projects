@@ -2,7 +2,7 @@
 import numpy as np
 from numpy.linalg import eigh, svd, det
 import math
-from Common import ThetaDagger
+from Common import *
 
 # 行列Mの最小の固有値に対応する固有ベクトルを得る。
 def MinEigVec(M):
@@ -75,8 +75,8 @@ def a_to_ax(a):
     return ax
 
 # 基礎行列F, カメラ0焦点距離f, カメラ1焦点距離fp, カメラ0点列、カメラ1点列から平行移動t, 回転行列Rを求める。
-def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list, inlier_flag_list):
-    N=xy0_list.shape[0]
+def Fundamental_to_Trans_Rot(F, f, fp, f0, pp: Point2dPair, valid_bitmap):
+    N = pp.get_point_count()
 
     FF = np.eye(3)
     FF[0,0] = 1.0/f0
@@ -97,12 +97,12 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, xy0_list, xy1_list, inlier_flag_list)
     # tの向きが反対かどうか調べる。
     s = 0.0
     for i in range(N):
-        if inlier_flag_list[i] == False:
+        if valid_bitmap[i] == False:
             continue
-        x0 = xy0_list[i,0]
-        y0 = xy0_list[i,1]
-        x1 = xy1_list[i,0]
-        y1 = xy1_list[i,1]
+        x0 = pp.a[i,0]
+        y0 = pp.a[i,1]
+        x1 = pp.b[i,0]
+        y1 = pp.b[i,1]
 
         xa  = np.vstack([x0/f,  y0/f,  1.0])
         xap = np.vstack([x1/fp, y1/fp, 1.0])

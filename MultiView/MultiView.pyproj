@@ -27,6 +27,7 @@
     <Compile Include="Common.py" />
     <Compile Include="DeltaTest.py" />
     <Compile Include="FNSEllipRegressor.py" />
+    <Compile Include="FNSTwoCamRegressor.py" />
     <Compile Include="LSQTwoCamRegressor.py" />
     <Compile Include="Fundamental_to_CamParams.py" />
     <Compile Include="PlotTest.py" />

@@ -10,6 +10,20 @@ import math
 # トランスフォーム行列Mとベクトルvの積は
 # M * v ：縦ベクトルvを右から掛ける。
 
+# 2次元点群のペア。a: xy0_list と b: xy1_listを収容する。
+class Point2dPair:
+    def __init__(self, a, b):
+        N = a.shape[0]
+        assert N == b.shape[0]
+        self.N = N
+
+        self.a = a
+        self.b = b
+
+    def get_point_count(self):
+        return self.N
+
+# 3次元座標の回転行列作成。
 def RotX(x):
     c=math.cos(x)
     s=math.sin(x)
@@ -257,6 +271,7 @@ def PLY_Export_TwoCam(t,R,fileName):
 
     GeneratePLY_TwoCamPoseZP(E4, M, fileName)
 
+# 楕円用。
 def BuildXi(x_list, y_list, f0):
     N = x_list.shape[0]
     assert N == y_list.shape[0]
@@ -270,26 +285,7 @@ def BuildXi(x_list, y_list, f0):
         xi_list.append(xi)
     return xi_list
 
-# ch2. p14. eq2.15
-# xi fundamental mat 
-def BuildXi_F(xy0_list, xy1_list, f0):
-    N = xy0_list.shape[0]
-    assert N == xy1_list.shape[0]
-    
-    xi_list = []
-    for i in range(N):
-        x0 = xy0_list[i,0]
-        y0 = xy0_list[i,1]
-        x1 = xy1_list[i,0]
-        y1 = xy1_list[i,1]
-
-        xi=np.vstack([ \
-            x0*x1, x0*y1, f0*x0, \
-            x1*y0, y0*y1, f0*y0, \
-            f0*x1, f0*y1, f0*f0])
-        xi_list.append(xi)
-    return xi_list
-
+# 楕円用。
 def BuildV0(x_list, y_list, f0):
     N = x_list.shape[0]
     assert N == y_list.shape[0]
@@ -310,6 +306,27 @@ def BuildV0(x_list, y_list, f0):
         v0_list.append(v0)
     return v0_list
 
+# 2台カメラ用。
+# ch2. p14. eq2.15
+# xi fundamental mat 
+def BuildXi_F(pp: Point2dPair, f0):
+    N = pp.get_point_count()
+    
+    xi_list = []
+    for i in range(N):
+        x0 = pp.a[i,0]
+        y0 = pp.a[i,1]
+        x1 = pp.b[i,0]
+        y1 = pp.b[i,1]
+
+        xi=np.vstack([ \
+            x0*x1, x0*y1, f0*x0, \
+            x1*y0, y0*y1, f0*y0, \
+            f0*x1, f0*y1, f0*f0])
+        xi_list.append(xi)
+    return xi_list
+
+# 2台カメラ用。
 # V0 of Fundamental mat. ch3. p38. eq3.12.
 def BuildV0_F1(xy0, xy1, f0):
     x0 = xy0[0]
@@ -330,15 +347,15 @@ def BuildV0_F1(xy0, xy1, f0):
     v0[6,3] = v0[3,0] = f0*y0
     return v0
 
+# 2台カメラ用。
 # V0 of Fundamental mat. ch3. p38. eq3.12.
-def BuildV0_F(xy0_list, xy1_list, f0):
-    N = xy0_list.shape[0]
-    assert N == xy1_list.shape[0]
+def BuildV0_F(pp: Point2dPair, f0):
+    N = pp.get_point_count()
     
     v0_list = []
     for i in range(N):
-        xy0 = xy0_list[i,:]
-        xy1 = xy1_list[i,:]
+        xy0 = pp.a[i,:]
+        xy1 = pp.b[i,:]
         v0 = BuildV0_F1(xy0,xy1,f0)
         v0_list.append(v0)
     return v0_list
@@ -409,13 +426,14 @@ def TwoCam_LeastSquare(xy0_list, xy1_list, f0):
 
     return theta
 
-# FNS method ch 2.5 p21 procedure 2.5
-def TwoCam_FNS(xy0_list, xy1_list, f0, convEPS, maxIter):
+# 2台カメラ用。
+# FNS method. ch 2.5. p21. procedure 2.5
+def TwoCam_FNS(pp: Point2dPair, f0, convEPS, maxIter):
     theta  = np.vstack(np.zeros(9))
     theta0 = np.vstack(np.ones(9))
 
-    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
-    v0_list = BuildV0_F(xy0_list, xy1_list, f0)
+    xi_list = BuildXi_F(pp, f0)
+    v0_list = BuildV0_F(pp, f0)
 
     N = len(xi_list)
     w_list = np.asarray(N * [1.0])
@@ -440,19 +458,20 @@ def TwoCam_FNS(xy0_list, xy1_list, f0, convEPS, maxIter):
 
     return theta
 
-def Epipolar_Constraint_Error(xy0_list, xy1_list, inlier_flag_list, f0, F):
-    N = xy0_list.shape[0]
-    assert N == xy1_list.shape[0]
+# 2台カメラ用。
+def Epipolar_Constraint_Error(pp: Point2dPair, inlier_flag_list, f0, F):
+    N = pp.get_point_count()
+
     valid_count = 0
     err_sum = 0.0
 
     for i in range(N):
         if inlier_flag_list[i] == False:
             continue
-        x0 = xy0_list[i,0]
-        y0 = xy0_list[i,1]
-        x1 = xy1_list[i,0]
-        y1 = xy1_list[i,1]
+        x0 = pp.a[i,0]
+        y0 = pp.a[i,1]
+        x1 = pp.b[i,0]
+        y1 = pp.b[i,1]
 
         xy0 = np.vstack([
             x0/f0,
@@ -542,7 +561,7 @@ def CSV_Read_TwoCamPointList(path):
         for l in r:
             xy0_list.append(np.array(l[0:2]))
             xy1_list.append(np.array(l[2:4]))
-    return np.asarray(xy0_list), np.asarray(xy1_list)
+    return Point2dPair(np.asarray(xy0_list), np.asarray(xy1_list))
 
 def ReadPointXY3(path):
     x_list=[]
@@ -662,36 +681,36 @@ def AdjustTwoPoints1(xy0, xy1, theta, f0):
 
     return xyh0, xyh1
 
-def AdjustTwoPoints(xy0_list, xy1_list, inlier_flag_list, theta, f0):
-    N = xy0_list.shape[0]
-    assert N == xy1_list.shape[0]
+def AdjustTwoPoints(pp: Point2dPair, valid_bitmap, theta, f0):
+    N = pp.get_point_count()
     
     for i in range(N):
-        #if inlier_flag_list[i] == False:
-        #    continue
-        xy0_list[i,:],xy1_list[i,:] = AdjustTwoPoints1(xy0_list[i,:],xy1_list[i,:], theta, f0)
+        if valid_bitmap[i] == False:
+            continue
+        pp.a[i,:], pp.b[i,:] = AdjustTwoPoints1(pp.a[i,:], pp.b[i,:], theta, f0)
 
-    return xy0_list, xy1_list
+    return pp
 
 # triangulation ch4 p66 eq4.1
-def Triangulation(xy0_list, xy1_list, inlier_flag_list, f0, P0, P1):
-    xyz_list = []
-    N = xy0_list.shape[0]
-    assert N == xy1_list.shape[0]
+def Triangulation(pp: Point2dPair, valid_bitmap, f0, P0, P1):
+    N = pp.get_point_count()
+
+    xyz_list = np.ndarray((N,3))
     z_sign = 0
     
     for i in range(N):
-        inlier = inlier_flag_list[i]
-        #if inlier_flag_list[i] == False:
-        #    xyz_list.append(np.array([0,0,0]))
-        #    continue
-        xy0 = xy0_list[i,:]
-        xy1 = xy1_list[i,:]
+        inlier = valid_bitmap[i]
+        if not inlier:
+            continue
+        
+        xy0 = pp.a[i,:]
+        xy1 = pp.b[i,:]
+
         T = np.array([
-        [f0*P0[0,0] - xy0[0]*P0[2,0], f0*P0[0,1] - xy0[0]*P0[2,1], f0*P0[0,2] - xy0[0]*P0[2,2]],
-        [f0*P0[1,0] - xy0[1]*P0[2,0], f0*P0[1,1] - xy0[1]*P0[2,1], f0*P0[1,2] - xy0[1]*P0[2,2]],
-        [f0*P1[0,0] - xy1[0]*P1[2,0], f0*P1[0,1] - xy1[0]*P1[2,1], f0*P1[0,2] - xy1[0]*P1[2,2]],
-        [f0*P1[1,0] - xy1[1]*P1[2,0], f0*P1[1,1] - xy1[1]*P1[2,1], f0*P1[1,2] - xy1[1]*P1[2,2]] ])
+            [f0*P0[0,0] - xy0[0]*P0[2,0], f0*P0[0,1] - xy0[0]*P0[2,1], f0*P0[0,2] - xy0[0]*P0[2,2]],
+            [f0*P0[1,0] - xy0[1]*P0[2,0], f0*P0[1,1] - xy0[1]*P0[2,1], f0*P0[1,2] - xy0[1]*P0[2,2]],
+            [f0*P1[0,0] - xy1[0]*P1[2,0], f0*P1[0,1] - xy1[0]*P1[2,1], f0*P1[0,2] - xy1[0]*P1[2,2]],
+            [f0*P1[1,0] - xy1[1]*P1[2,0], f0*P1[1,1] - xy1[1]*P1[2,1], f0*P1[1,2] - xy1[1]*P1[2,2]] ])
 
         p = np.vstack([
             f0*P0[0,3] - xy0[0]*P0[2,3],
@@ -702,49 +721,36 @@ def Triangulation(xy0_list, xy1_list, inlier_flag_list, f0, P0, P1):
 
         rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p)
         xyz = rv[0].flatten()
-        xyz_list.append(xyz)
-        if inlier and 0 < xyz[0]:
+        xyz_list[i,:] = xyz
+        if 0 < xyz[0]:
             z_sign = z_sign +1
         else:
             z_sign = z_sign -1
 
     if z_sign < 0:
         for i in range(N):
-            xyz_list[i] = - xyz_list[i]
+            xyz_list[i,:] = - xyz_list[i,:]
 
     # reject outliers that is z < 0 カメラの後ろにある点。
     for i in range(N):
-        xyz = xyz_list[i]
-        if xyz[2] < 0:
-            inlier_flag_list[i] = False
+        z = xyz_list[i,2]
+        if z < 0:
+            valid_bitmap[i] = False
 
-    return np.array(xyz_list)
+    return xyz_list, valid_bitmap
 
-
-# outlier pointsを除去した点リストを作成。
-def Delete_outliers(xy0_list, xy1_list, inlier_flag_list, loss_list):
-    xy0_list2  = []
-    xy1_list2  = []
-    loss_list2 = []
-
-    N = xy0_list.shape[0]
-
-    for i in range(N):
-        if inlier_flag_list[i] == True:
-            xy0_list2.append(xy0_list[i])
-            xy1_list2.append(xy1_list[i])
-            loss_list2.append(loss_list[i])
-
-    return np.array(xy0_list2), np.array(xy1_list2), np.array(loss_list2)
-
-def InlierPointList(xyz_list, inlier_flag_list):
+def InlierPointList_from_bitmap(xyz_list, valid_bitmap):
     N = xyz_list.shape[0]
     xyz_list2 = []
     for i in range(N):
-        if inlier_flag_list[i] == False:
+        if valid_bitmap[i] == False:
             continue
         xyz = xyz_list[i]
         xyz_list2.append(xyz)
     return np.array(xyz_list2)
+
+def InlierPointList_from_inlierIdList(xyz_list, inlier_ids):
+    return xyz_list[inlier_ids, :]
+
 
 

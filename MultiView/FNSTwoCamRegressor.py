@@ -1,7 +1,7 @@
 from Common import *
 from Rank_Correction import Rank_Correction
 from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, Fundamental_to_FocalLength
-from Ransac_TwoCam import *
+from Ransac_TwoCam import Point2dPair, RegresserBase_TwoCam
 import numpy as np
 from numpy.linalg import eigh
 
@@ -16,18 +16,24 @@ class FNSTwoCamRegressor(RegresserBase_TwoCam):
     def get_theta(self):
         return self.theta
     
-    def fit_tc(self, xy0_list: np.ndarray, xy1_list: np.ndarray):
-        self.theta = self.FNS(xy0_list=xy0_list, xy1_list=xy1_list)
-        return self
+    def fit_tc(self, pp: Point2dPair):
+        MaxIter = self.MaxIter
+        ConvEPS = self.ConvEPS
+        f0      = self.f0
+
+        N = pp.get_point_count()
+    
+        theta = TwoCam_FNS(pp, f0, ConvEPS, MaxIter)
+        theta = Rank_Correction(theta, pp, f0)
+        self.theta = theta
 
     # N個のロス値を戻します。
-    def calc_loss(self, xy0_list, xy1_list):
-        N = xy0_list.shape[0]
-        assert N == xy1_list.shape[0]
+    def calc_loss_tc(self, pp: Point2dPair):
+        N = pp.get_point_count()
 
         theta = self.theta
-        xi_list = BuildXi_F(xy0_list, xy1_list, self.f0)
-        v0_list = BuildV0_F(xy0_list, xy1_list, self.f0)
+        xi_list = BuildXi_F(pp, self.f0)
+        v0_list = BuildV0_F(pp, self.f0)
 
         # サンプソン誤差J
         J = np.zeros(N)
@@ -49,23 +55,6 @@ class FNSTwoCamRegressor(RegresserBase_TwoCam):
 
         return J
 
-    def FNS(self, xy0_list: np.ndarray, xy1_list: np.ndarray):
-        MaxIter = self.MaxIter
-        ConvEPS = self.ConvEPS
-        f0 = self.f0
-
-        N = xy0_list.shape[0]
-        assert N == xy1_list.shape[0]
-    
-        theta = TwoCam_FNS(xy0_list, xy1_list, f0, ConvEPS, MaxIter)
-
-        theta = Rank_Correction(theta, xy0_list, xy1_list, f0)
-        #print(theta)
-    
-        #F = ThetaToF(theta)
-        #print(f"F={F}")
-
-        return theta
 
 
 

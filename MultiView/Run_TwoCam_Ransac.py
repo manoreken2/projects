@@ -39,11 +39,11 @@ def Plot3D(xyz_list, c_list):
 def main():
     f0=1
 
-    xy0_list, xy1_list = CSV_Read_TwoCamPointList('twoCamPoints410_outlier10.csv')
-    N = xy0_list.shape[0]
+    pp = CSV_Read_TwoCamPointList('twoCamPoints410_outlier10.csv')
+    N = pp.get_point_count()
 
-    ran = Ransac_TwoCam(close_points=N//2, ite_count=300, model=FNSTwoCamRegressor())
-    ran.fit(xy0_list, xy1_list)
+    ran = Ransac_TwoCam(close_points=N//2, ite_count=30, model=FNSTwoCamRegressor())
+    ran.fit(pp)
 
     theta = ran.get_theta()
     F = ThetaToF(theta)
@@ -51,30 +51,32 @@ def main():
     fl0, fl1 = Fundamental_to_FocalLength(F, f0)
     print(f"Focal length = {fl0}, {fl1}")
 
-    inlier_flag_list = ran.get_inlier_flag_list()
-    inlier_core_flag_list = ran.get_inlier_core_flag_list()
-    loss_list = ran.calc_loss(xy0_list, xy1_list)
+    valid_bitmap  = ran.get_valid_bitmap()
+    picked_up_ids = ran.get_picked_up_ids()
+
+    # アウトライアーを含む全ての点について、ロス値を算出。
+    loss_list = ran.calc_loss(pp)
 
     #PlotValidPoints(xy0_list, c_list, loss_list);
 
-    err = Epipolar_Constraint_Error(xy0_list, xy1_list, inlier_flag_list, f0, F)
+    err = Epipolar_Constraint_Error(pp, valid_bitmap, f0, F)
     print(f"Epipolar Constraint error = {err}")
 
-    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, xy0_list, xy1_list, inlier_flag_list)
+    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, pp, valid_bitmap)
     print(f"trans={t}\nrot={R}")
 
     PLY_Export_TwoCam(t, R, 'twoCamEst2r.ply')
 
     P0, P1 = TwoCamMat(f0, fl0, fl1, t, R)
 
-    AdjustTwoPoints(xy0_list, xy1_list, inlier_flag_list, theta, f0)
+    AdjustTwoPoints(pp, valid_bitmap, theta, f0)
 
-    xyz_list = Triangulation(xy0_list, xy1_list, inlier_flag_list, f0, P0, P1)
+    xyz_list, valid_bitmap = Triangulation(pp, valid_bitmap, f0, P0, P1)
 
     #Plot3D(xyz_list, new_loss_list)
 
-    PLY_Export_PointList(InlierPointList(xyz_list, inlier_flag_list), "ResultPoints3D.ply")
-    PLY_Export_PointList(InlierPointList(xyz_list, inlier_core_flag_list), "ResultCorePoints3D.ply")
+    PLY_Export_PointList(InlierPointList_from_bitmap(xyz_list, valid_bitmap), "ResultPoints3D.ply")
+    PLY_Export_PointList(InlierPointList_from_inlierIdList(xyz_list, picked_up_ids), "ResultCorePoints3D.ply")
 
 if __name__ == "__main__":
     main()

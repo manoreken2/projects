@@ -2,7 +2,7 @@
 import numpy as np
 from numpy.linalg import eigh
 import math
-from Common import ThetaDagger, BuildXi_F, BuildV0_F
+from Common import *
 
 def VectorScaleToUnitMagnitude(v):
     magn = np.linalg.norm(v)
@@ -44,9 +44,9 @@ def MHatToV0t(MHat, N):
     return V0t
 
 # optimized rank correction procedure 3.4 ch 3.5 p43
-def Rank_Correction(theta, xy0_list, xy1_list,f0):
-    xi_list = BuildXi_F(xy0_list, xy1_list, f0)
-    V0_list = BuildV0_F(xy0_list, xy1_list, f0)
+def Rank_Correction(theta, pp: Point2dPair, f0):
+    xi_list = BuildXi_F(pp, f0)
+    V0_list = BuildV0_F(pp, f0)
 
     N = len(xi_list)
     threshold = 1e-6
