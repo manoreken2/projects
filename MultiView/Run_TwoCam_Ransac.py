@@ -54,7 +54,7 @@ def main():
     valid_bitmap  = ran.get_valid_bitmap()
     picked_up_ids = ran.get_picked_up_ids()
 
-    PlotValidPoints(pp, valid_bitmap);
+    #PlotValidPoints(pp, valid_bitmap);
 
     err = Epipolar_Constraint_Error(pp, valid_bitmap, f0, F)
     print(f"Epipolar Constraint error = {err}")

@@ -138,12 +138,13 @@ def ExportMesh_Ply(p, v, fileName):
 
 # 3次元点群をPLYで保存。
 def PLY_Export_PointList(p, fileName):
-    ps=p.shape
+    print(f"Exporting {fileName}...")
 
     with open(fileName, 'w', newline='\n') as f:
         f.write('ply\n')
         f.write('format ascii 1.0\n')
 
+        ps=p.shape
         f.write(f'element vertex {ps[0]}\n')
         f.write('property float x\n')
         f.write('property float y\n')
