@@ -1,7 +1,11 @@
 {
   "dependencies": [
-    "eigen3",
-    "opencv4"
+    {
+      "name": "opencv4",
+      "features": [
+        "contrib"
+      ]
+    },
+    "eigen"
   ]
-
 }
