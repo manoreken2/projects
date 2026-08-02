@@ -10,6 +10,7 @@ import math
 # トランスフォーム行列Mとベクトルvの積は
 # M * v ：縦ベクトルvを右から掛ける。
 
+
 # 2次元点群のペア。a: xy0_list と b: xy1_listを収容する。
 class Point2dPair:
     def __init__(self, a, b):
@@ -23,38 +24,30 @@ class Point2dPair:
     def get_point_count(self):
         return self.N
 
+
 # 3次元座標の回転行列作成。
 def RotX(x):
-    c=math.cos(x)
-    s=math.sin(x)
+    c = math.cos(x)
+    s = math.sin(x)
 
     # 行優先: 要素は以下の表現の通りに並ぶ。
-    m = np.array([ \
-        [1,  0,  0,  0], \
-        [0,  c, -s,  0], \
-        [0,  s,  c,  0], \
-        [0,  0,  0,  1] ])
+    m = np.array([[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]])
     return m
+
 
 def RotY(y):
-    c=math.cos(y)
-    s=math.sin(y)
-    m = np.array([ \
-        [ c,  0,  s,  0], \
-        [ 0,  1,  0,  0], \
-        [-s,  0,  c,  0], \
-        [ 0,  0,  0,  1] ])
+    c = math.cos(y)
+    s = math.sin(y)
+    m = np.array([[c, 0, s, 0], [0, 1, 0, 0], [-s, 0, c, 0], [0, 0, 0, 1]])
     return m
 
+
 def RotZ(z):
-    c=math.cos(z)
-    s=math.sin(z)
-    m = np.array([ \
-        [ c, -s,  0,  0], \
-        [ s,  c,  0,  0], \
-        [ 0,  0,  1,  0], \
-        [ 0,  0,  0,  1] ])
+    c = math.cos(z)
+    s = math.sin(z)
+    m = np.array([[c, -s, 0, 0], [s, c, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
     return m
+
 
 # rx ry rzの順に回転。
 def CamPoseXYZ(rx, ry, rz, pxyz):
@@ -62,125 +55,131 @@ def CamPoseXYZ(rx, ry, rz, pxyz):
     mY = RotY(ry)
     mZ = RotZ(rz)
     m = mZ @ mY @ mX
-    m[0:3,3] = pxyz[0:3]
-    print(f'CamPoseXYZ=\n{m}')
+    m[0:3, 3] = pxyz[0:3]
+    print(f"CamPoseXYZ=\n{m}")
     return m
+
 
 # 縦ベクトル
 def Proj(fovX, fovY, zNear, zFar):
     m = np.eye(4)
-    w = 1.0/math.tan(fovX/2)
-    h = 1.0/math.tan(fovY/2)
+    w = 1.0 / math.tan(fovX / 2)
+    h = 1.0 / math.tan(fovY / 2)
     q = zFar / (zFar - zNear)
-    m[0,0] = w
-    m[1,1] = h
-    m[2,2] = q
-    m[3,2] = 1
-    m[2,3] = -q * zNear
-    m[3,3] = 0
+    m[0, 0] = w
+    m[1, 1] = h
+    m[2, 2] = q
+    m[3, 2] = 1
+    m[2, 3] = -q * zNear
+    m[3, 3] = 0
     return m
+
 
 # Z-向きのカメラのメッシュ vertex listとtriangle list。
 def Generate_CameraMeshZM(scale=0.1):
-    sz = scale*1.5
+    sz = scale * 1.5
     sx = scale
     sy = scale * 9.0 / 16.0
-    p = np.zeros((5,3))
-    p[0] = np.array(( 0, 0, 0))
-    p[1] = np.array(( sx, sy,-sz))
-    p[2] = np.array(( sx,-sy,-sz))
-    p[3] = np.array((-sx,-sy,-sz))
-    p[4] = np.array((-sx, sy,-sz))
+    p = np.zeros((5, 3))
+    p[0] = np.array((0, 0, 0))
+    p[1] = np.array((sx, sy, -sz))
+    p[2] = np.array((sx, -sy, -sz))
+    p[3] = np.array((-sx, -sy, -sz))
+    p[4] = np.array((-sx, sy, -sz))
 
-    #print(p)
+    # print(p)
 
-    t = np.zeros((6,3), dtype=np.int32)
-    t[0] = np.array((2,1,0), dtype=np.int32)
-    t[1] = np.array((3,2,0), dtype=np.int32)
-    t[2] = np.array((4,3,0), dtype=np.int32)
-    t[3] = np.array((1,4,0), dtype=np.int32)
-    t[4] = np.array((2,3,1), dtype=np.int32)
-    t[5] = np.array((4,1,3), dtype=np.int32)
+    t = np.zeros((6, 3), dtype=np.int32)
+    t[0] = np.array((2, 1, 0), dtype=np.int32)
+    t[1] = np.array((3, 2, 0), dtype=np.int32)
+    t[2] = np.array((4, 3, 0), dtype=np.int32)
+    t[3] = np.array((1, 4, 0), dtype=np.int32)
+    t[4] = np.array((2, 3, 1), dtype=np.int32)
+    t[5] = np.array((4, 1, 3), dtype=np.int32)
 
-    #print(t)
+    # print(t)
     return p, t
+
 
 # Z+向きのカメラのメッシュ vertex listとtriangle list。
 def Generate_CameraMeshZP(scale=0.1):
-    p,t = Generate_CameraMeshZM(scale)
+    p, t = Generate_CameraMeshZM(scale)
     p = Transform_PointList(p, RotY(math.pi))
-    return p,t
+    return p, t
 
 
 # メッシュをPLYで保存。
 def ExportMesh_Ply(p, v, fileName):
-    ps=p.shape
-    vs=v.shape
+    ps = p.shape
+    vs = v.shape
 
-    with open(fileName, 'w', newline='\n') as f:
-        f.write('ply\n')
-        f.write('format ascii 1.0\n')
+    with open(fileName, "w", newline="\n") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
 
-        f.write(f'element vertex {ps[0]}\n')
-        f.write('property float x\n')
-        f.write('property float y\n')
-        f.write('property float z\n')
+        f.write(f"element vertex {ps[0]}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
 
-        f.write(f'element face {vs[0]}\n')
-        f.write('property list uchar uint vertex_indices\n')
-        f.write('end_header\n')
+        f.write(f"element face {vs[0]}\n")
+        f.write("property list uchar uint vertex_indices\n")
+        f.write("end_header\n")
 
         for i in range(ps[0]):
-            f.write(f'{p[i,0]} {p[i,1]} {p[i,2]}\n')
+            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]}\n")
 
         for i in range(vs[0]):
-            f.write(f'3 {int(v[i,0])} {int(v[i,1])} {int(v[i,2])}\n')
+            f.write(f"3 {int(v[i,0])} {int(v[i,1])} {int(v[i,2])}\n")
+
 
 # 3次元点群をPLYで保存。
 def PLY_Export_PointList(p, fileName):
-    # print(f"Exporting {fileName}...")
+    print(f"Exporting {fileName}...")
 
-    with open(fileName, 'w', newline='\n') as f:
-        f.write('ply\n')
-        f.write('format ascii 1.0\n')
+    with open(fileName, "w", newline="\n") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
 
-        ps=p.shape
-        f.write(f'element vertex {ps[0]}\n')
-        f.write('property float x\n')
-        f.write('property float y\n')
-        f.write('property float z\n')
-        f.write('end_header\n')
+        ps = p.shape
+        f.write(f"element vertex {ps[0]}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("end_header\n")
 
         for i in range(ps[0]):
-            f.write(f'{p[i,0]} {p[i,1]} {p[i,2]}\n')
+            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]}\n")
+
 
 # 色付き3次元点群をPLYで保存。
 def ExportColoredPoints_Ply(p, c_list, fileName):
-    ps=p.shape
+    ps = p.shape
 
-    with open(fileName, 'w', newline='\n') as f:
-        f.write('ply\n')
-        f.write('format ascii 1.0\n')
+    with open(fileName, "w", newline="\n") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
 
-        f.write(f'element vertex {ps[0]}\n')
-        f.write('property float x\n')
-        f.write('property float y\n')
-        f.write('property float z\n')
-        f.write('property int r\n')
-        f.write('property int g\n')
-        f.write('property int b\n')
-        f.write('end_header\n')
+        f.write(f"element vertex {ps[0]}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("property int r\n")
+        f.write("property int g\n")
+        f.write("property int b\n")
+        f.write("end_header\n")
 
         for i in range(ps[0]):
-            c=c_list[i]
-            r=0
-            g=0
-            b=255
-            if c==0:
-                r=1
-                g=0
-                b=0
-            f.write(f'{p[i,0]} {p[i,1]} {p[i,2]} {r} {g} {b}\n')
+            c = c_list[i]
+            r = 0
+            g = 0
+            b = 255
+            if c == 0:
+                r = 1
+                g = 0
+                b = 0
+            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]} {r} {g} {b}\n")
+
 
 # 4x4行列Mに3次元座標p各点の縦ベクトルを右から掛ける。
 # 変換後の3次元座標が戻ります。
@@ -189,10 +188,11 @@ def Transform_PointList(p, M):
     for i in range(p.shape[0]):
         v = np.vstack([p[i, 0], p[i, 1], p[i, 2], 1])
         v = M @ v
-        v /= v[3,0]
+        v /= v[3, 0]
         r[i, 0:3] = np.hstack(v)[0:3]
 
     return r
+
 
 # 4x4行列Mに3次元座標p各点の縦ベクトルを右から掛ける。
 # プロジェクション変換後の2次元座標が戻ります。
@@ -203,44 +203,49 @@ def Project_PointList(p, M):
     for i in range(p.shape[0]):
         v = np.vstack([p[i, 0], p[i, 1], p[i, 2], 1])
         v = M @ v
-        v /= v[3,0]
-        if 0 < v[2,0]:
-            r.append( np.hstack(v)[0:3])
+        v /= v[3, 0]
+        if 0 < v[2, 0]:
+            r.append(np.hstack(v)[0:3])
 
     return np.array(r)
 
 
 def MergeMesh(p0, v0, p1, v1):
-    p0s=p0.shape
-    p1s=p1.shape
+    p0s = p0.shape
+    p1s = p1.shape
 
-    v0s=v0.shape
-    v1s=v1.shape
+    v0s = v0.shape
+    v1s = v1.shape
 
     # v1の頂点番号をずらします。
     v1a = np.zeros(v1.shape, dtype=np.int32)
     for i in range(v1s[0]):
-        v1a[i,:] = v1[i,:] + p0s[0]
+        v1a[i, :] = v1[i, :] + p0s[0]
 
-    p=np.append(p0, p1).reshape(p0s[0]+p1s[0], p0s[1])
-    v=np.append(v0, v1a).reshape(v0s[0]+v1s[0], v0s[1])
+    p = np.append(p0, p1).reshape(p0s[0] + p1s[0], p0s[1])
+    v = np.append(v0, v1a).reshape(v0s[0] + v1s[0], v0s[1])
 
-    return p,v
+    return p, v
+
 
 def Trans_Rot_to_TransformMat(t, R):
     t = t.flatten()
 
-    #R = np.transpose(R)
+    # R = np.transpose(R)
 
-    M = np.array([ \
-        [  R[0,0],  R[0,1],  R[0,2], t[0]], \
-        [  R[1,0],  R[1,1],  R[1,2], t[1]], \
-        [  R[2,0],  R[2,1],  R[2,2], t[2]], \
-        [  0,       0,       0,      1] ])
+    M = np.array(
+        [
+            [R[0, 0], R[0, 1], R[0, 2], t[0]],
+            [R[1, 0], R[1, 1], R[1, 2], t[1]],
+            [R[2, 0], R[2, 1], R[2, 2], t[2]],
+            [0, 0, 0, 1],
+        ]
+    )
 
-    #print(f"R={R}")
-    #print(f"M={M}")
+    # print(f"R={R}")
+    # print(f"M={M}")
     return M
+
 
 # 2つのカメラの関係図のPLYファイルを出力。
 # カメラはOpenGL様式：Z-向き。
@@ -254,9 +259,10 @@ def GeneratePLY_TwoCamPoseZM(M0, M1, fileName):
     pW, vW = MergeMesh(p0, v, p1, v)
     ExportMesh_Ply(pW, vW, fileName)
 
+
 # 2つのカメラの関係図のPLYファイルを出力。
 # カメラはZ+向き。
-# カメラ姿勢M0, M1 
+# カメラ姿勢M0, M1
 def GeneratePLY_TwoCamPoseZP(M0, M1, fileName):
     p, v = Generate_CameraMeshZP()
 
@@ -266,11 +272,13 @@ def GeneratePLY_TwoCamPoseZP(M0, M1, fileName):
     pW, vW = MergeMesh(p0, v, p1, v)
     ExportMesh_Ply(pW, vW, fileName)
 
-def PLY_Export_TwoCam(t,R,fileName):
+
+def PLY_Export_TwoCam(t, R, fileName):
     E4 = np.eye(4)
-    M = Trans_Rot_to_TransformMat(t,R)
+    M = Trans_Rot_to_TransformMat(t, R)
 
     GeneratePLY_TwoCamPoseZP(E4, M, fileName)
+
 
 # 楕円用。
 def BuildXi(x_list, y_list, f0):
@@ -282,9 +290,10 @@ def BuildXi(x_list, y_list, f0):
         x = x_list[i]
         y = y_list[i]
 
-        xi=np.vstack([x*x, 2*x*y, y*y, 2*f0*x, 2*f0*y, f0*f0])
+        xi = np.vstack([x * x, 2 * x * y, y * y, 2 * f0 * x, 2 * f0 * y, f0 * f0])
         xi_list.append(xi)
     return xi_list
+
 
 # 楕円用。
 def BuildV0(x_list, y_list, f0):
@@ -296,42 +305,67 @@ def BuildV0(x_list, y_list, f0):
         x = x_list[i]
         y = y_list[i]
 
-        v0=np.zeros((6,6))
-        v0[0,0] = 4*x*x
-        v0[0,1] = v0[1,0] = v0[1,2] = v0[2,1] = 4*x*y
-        v0[1,1] = 4* (x*x+y*y)
-        v0[2,2] = 4*y*y
-        v0[0,3] = v0[3,0] = v0[1,4] = v0[4,1] = 4*f0*x
-        v0[1,3] = v0[3,1] = v0[2,4] = v0[4,2] = 4*f0*y
-        v0[3,3] = v0[4,4] = 4*f0*f0
+        v0 = np.zeros((6, 6))
+        v0[0, 0] = 4 * x * x
+        v0[0, 1] = v0[1, 0] = v0[1, 2] = v0[2, 1] = 4 * x * y
+        v0[1, 1] = 4 * (x * x + y * y)
+        v0[2, 2] = 4 * y * y
+        v0[0, 3] = v0[3, 0] = v0[1, 4] = v0[4, 1] = 4 * f0 * x
+        v0[1, 3] = v0[3, 1] = v0[2, 4] = v0[4, 2] = 4 * f0 * y
+        v0[3, 3] = v0[4, 4] = 4 * f0 * f0
         v0_list.append(v0)
     return v0_list
 
+
 # ベクトルの定数係数を1にする。
 def vec9_scale_const_unit(a):
-    a /= a[8,0]
+    a /= a[8, 0]
     return a
 
 
 # 2台カメラ用。
 # ch2. p14. eq2.15
-# xi fundamental mat 
+# xi fundamental mat
 def BuildXi_F(pp: Point2dPair, f0):
     N = pp.get_point_count()
-    
+
     xi_list = []
     for i in range(N):
-        x0 = pp.a[i,0]
-        y0 = pp.a[i,1]
-        x1 = pp.b[i,0]
-        y1 = pp.b[i,1]
+        x0 = pp.a[i, 0]
+        y0 = pp.a[i, 1]
+        x1 = pp.b[i, 0]
+        y1 = pp.b[i, 1]
 
-        xi=np.vstack([ \
-            x0*x1, x0*y1, f0*x0, \
-            x1*y0, y0*y1, f0*y0, \
-            f0*x1, f0*y1, f0*f0])
+
+# 2台カメラ用。
+# ch2. p14. eq2.15
+# xi fundamental mat
+def BuildXi_F(pp: Point2dPair, f0):
+    N = pp.get_point_count()
+
+    xi_list = []
+    for i in range(N):
+        x0 = pp.a[i, 0]
+        y0 = pp.a[i, 1]
+        x1 = pp.b[i, 0]
+        y1 = pp.b[i, 1]
+
+        xi = np.vstack(
+            [
+                x0 * x1,
+                x0 * y1,
+                f0 * x0,
+                x1 * y0,
+                y0 * y1,
+                f0 * y0,
+                f0 * x1,
+                f0 * y1,
+                f0 * f0,
+            ]
+        )
         xi_list.append(xi)
     return xi_list
+
 
 # 2台カメラ用。
 # V0 of Fundamental mat. ch3. p38. eq3.12.
@@ -340,93 +374,101 @@ def BuildV0_F1(xy0, xy1, f0):
     y0 = xy0[1]
     x1 = xy1[0]
     y1 = xy1[1]
-    v0=np.zeros((9,9))
-    v0[0,0] = x0*x0 + x1*x1
-    v0[1,1] = x0*x0                 + y1*y1
-    v0[3,3] =         x1*x1 + y0*y0
-    v0[4,4] =                 y0*y0 + y1*y1
-    v0[3,0] = v0[0,3] = v0[4,1] = v0[1,4] = x0*y0
-    v0[0,1] = v0[1,0] = v0[3,4] = v0[4,3] = x1*y1
-    v0[2,0] = v0[0,2] = v0[5,3] = v0[3,5] = f0*x1
-    v0[2,1] = v0[1,2] = v0[5,4] = v0[4,5] = f0*y1
-    v0[2,2] = v0[5,5] = v0[6,6] = v0[7,7] = f0*f0
-    v0[6,0] = v0[0,6] = v0[7,1] = v0[1,7] = f0*x0
-    v0[6,3] = v0[3,6] = v0[7,4] = v0[4,7] = f0*y0
+    v0 = np.zeros((9, 9))
+    v0[0, 0] = x0 * x0 + x1 * x1
+    v0[1, 1] = x0 * x0 + y1 * y1
+    v0[3, 3] = x1 * x1 + y0 * y0
+    v0[4, 4] = y0 * y0 + y1 * y1
+    v0[3, 0] = v0[0, 3] = v0[4, 1] = v0[1, 4] = x0 * y0
+    v0[0, 1] = v0[1, 0] = v0[3, 4] = v0[4, 3] = x1 * y1
+    v0[2, 0] = v0[0, 2] = v0[5, 3] = v0[3, 5] = f0 * x1
+    v0[2, 1] = v0[1, 2] = v0[5, 4] = v0[4, 5] = f0 * y1
+    v0[2, 2] = v0[5, 5] = v0[6, 6] = v0[7, 7] = f0 * f0
+    v0[6, 0] = v0[0, 6] = v0[7, 1] = v0[1, 7] = f0 * x0
+    v0[6, 3] = v0[3, 6] = v0[7, 4] = v0[4, 7] = f0 * y0
     return v0
+
 
 # 2台カメラ用。
 # V0 of Fundamental mat. ch3. p38. eq3.12.
 def BuildV0_F(pp: Point2dPair, f0):
     N = pp.get_point_count()
-    
+
     v0_list = []
     for i in range(N):
-        xy0 = pp.a[i,:]
-        xy1 = pp.b[i,:]
-        v0 = BuildV0_F1(xy0,xy1,f0)
+        xy0 = pp.a[i, :]
+        xy1 = pp.b[i, :]
+        v0 = BuildV0_F1(xy0, xy1, f0)
         v0_list.append(v0)
     return v0_list
+
 
 # procedure 3,4 eq.3.30 p.43
 # θ→θ†
 def ThetaDagger(t):
-    t1 = t[0,0]
-    t2 = t[1,0]
-    t3 = t[2,0]
-    t4 = t[3,0]
-    t5 = t[4,0]
+    t1 = t[0, 0]
+    t2 = t[1, 0]
+    t3 = t[2, 0]
+    t4 = t[3, 0]
+    t5 = t[4, 0]
 
-    t6 = t[5,0]
-    t7 = t[6,0]
-    t8 = t[7,0]
-    t9 = t[8,0]
+    t6 = t[5, 0]
+    t7 = t[6, 0]
+    t8 = t[7, 0]
+    t9 = t[8, 0]
 
-    thetaD = np.vstack([
-        t5*t9 - t8*t6, 
-        t6*t7 - t9*t4,
-        t4*t8 - t7*t5,
-        t8*t3 - t2*t9,
-        t9*t1 - t3*t7,
- 
-        t7*t2 - t1*t8,
-        t2*t6 - t5*t3,
-        t3*t4 - t6*t1,
-        t1*t5 - t4*t2 ])
+    thetaD = np.vstack(
+        [
+            t5 * t9 - t8 * t6,
+            t6 * t7 - t9 * t4,
+            t4 * t8 - t7 * t5,
+            t8 * t3 - t2 * t9,
+            t9 * t1 - t3 * t7,
+            t7 * t2 - t1 * t8,
+            t2 * t6 - t5 * t3,
+            t3 * t4 - t6 * t1,
+            t1 * t5 - t4 * t2,
+        ]
+    )
     return thetaD
+
 
 # θ→F
 def ThetaToF(t):
-    F = np.zeros((3,3))
-    F[0,0] = t[0]
-    F[0,1] = t[1]
-    F[0,2] = t[2]
+    F = np.zeros((3, 3))
+    F[0, 0] = t[0]
+    F[0, 1] = t[1]
+    F[0, 2] = t[2]
 
-    F[1,0] = t[3]
-    F[1,1] = t[4]
-    F[1,2] = t[5]
+    F[1, 0] = t[3]
+    F[1, 1] = t[4]
+    F[1, 2] = t[5]
 
-    F[2,0] = t[6]
-    F[2,1] = t[7]
-    F[2,2] = t[8]
+    F[2, 0] = t[6]
+    F[2, 1] = t[7]
+    F[2, 2] = t[8]
     return F
 
+
 def Update_W(theta, v0_list):
-    N= len(v0_list)
+    N = len(v0_list)
     w_list = np.asarray(N * [1.0])
 
     for i in range(N):
-        v0   = v0_list[i]
+        v0 = v0_list[i]
         v0ev = v0 @ theta
-        w_list[i] = 1.0 / (theta.T @ v0ev).item() # 1x1 mat to number
+        w_list[i] = 1.0 / (theta.T @ v0ev).item()  # 1x1 mat to number
 
     return w_list
+
 
 # ベクトルの大きさを1にスケール。
 def vec9_normalize(a):
     a /= np.linalg.norm(a)
-    if a[8,0] <0:
+    if a[8, 0] < 0:
         a = -a
     return a
+
 
 # 固有ベクトルを縦ベクトルにして、単位ベクトルになるようスケール
 def reshape_ev_norm(ev):
@@ -434,37 +476,41 @@ def reshape_ev_norm(ev):
     theta = np.vstack(theta)
     return vec9_normalize(theta)
 
+
 # 固有ベクトルを縦ベクトルにして、定数項が1になるようスケール
 def reshape_ev_const_unit(ev):
     theta = ev.reshape(9)
     theta = np.vstack(theta)
     return vec9_scale_const_unit(theta)
 
+
 # 最小二乗法で最適解を求めます。
 def TwoCam_LeastSquare(pp: Point2dPair, f0):
     xi_list = BuildXi_F(pp, f0)
-    
+
     M = BuildM_LS(xi_list)
     # Mの最小固有値に対応する固有ベクトルthetaを得る。
-    _, eig_vec=eigh(M)
+    _, eig_vec = eigh(M)
     theta = reshape_ev_const_unit(eig_vec[:, 0])
     return theta
+
 
 # θ† → Pθ†
 def PThetaDagger(td):
     I9 = np.eye(9)
     return I9 - td @ np.transpose(td) / np.vdot(td, td)
 
+
 # 2台カメラ用。
 # modified FNS method. ch 3.7. p49. procedure 3.6
 def TwoCam_FNS(pp: Point2dPair, f0, convEPS, maxIter):
-    theta  = TwoCam_LeastSquare(pp, f0)
+    theta = TwoCam_LeastSquare(pp, f0)
     theta = vec9_normalize(theta)
     xi_list = BuildXi_F(pp, f0)
     v0_list = BuildV0_F(pp, f0)
     N = len(xi_list)
 
-    for i in range(maxIter):   
+    for i in range(maxIter):
         M = BuildM_ModFNS(xi_list, v0_list, theta)
         L = BuildL_ModFNS(xi_list, v0_list, theta)
         X = M - L
@@ -481,13 +527,14 @@ def TwoCam_FNS(pp: Point2dPair, f0, convEPS, maxIter):
         t_p = vec9_normalize(t_p)
 
         diff = np.linalg.norm(theta - t_p)
-        #print(f"TwoCam_FNS i={i}, diff={diff}, eig_val={eig_val}")
+        # print(f"TwoCam_FNS i={i}, diff={diff}, eig_val={eig_val}")
         if diff < convEPS:
-            #print(f"TwoCam_FNS i={i}, converged")
+            # print(f"TwoCam_FNS i={i}, converged")
             return vec9_scale_const_unit(theta)
-            
-        theta = vec9_normalize(theta+t_p)
+
+        theta = vec9_normalize(theta + t_p)
     return None
+
 
 # 2台カメラ用。
 def Epipolar_Constraint_Error(pp: Point2dPair, inlier_flag_list, f0, F):
@@ -499,25 +546,19 @@ def Epipolar_Constraint_Error(pp: Point2dPair, inlier_flag_list, f0, F):
     for i in range(N):
         if inlier_flag_list[i] == False:
             continue
-        x0 = pp.a[i,0]
-        y0 = pp.a[i,1]
-        x1 = pp.b[i,0]
-        y1 = pp.b[i,1]
+        x0 = pp.a[i, 0]
+        y0 = pp.a[i, 1]
+        x1 = pp.b[i, 0]
+        y1 = pp.b[i, 1]
 
-        xy0 = np.vstack([
-            x0/f0,
-            y0/f0,
-            1 ])
-        
-        xy1 = np.vstack([
-            x1/f0,
-            y1/f0,
-            1 ])
+        xy0 = np.vstack([x0 / f0, y0 / f0, 1])
+
+        xy1 = np.vstack([x1 / f0, y1 / f0, 1])
 
         Fxy1 = np.matmul(F, xy1)
 
-        #print(f"xy0={xy0}")
-        #print(f"Fxy1={Fxy1}")
+        # print(f"xy0={xy0}")
+        # print(f"Fxy1={Fxy1}")
 
         err = np.vdot(xy0, Fxy1)
         err_sum += err
@@ -525,6 +566,7 @@ def Epipolar_Constraint_Error(pp: Point2dPair, inlier_flag_list, f0, F):
         valid_count += 1
 
     return err_sum / valid_count
+
 
 #                       N
 # 対称行列 M = (1/N) * Σ xi_i * xi_i^T
@@ -539,7 +581,7 @@ def BuildM_LS(xi_list):
     for i in range(N):
         xi = xi_list[i]
 
-        a =  (1.0/N) * xi @ xi.T
+        a = (1.0 / N) * xi @ xi.T
         M += a
     return M
 
@@ -557,11 +599,12 @@ def BuildM_FNS(xi_list, w_list):
     M = np.zeros((C, C))
     for i in range(N):
         xi = xi_list[i]
-        w  = w_list[i]
+        w = w_list[i]
 
-        a =  (w/N) * xi @ xi.T
+        a = (w / N) * xi @ xi.T
         M += a
     return M
+
 
 # 拡張FNS法のM。
 def BuildM_ModFNS(xi_list, v0_list, theta):
@@ -578,9 +621,10 @@ def BuildM_ModFNS(xi_list, v0_list, theta):
         numer = xi @ np.transpose(xi)
         denom = np.vdot(theta, v0 @ theta)
 
-        a =  (1/N) * numer / denom
+        a = (1 / N) * numer / denom
         M += a
     return M
+
 
 # 対称行列L
 # FNS法。
@@ -594,13 +638,14 @@ def BuildL_FNS(xi_list, w_list, v0_list, theta):
     L = np.zeros((C, C))
     for i in range(N):
         xi = xi_list[i]
-        w  = w_list[i]
+        w = w_list[i]
         v0 = v0_list[i]
         xi_dot_theta = (xi.T @ theta).item()
 
-        a = (w*w/N) * xi_dot_theta * xi_dot_theta * v0
+        a = (w * w / N) * xi_dot_theta * xi_dot_theta * v0
         L += a
     return L
+
 
 # 拡張FNS法のL。
 def BuildL_ModFNS(xi_list, v0_list, theta):
@@ -618,25 +663,27 @@ def BuildL_ModFNS(xi_list, v0_list, theta):
 
         t_dot_v0t = np.vdot(theta, v0 @ theta)
 
-        a = (1/N) * xi_dot_theta * xi_dot_theta * v0 / t_dot_v0t / t_dot_v0t
+        a = (1 / N) * xi_dot_theta * xi_dot_theta * v0 / t_dot_v0t / t_dot_v0t
         L += a
     return L
 
+
 def CSV_Read_TwoCamPointList(path):
-    #print(f"ReadTwoCamPoints({path})")
-    xy0_list=[]
-    xy1_list=[]
+    # print(f"ReadTwoCamPoints({path})")
+    xy0_list = []
+    xy1_list = []
     with open(path) as f:
-        r = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=',')
+        r = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
         for l in r:
             xy0_list.append(np.array(l[0:2]))
             xy1_list.append(np.array(l[2:4]))
     return Point2dPair(np.asarray(xy0_list), np.asarray(xy1_list))
 
-def CSV_Write_CamPose(path, t, R):
-    #print(f"Writing cam pose to {path}...")
 
-    with open(path, 'w', newline='\n') as f:
+def CSV_Write_CamPose(path, t, R):
+    # print(f"Writing cam pose to {path}...")
+
+    with open(path, "w", newline="\n") as f:
         # t: 1行3列 列ベクトル
         # R: 3行3列 回転ベクトル
 
@@ -646,21 +693,24 @@ def CSV_Write_CamPose(path, t, R):
         f.write(f"{R[1,0]}, {R[1,1]}, {R[1,2]}\n")
         f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}\n")
 
-def CSV_Write_TwoCamFocalLengths(path, FL0, FL1):
-    #print(f"Writing two cam focal lengths to {path}...")
 
-    with open(path, 'w', newline='\n') as f:
+def CSV_Write_TwoCamFocalLengths(path, FL0, FL1):
+    # print(f"Writing two cam focal lengths to {path}...")
+
+    with open(path, "w", newline="\n") as f:
         f.write(f"{FL0}, {FL1}\n")
- 
+
+
 def ReadPointXY3(path):
-    x_list=[]
-    y_list=[]
+    x_list = []
+    y_list = []
     with open(path) as f:
-        r = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=',')
+        r = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
         for l in r:
             x_list.append(l[0])
             y_list.append(l[1])
     return np.asarray(x_list), np.asarray(y_list)
+
 
 # フィットした楕円を図示。
 def Plot(ev, w_list, f0, x_list, y_list):
@@ -668,60 +718,65 @@ def Plot(ev, w_list, f0, x_list, y_list):
     # Ax^2 + 2Bxy + Cy^2 + 2f0(Dx + Ey) + f0^2*F = 0
 
     ev = ev.reshape(6)
-    A=ev[0]
-    B=ev[1]
-    C=ev[2]
-    D=ev[3]
-    E=ev[4]
-    F=ev[5]
+    A = ev[0]
+    B = ev[1]
+    C = ev[2]
+    D = ev[3]
+    E = ev[4]
+    F = ev[5]
 
-    print(f"{A}x^2 + {2*B}xy + {C}y^2 + {2*f0*D}x + {2*f0*E}y + {f0*f0*F} = 0");
+    print(f"{A}x^2 + {2*B}xy + {C}y^2 + {2*f0*D}x + {2*f0*E}y + {f0*f0*F} = 0")
 
     # テスト
-    #A=1
-    #B=0
-    #C=1
-    #D=0
-    #E=0
-    #F=-10
-    #x_min=-10
-    #x_max=10
+    # A=1
+    # B=0
+    # C=1
+    # D=0
+    # E=0
+    # F=-10
+    # x_min=-10
+    # x_max=10
 
-    x_min=np.min(x_list)
-    x_max=np.max(x_list)
-    y_min=np.min(y_list)
-    y_max=np.max(y_list)
+    x_min = np.min(x_list)
+    x_max = np.max(x_list)
+    y_min = np.min(y_list)
+    y_max = np.max(y_list)
 
     # 楕円をプロットするために楕円上の点を集める。
-    ex_list=[]
-    ey_list=[]
+    ex_list = []
+    ey_list = []
 
-    for x in np.arange(x_min-10, x_max+10, (x_max-x_min)/100):
-        det = ((2*E*f0 + 2*B*x) ** 2) - 4*C*(F*f0*f0 + 2*D*f0*x + A*x*x)
+    for x in np.arange(x_min - 10, x_max + 10, (x_max - x_min) / 100):
+        det = ((2 * E * f0 + 2 * B * x) ** 2) - 4 * C * (
+            F * f0 * f0 + 2 * D * f0 * x + A * x * x
+        )
         if 0 <= det:
-            yP=(-2*E*f0-2*B*x + math.sqrt(det) ) / (2*C)
-            yM=(-2*E*f0-2*B*x - math.sqrt(det) ) / (2*C)
+            yP = (-2 * E * f0 - 2 * B * x + math.sqrt(det)) / (2 * C)
+            yM = (-2 * E * f0 - 2 * B * x - math.sqrt(det)) / (2 * C)
             ex_list.append(x)
             ey_list.append(yP)
             ex_list.append(x)
             ey_list.append(yM)
 
-    for y in np.arange(y_min-10, y_max+10, (y_max-y_min)/100):
-        det = ((2*D*f0 + 2*B*y) ** 2) - 4*A*(F*f0*f0 + 2*E*f0*y + C*y*y)
+    for y in np.arange(y_min - 10, y_max + 10, (y_max - y_min) / 100):
+        det = ((2 * D * f0 + 2 * B * y) ** 2) - 4 * A * (
+            F * f0 * f0 + 2 * E * f0 * y + C * y * y
+        )
         if 0 <= det:
-            xP=(-2*D*f0-2*B*y + math.sqrt(det) ) / (2*A)
-            xM=(-2*D*f0-2*B*y - math.sqrt(det) ) / (2*A)
+            xP = (-2 * D * f0 - 2 * B * y + math.sqrt(det)) / (2 * A)
+            xM = (-2 * D * f0 - 2 * B * y - math.sqrt(det)) / (2 * A)
             ex_list.append(xP)
             ey_list.append(y)
             ex_list.append(xM)
             ey_list.append(y)
 
-    plt.scatter(ex_list,ey_list, s=5, marker='x', c='black')
-    plt.scatter(x_list, y_list, s=1, c=w_list, marker='.', cmap='bwr')        
-    plt.axis('equal')
+    plt.scatter(ex_list, ey_list, s=5, marker="x", c="black")
+    plt.scatter(x_list, y_list, s=1, c=w_list, marker=".", cmap="bwr")
+    plt.axis("equal")
     plt.colorbar()
     plt.title("Ransac FNS")
     plt.show()
+
 
 # adjust xy0, xy1 point to intersect
 def AdjustTwoPoints1(xy0, xy1, theta, f0):
@@ -729,36 +784,35 @@ def AdjustTwoPoints1(xy0, xy1, theta, f0):
     S = 0
     xyh0 = np.array(xy0)
     xyh1 = np.array(xy1)
-    xyt0 = np.array([0,0])
-    xyt1 = np.array([0,0])
+    xyt0 = np.array([0, 0])
+    xyt1 = np.array([0, 0])
 
     while np.abs(S - S0) > 1:
         S0 = S
         V0 = BuildV0_F1(xy0, xy1, f0)
         xi_star = np.vstack(
-            [xyh0[0]*xyh1[0]+xyh1[0]*xyt0[0]+xyh0[0]*xyt1[0],
-             xyh0[0]*xyh1[1]+xyh1[1]*xyt0[0]+xyh0[0]*xyt1[1],
-             f0*(xyh0[0]+xyt0[0]),
-             xyh0[1]*xyh1[0]+xyh1[0]*xyt0[1]+xyh0[1]*xyt1[0],
-             xyh0[1]*xyh1[1]+xyh1[1]*xyt0[1]+xyh0[1]*xyt1[1],
-             f0*(xyh0[1]+xyt0[1]),
-             f0*(xyh1[0]+xyt1[0]),
-             f0*(xyh1[1]+xyt1[1]),
-             f0*f0 ])
+            [
+                xyh0[0] * xyh1[0] + xyh1[0] * xyt0[0] + xyh0[0] * xyt1[0],
+                xyh0[0] * xyh1[1] + xyh1[1] * xyt0[0] + xyh0[0] * xyt1[1],
+                f0 * (xyh0[0] + xyt0[0]),
+                xyh0[1] * xyh1[0] + xyh1[0] * xyt0[1] + xyh0[1] * xyt1[0],
+                xyh0[1] * xyh1[1] + xyh1[1] * xyt0[1] + xyh0[1] * xyt1[1],
+                f0 * (xyh0[1] + xyt0[1]),
+                f0 * (xyh1[0] + xyt1[0]),
+                f0 * (xyh1[1] + xyt1[1]),
+                f0 * f0,
+            ]
+        )
 
-        t123 = np.array([
-            [theta[0], theta[1], theta[2] ],
-            [theta[3], theta[4], theta[5] ]]).reshape(2,3)
-        t147 = np.array([
-            [theta[0], theta[3], theta[6] ],
-            [theta[1], theta[4], theta[7] ]]).reshape(2,3)
+        t123 = np.array(
+            [[theta[0], theta[1], theta[2]], [theta[3], theta[4], theta[5]]]
+        ).reshape(2, 3)
+        t147 = np.array(
+            [[theta[0], theta[3], theta[6]], [theta[1], theta[4], theta[7]]]
+        ).reshape(2, 3)
 
-        xyfh0 = np.vstack([xyh0[0],
-                           xyh0[1],
-                           f0])
-        xyfh1 = np.vstack([xyh1[0],
-                           xyh1[1],
-                           f0])
+        xyfh0 = np.vstack([xyh0[0], xyh0[1], f0])
+        xyfh1 = np.vstack([xyh1[0], xyh1[1], f0])
         s = np.vdot(xi_star, theta) / np.vdot(theta, V0 @ theta)
         xyt0 = (s * (t123 @ xyfh1)).reshape(2)
         xyt1 = (s * (t147 @ xyfh0)).reshape(2)
@@ -766,67 +820,96 @@ def AdjustTwoPoints1(xy0, xy1, theta, f0):
         xyh0 = xy0 - xyt0
         xyh1 = xy1 - xyt1
 
-        S = xyt0[0] * xyt0[0] + xyt0[1] * xyt0[1] + xyt1[0] * xyt1[0] + xyt1[1] * xyt1[1]
+        S = (
+            xyt0[0] * xyt0[0]
+            + xyt0[1] * xyt0[1]
+            + xyt1[0] * xyt1[0]
+            + xyt1[1] * xyt1[1]
+        )
 
     return xyh0, xyh1
 
+
 def AdjustTwoPoints(pp: Point2dPair, valid_bitmap, theta, f0):
     N = pp.get_point_count()
-    
+
     for i in range(N):
         if valid_bitmap[i] == False:
             continue
-        pp.a[i,:], pp.b[i,:] = AdjustTwoPoints1(pp.a[i,:], pp.b[i,:], theta, f0)
+        pp.a[i, :], pp.b[i, :] = AdjustTwoPoints1(pp.a[i, :], pp.b[i, :], theta, f0)
 
     return pp
+
 
 # triangulation ch4 p66 eq4.1
 def Triangulation(pp: Point2dPair, valid_bitmap, f0, P0, P1):
     N = pp.get_point_count()
 
-    xyz_list = np.ndarray((N,3))
+    xyz_list = np.ndarray((N, 3))
     z_sign = 0
-    
+
     for i in range(N):
         inlier = valid_bitmap[i]
         if not inlier:
             continue
-        
-        xy0 = pp.a[i,:]
-        xy1 = pp.b[i,:]
 
-        T = np.array([
-            [f0*P0[0,0] - xy0[0]*P0[2,0], f0*P0[0,1] - xy0[0]*P0[2,1], f0*P0[0,2] - xy0[0]*P0[2,2]],
-            [f0*P0[1,0] - xy0[1]*P0[2,0], f0*P0[1,1] - xy0[1]*P0[2,1], f0*P0[1,2] - xy0[1]*P0[2,2]],
-            [f0*P1[0,0] - xy1[0]*P1[2,0], f0*P1[0,1] - xy1[0]*P1[2,1], f0*P1[0,2] - xy1[0]*P1[2,2]],
-            [f0*P1[1,0] - xy1[1]*P1[2,0], f0*P1[1,1] - xy1[1]*P1[2,1], f0*P1[1,2] - xy1[1]*P1[2,2]] ])
+        xy0 = pp.a[i, :]
+        xy1 = pp.b[i, :]
 
-        p = np.vstack([
-            f0*P0[0,3] - xy0[0]*P0[2,3],
-            f0*P0[1,3] - xy0[1]*P0[2,3],
-            f0*P1[0,3] - xy1[0]*P1[2,3],
-            f0*P1[1,3] - xy1[1]*P1[2,3]
-            ])
+        T = np.array(
+            [
+                [
+                    f0 * P0[0, 0] - xy0[0] * P0[2, 0],
+                    f0 * P0[0, 1] - xy0[0] * P0[2, 1],
+                    f0 * P0[0, 2] - xy0[0] * P0[2, 2],
+                ],
+                [
+                    f0 * P0[1, 0] - xy0[1] * P0[2, 0],
+                    f0 * P0[1, 1] - xy0[1] * P0[2, 1],
+                    f0 * P0[1, 2] - xy0[1] * P0[2, 2],
+                ],
+                [
+                    f0 * P1[0, 0] - xy1[0] * P1[2, 0],
+                    f0 * P1[0, 1] - xy1[0] * P1[2, 1],
+                    f0 * P1[0, 2] - xy1[0] * P1[2, 2],
+                ],
+                [
+                    f0 * P1[1, 0] - xy1[1] * P1[2, 0],
+                    f0 * P1[1, 1] - xy1[1] * P1[2, 1],
+                    f0 * P1[1, 2] - xy1[1] * P1[2, 2],
+                ],
+            ]
+        )
 
-        rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p)
+        p = np.vstack(
+            [
+                f0 * P0[0, 3] - xy0[0] * P0[2, 3],
+                f0 * P0[1, 3] - xy0[1] * P0[2, 3],
+                f0 * P1[0, 3] - xy1[0] * P1[2, 3],
+                f0 * P1[1, 3] - xy1[1] * P1[2, 3],
+            ]
+        )
+
+        rv = np.linalg.lstsq((T.T) @ T, (T.T) @ p)
         xyz = rv[0].flatten()
-        xyz_list[i,:] = xyz
+        xyz_list[i, :] = xyz
         if 0 < xyz[0]:
-            z_sign = z_sign +1
+            z_sign = z_sign + 1
         else:
-            z_sign = z_sign -1
+            z_sign = z_sign - 1
 
     if z_sign < 0:
         for i in range(N):
-            xyz_list[i,:] = - xyz_list[i,:]
+            xyz_list[i, :] = -xyz_list[i, :]
 
     # reject outliers that is z < 0 カメラの後ろにある点。
     for i in range(N):
-        z = xyz_list[i,2]
+        z = xyz_list[i, 2]
         if z < 0:
             valid_bitmap[i] = False
 
     return xyz_list, valid_bitmap
+
 
 def InlierPointList_from_bitmap(xyz_list, valid_bitmap):
     N = xyz_list.shape[0]
@@ -838,34 +921,34 @@ def InlierPointList_from_bitmap(xyz_list, valid_bitmap):
         xyz_list2.append(xyz)
     return np.array(xyz_list2)
 
+
 def InlierPointList_from_inlierIdList(xyz_list, inlier_ids):
     return xyz_list[inlier_ids, :]
 
 
-
 def PlotValidPoints(pp, loss_list):
-    plt.scatter(pp.a[:,0], pp.a[:,1], s=3, c=loss_list, marker='.', cmap='bwr')
+    plt.scatter(pp.a[:, 0], pp.a[:, 1], s=3, c=loss_list, marker=".", cmap="bwr")
 
-    #for i, l in enumerate(loss_list):
+    # for i, l in enumerate(loss_list):
     #    v = float(l)
     #    plt.annotate(f"{i}:{v:.1f}", (xy_list[i,0], xy_list[i,1]), )
 
-    plt.axis('equal')
+    plt.axis("equal")
     plt.colorbar()
     plt.title("Valid Points")
     plt.show()
 
+
 def Plot3D(xyz_list, c_list):
-    x_list = np.array(xyz_list)[:,0]
-    y_list = np.array(xyz_list)[:,1]
-    z_list = np.array(xyz_list)[:,2]
+    x_list = np.array(xyz_list)[:, 0]
+    y_list = np.array(xyz_list)[:, 1]
+    z_list = np.array(xyz_list)[:, 2]
 
     fig = plt.figure()
- 
-    ax = plt.axes(projection ='3d')
- 
-    ax.scatter(x_list, y_list, z_list, c = c_list)
- 
-    ax.set_title('Estimated 3D points')
-    plt.show()
 
+    ax = plt.axes(projection="3d")
+
+    ax.scatter(x_list, y_list, z_list, c=c_list)
+
+    ax.set_title("Estimated 3D points")
+    plt.show()

@@ -1,0 +1,19 @@
+{
+  "dependencies": [
+    {
+      "name": "opencv",
+      "version>=": "4.8.0",
+      "features": [
+        "contrib",
+        "default-features",
+        "nonfree",
+        "eigen",
+        "jpeg",
+        "openmp",
+        "png",
+        "sfm",
+        "world"
+      ]
+    }
+  ]
+}

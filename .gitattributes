@@ -1,0 +1,6 @@
+* text=auto
+*.bat eol=crlf
+*.py eol=lf
+*.csv eol=lf
+*.cpp eol=lf
+*.cs eol=lf

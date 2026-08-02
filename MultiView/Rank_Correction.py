@@ -4,33 +4,37 @@ from numpy.linalg import eigh
 import math
 from Common import *
 
+
 def VectorScaleToUnitMagnitude(v):
     magn = np.linalg.norm(v)
     v = v / magn
     return v
+
 
 # eq.3.28 p.43
 def PTheta(theta):
     Pt = np.eye(9) - (theta @ np.transpose(theta))
     return Pt
 
+
 def ThetaToMHat(theta, xi_list, V0_list):
     N = len(xi_list)
     Pt = PTheta(theta)
-    MHat = np.zeros((9,9))
-    #MHat.dtype =np.float64
+    MHat = np.zeros((9, 9))
+    # MHat.dtype =np.float64
 
     for i in range(N):
         xi = xi_list[i]
         V0 = V0_list[i]
         PtXi = Pt @ xi
         denom = np.vdot(theta, V0 @ theta)
-        mx = (PtXi @ np.transpose(PtXi)) * (1.0/denom)
+        mx = (PtXi @ np.transpose(PtXi)) * (1.0 / denom)
         MHat = MHat + mx
 
     MHat = MHat / N
 
     return MHat
+
 
 def MHatToV0t(MHat, N):
     # 行列MHatの固有値のリストv_listと
@@ -38,18 +42,19 @@ def MHatToV0t(MHat, N):
     v_list, u_list = eigh(MHat)
 
     # V0tを計算。
-    V0t = np.zeros((9,9))
-    for i in range(1, 9): # 最小の固有値はスキップします！
+    V0t = np.zeros((9, 9))
+    for i in range(1, 9):  # 最小の固有値はスキップします！
         v = v_list[i]
 
         u = np.vstack(u_list[:, i].reshape(9))
         u /= np.linalg.norm(u)
 
-        ut=np.transpose(u)
+        ut = np.transpose(u)
 
-        #print(f"eVal={v}, eVec={u}")
-        V0t = V0t + (u @ ut)/(v * N)
+        # print(f"eVal={v}, eVec={u}")
+        V0t = V0t + (u @ ut) / (v * N)
     return V0t
+
 
 # optimal rank correction procedure 3.4 ch 3.5 p43
 def Rank_Correction(theta, pp: Point2dPair, f0):
@@ -65,22 +70,23 @@ def Rank_Correction(theta, pp: Point2dPair, f0):
 
     for j in range(iter_limit):
         td = ThetaDagger(theta)
-    
+
         # θを更新。
-        theta = theta - np.vdot(td, theta) * (V0t @ td) / \
-            (3.0 * np.vdot(td, (V0t @ td)))
+        theta = theta - np.vdot(td, theta) * (V0t @ td) / (
+            3.0 * np.vdot(td, (V0t @ td))
+        )
 
         theta = VectorScaleToUnitMagnitude(theta)
 
         Pt = PTheta(theta)
-    
+
         # V0tを更新。
         V0t = Pt @ V0t @ Pt
 
         d = abs(np.vdot(td, theta))
-        if (d < threshold):
-            break
-    
-    theta /= theta[8,0]
+        if d < threshold:
+            theta /= theta[8, 0]
+            return theta
+
+    theta /= theta[8, 0]
     return theta
-    
