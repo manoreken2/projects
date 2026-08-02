@@ -2,8 +2,9 @@
 import numpy as np
 from numpy.linalg import eigh, svd, det
 import math
-from Common import ThetaDagger
+from Common import *
 
+# 行列Mの最小の固有値に対応する固有ベクトルを得る。
 def MinEigVec(M):
     _, u=eigh(M)
     ev = u[:, 0]
@@ -12,7 +13,8 @@ def MinEigVec(M):
 
 sqeuclidean = lambda x: np.vdot(x, x)
 
-def FundamentalToFocalLength(F, f0):
+# 基礎行列Fからカメラ0焦点距離f、カメラ1焦点距離fpを得る。
+def Fundamental_to_FocalLength(F, f0):
     k = np.array([[0],[0],[1]])
 
     Ft = np.transpose(F)
@@ -52,28 +54,29 @@ def FundamentalToFocalLength(F, f0):
     f  = f0 / math.sqrt(1.0 + xi)
     fp = f0 / math.sqrt(1.0 + eta)
 
-    return f,fp
+    return f, fp
 
 def Scalar_triplet(a, b, c):
     return np.vdot(a, np.cross(np.transpose(b), np.transpose(c)))
 
 
-# ベクトルa → 行列ax (5.2章)
+# 3次元ベクトルa → 3x3行列ax (5.2章)
 def a_to_ax(a):
     a1 = np.float64(a[0])
     a2 = np.float64(a[1])
     a3 = np.float64(a[2])
 
-    ax = np.array([     \
-        [0,   -a3, a2], \
-        [a3,  0,   a1], \
-        [-a2, a1,  0]  \
+    # 書いてある通りにメモリに並ぶ。
+    ax = np.array([      \
+        [ 0,  -a3,  a2], \
+        [ a3,  0,  -a1], \
+        [-a2,  a1,  0]   \
         ])
     return ax
 
-# 基礎行列Fから平行移動t, 回転行列Rを求める。
-def Fundamental_to_Trans_Rot(F, f, fp, f0,  x0_list, y0_list, x1_list, y1_list):
-    N=x0_list.shape[0]
+# 基礎行列F, カメラ0焦点距離f, カメラ1焦点距離fp, カメラ0点列、カメラ1点列から平行移動t, 回転行列Rを求める。
+def Fundamental_to_Trans_Rot(F, f, fp, f0, pp: Point2dPair, valid_bitmap):
+    N = pp.get_point_count()
 
     FF = np.eye(3)
     FF[0,0] = 1.0/f0
@@ -85,30 +88,24 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  x0_list, y0_list, x1_list, y1_list):
     FFp[1,1] = 1.0/f0
     FFp[2,2] = 1.0/fp
 
-    # Esseitial行列E
+    # Essential行列E
     E = FF @ F @ FFp
 
     # 平行移動の方向t (長さはわからないので 1)
-    t = MinEigVec(E)
+    t = MinEigVec(E @ np.transpose(E))
 
-    xa_list = []
-    xap_list = []
-    for i in range(N):
-        x0 = x0_list[i]
-        y0 = y0_list[i]
-        x1 = x1_list[i]
-        y1 = y1_list[i]
-
-        xa  = np.vstack([x0/f,  y0/f,  1.0])
-        xap = np.vstack([x1/fp, y1/fp, 1.0])
-        xa_list.append(xa)
-        xap_list.append(xap)
-    
     # tの向きが反対かどうか調べる。
     s = 0.0
     for i in range(N):
-        xa = xa_list[i]
-        xap = xap_list[i]
+        if valid_bitmap[i] == False:
+            continue
+        x0 = pp.a[i,0]
+        y0 = pp.a[i,1]
+        x1 = pp.b[i,0]
+        y1 = pp.b[i,1]
+
+        xa  = np.vstack([x0/f,  y0/f,  1.0])
+        xap = np.vstack([x1/fp, y1/fp, 1.0])
         s += Scalar_triplet(t, xa, E @ xap)
     if s <= 0:
         t = -t
@@ -126,6 +123,33 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0,  x0_list, y0_list, x1_list, y1_list):
     D = np.eye(3)
     D[2,2] = det(U @ Vh)
 
+    #print(f"K=\n{K}")
+    #print(f"U=\n{U}")
+    #print(f"D=\n{D}")
+    #print(f"Vh=\n{Vh}")
+
     R = U @ D @ Vh
 
+    #print(f"DVht=\n{D @ Vh}")
+
+    #print(f"R=\n{R}")
+
     return t, R
+
+def TwoCamMat(f0, fl0, fl1, t, R):
+    P0=np.array([          \
+        [fl0, 0,   0,  0], \
+        [0,   fl0, 0,  0], \
+        [0,   0,   f0, 0]])
+
+    RT = np.transpose(R)
+    RTt= RT @ t
+
+    RTtt = np.concat((RT, RTt), axis=1)
+
+    P1= np.array([     \
+        [fl1, 0,   0], \
+        [0,   fl1, 0], \
+        [0,   0,   f0]]) @ RTtt
+
+    return P0, P1

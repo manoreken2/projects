@@ -11,9 +11,9 @@ class RegresserBase(ABC):
     def get_theta():
         pass
 
-    @abstractmethod
-    def get_w_list():
-        pass
+    #@abstractmethod
+    #def get_w_list():
+    #    pass
 
 class Ransac:
     def __init__(self, n=10, k=100, t=0.05, d=10, model=RegresserBase):
@@ -75,9 +75,9 @@ class Ransac:
 
         # c_list[id] == 0 : inlier 
         # c_list[id] == 1 : outlier
-        self.c_list=N * [1.0]
+        self.c_list=N * [1]
         for id in inlier_ids:
-            self.c_list[id] = 0.0
+            self.c_list[id] = 0
 
         return self
 

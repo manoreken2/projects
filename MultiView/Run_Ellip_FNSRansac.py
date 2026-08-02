@@ -3,9 +3,9 @@ import csv
 import numpy as np
 from numpy.linalg import eigh
 import math
-from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM, BuildL
+from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM_FNS, BuildL_FNS
 from Ransac import Ransac, RegresserBase
-from FNSEllipRegressor import FNSEllipRegressor
+from RegressorFNSEllip import RegressorFNSEllip
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     N=x_list.shape[0]
     assert N == y_list.shape[0]
 
-    reg = Ransac(model=FNSEllipRegressor(MaxIter, ConvEPS, f0), n=SampleCount, t=1.0, d=N*0.8, k=300)
+    reg = Ransac(model=RegressorFNSEllip(MaxIter, ConvEPS, f0), n=SampleCount, t=1.0, d=N*0.8, k=300)
     reg.fit(x_list, y_list)
 
     theta = reg.get_theta()

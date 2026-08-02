@@ -5,13 +5,16 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{775057ea-c427-41d9-a3e6-bd6618c331b2}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>Run_TwoCam_LeastSquare.py</StartupFile>
+    <StartupFile>Run_TwoCam_Ransac.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
     <InterpreterId />
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <CommandLineArguments>--matched_point2d_csv 0006_0008.csv --result_ply Result_0006_0008.ply --result_second_cam_csv Result_0006_0008_SecondCam.csv --result_two_cam_ply Result_0006_0008_Est.ply --result_two_cam_focallengths_csv=Result_0006_0008_FocalLengths.csv</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
@@ -22,17 +25,26 @@
     <Content Include="README.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AryTest.py" />
     <Compile Include="Common.py" />
     <Compile Include="DeltaTest.py" />
-    <Compile Include="FNSEllipRegressor.py" />
-    <Compile Include="FNSTwoCamRegressor.py" />
+    <Compile Include="ImageFindHomography.py" />
+    <Compile Include="RegressorTwoCamBase.py" />
+    <Compile Include="Run_FeatureMatch3.py" />
+    <Compile Include="Run_FeatureMatch.py" />
+    <Compile Include="RegressorEllipFNS.py" />
+    <Compile Include="RegressorTwoCamFNS.py" />
+    <Compile Include="RegressorTwoCamLSQ.py" />
     <Compile Include="Fundamental_to_CamParams.py" />
+    <Compile Include="PlotTest.py" />
     <Compile Include="Rank_Correction.py" />
+    <Compile Include="Ransac_TwoCam.py" />
     <Compile Include="Ransac.py" />
     <Compile Include="Run_Ellip_FNSRansac.py" />
     <Compile Include="Run_GenerateTwoCameraPoints.py" />
-    <Compile Include="Run_TwoCam_FNSRansac.py" />
+    <Compile Include="Run_TwoCam_Ransac.py" />
     <Compile Include="Run_TwoCam_LeastSquare.py" />
+    <Compile Include="Sandbox.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>
