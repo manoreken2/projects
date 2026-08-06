@@ -1,11 +1,12 @@
 from Common import *
 from Rank_Correction import Rank_Correction
 from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, Fundamental_to_FocalLength
-from Ransac_TwoCam import *
+from Ransac_TwoCam import Point2dPair
+from RegressorTwoCamBase import RegressorTwoCamBase
 import numpy as np
 from numpy.linalg import eigh
 
-class RegressorTwoCamLSQ(RegresserBaseTwoCam):
+class RegressorTwoCamLSQ(RegressorTwoCamBase):
     def __init__(self, MaxIter=100, ConvEPS=0.01, f0=1.0):
         self.ev = None
         self.MaxIter = MaxIter

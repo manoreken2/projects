@@ -1,15 +1,15 @@
-﻿# https://docs.opencv.org/3.4/dc/dc3/tutorial_py_matcher.html
+# https://docs.opencv.org/3.4/dc/dc3/tutorial_py_matcher.html
 
 # commandline examples
-# python Run_FeatureMatch.py --img1 cylinder_img/0001.png --img2 cylinder_img/0002.png --result_csv 01_02.csv
+# python Run_FeatureMatch.py --img1 cylinder_img/0001.png --img2 cylinder_img/0002.png --result_csv 0001_0002.csv
 
 import argparse
 from Common import *
 from Rank_Correction import Rank_Correction
 from Fundamental_to_CamParams import *
 from Ransac_TwoCam import *
-from RegressorLSQTwoCam import RegressorLSQTwoCam
-from RegressorFNSTwoCam import RegressorFNSTwoCam
+from RegressorTwoCamLSQ import RegressorTwoCamLSQ
+from RegressorTwoCamFNS import RegressorTwoCamFNS
 from mpl_toolkits import mplot3d
 import numpy as np
 import matplotlib.pyplot as plt

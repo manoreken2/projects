@@ -1,9 +1,16 @@
 # インストール
 
-conda install jupyter numpy matplotlib opencv
+miniforge prompt起動
+conda deactivate
+conda env remove -y -n multiview
+conda create -y -n multiview python=3.12
+conda activate multiview
+conda install -y pip opencv
+pip install jupyter numpy matplotlib
 
-# jupyter notebook 初回実行
-# miniforge prompt起動
+# jupyter notebook 実行
+
+## miniforge prompt起動
 
 cd \work\projects\MultiView
 jupyter notebook 

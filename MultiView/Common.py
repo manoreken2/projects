@@ -808,7 +808,8 @@ def Triangulation(pp: Point2dPair, valid_bitmap, f0, P0, P1):
             f0*P1[1,3] - xy1[1]*P1[2,3]
             ])
 
-        rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p)
+        with np.errstate(all='ignore'):
+            rv = np.linalg.lstsq( (T.T) @ T, (T.T) @ p, rcond=None)
         xyz = rv[0].flatten()
         xyz_list[i,:] = xyz
         if 0 < xyz[0]:
