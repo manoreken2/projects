@@ -1,87 +1,173 @@
 ﻿# 3章 手順3.8 RANSAC 2つの画像の対応点から基礎行列Fを求める。
 # 実行例
-# python Run_TwoCam_Ransac.py --matched_point2d_csv "twoCamPoints410_outlier10.csv" --result_ply "ResultPoints3D.ply" --result_second_cam_csv "ResultSecondCamPose.csv" --result_two_cam_ply "ResultTwoCamEst2r.ply" --result_two_cam_focallengths_csv="ResultTwoCamFocalLengths.csv"
-# python Run_TwoCam_Ransac.py --matched_point2d_csv 0001_0002.csv --result_ply Result_0001_0002.ply --result_second_cam_csv Result_0001_0002_SecondCam.csv --result_two_cam_ply Result_0001_0002_Est.ply --result_two_cam_focallengths_csv=Result_0001_0002_FocalLengths.csv
+# python Run_TwoCam_Ransac.py --matched_point2d_csv "twoCamPoints410_outlier10.csv" --result_3dpoints_ply "ResultPoints3D.ply"     --result_two_cam_ply "ResultTwoCamEst2r.ply"
+# python Run_TwoCam_Ransac.py --matched_point2d_csv tmp/0001_0002.csv               --result_3dpoints_ply tmp/Result_0001_0002.ply --result_two_cam_ply tmp/Result_0001_0002_Est.ply
 
 import sys
 import argparse
-from Common import *
-from Rank_Correction import Rank_Correction
+from Common import CSV_Read_TwoCam_MatchedPointList
 from Fundamental_to_CamParams import *
 from Ransac_TwoCam import *
 from RegressorTwoCamFNS import RegressorTwoCamFNS
-from mpl_toolkits import mplot3d
+from RegressorTwoCamLSQ import RegressorTwoCamLSQ
 import numpy as np
-import matplotlib.pyplot as plt
 
 
-def main(args):
-    f0=1
+def Run_TwoCam_Ransac(
+    matched_point2d_csv,
+    result_two_cam_ply,
+    result_3dpoints_ply,
+    result_two_cam_focalLengths_csv=None,
+    result_cam_trans_rot_csv=None,
+    regressor="fns",
+    ite_count=1000,
+    loss_threshold=5.0,
+    close_points_ratio=0.8,
+):
+    DEFAULT_F0 = 600
 
-    pp = CSV_Read_TwoCamPointList(args.matched_point2d_csv)
+    f0 = DEFAULT_F0
+
+    pp = CSV_Read_TwoCam_MatchedPointList(matched_point2d_csv)
     N = pp.get_point_count()
 
-    ran = Ransac_TwoCam(f0=f0, close_points=N//2, ite_count=300, loss_threshold=1e-6, model=RegressorTwoCamFNS())
+    if regressor == "fns":
+        model = RegressorTwoCamFNS(f0=f0)
+    else:
+        model = RegressorTwoCamLSQ(f0)
+
+    ran = Ransac_TwoCam(
+        f0=f0,
+        close_points_ratio=close_points_ratio,
+        ite_count=ite_count,
+        loss_threshold=loss_threshold,
+        model=model,
+    )
     rv = ran.fit(pp)
     if rv == None:
-        return "RANSAC failed."
+        print(f"RANSAC failed.")
+        return False
 
     theta = ran.get_theta()
     F = ThetaToF(theta)
     print(f"F={F}")
 
-    fl0 = 1.0
-    fl1 = 1.0
-    #fl0, fl1 = Fundamental_to_FocalLength(F, f0)
+    focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    print(f"Focal length = {focalLen_Cam0}, {focalLen_Cam1}")
 
-    print(f"Focal length = {fl0}, {fl1}")
-    CSV_Write_TwoCamFocalLengths(args.result_two_cam_focallengths_csv, fl0, fl1)
+    if result_two_cam_focalLengths_csv is not None:
+        CSV_Write_TwoCamFocalLengths(
+            result_two_cam_focalLengths_csv, focalLen_Cam0, focalLen_Cam1
+        )
 
-    valid_bitmap  = ran.get_valid_bitmap()
-    picked_up_ids = ran.get_picked_up_ids()
+    valid_bitmap = ran.get_valid_bitmap()
 
-    #PlotValidPoints(pp, valid_bitmap);
+    err, valid_point_count = Epipolar_Constraint_Error(
+        pp, valid_bitmap, focalLen_Cam0, focalLen_Cam1, F
+    )
+    print(f"Epipolar Constraint error = {err}, valid point count = {valid_point_count}")
 
-    err = Epipolar_Constraint_Error(pp, valid_bitmap, f0, F)
-    print(f"Epipolar Constraint error = {err}")
+    t, R = Fundamental_to_Trans_Rot(
+        F, focalLen_Cam0, focalLen_Cam1, f0, pp, valid_bitmap
+    )
+    print(f"trans={t}\nrot={R}")
+    PLY_Export_TwoCam(t, R, result_two_cam_ply)
+    if result_cam_trans_rot_csv is not None:
+        CSV_Write_CamPose(result_cam_trans_rot_csv, t, R)
 
-    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, pp, valid_bitmap)
-    CSV_Write_CamPose(args.result_second_cam_csv, t, R)
+    # Fから取得したt, R, focalLen_camを用いて、Fを再構築するテスト。
+    reconF = Reconstruct_F_from(t, R, f0, focalLen_Cam0, focalLen_Cam1)
+    print(f"reconstructedF={reconF}")
 
-    PLY_Export_TwoCam(t, R, args.result_two_cam_ply)
-
-    P0, P1 = TwoCamMat(f0, fl0, fl1, t, R)
+    P0, P1 = Build_two_cam_P0_P1(f0, focalLen_Cam0, focalLen_Cam1, t, R)
 
     AdjustTwoPoints(pp, valid_bitmap, theta, f0)
 
-    xyz_list, valid_bitmap = Triangulation(pp, valid_bitmap, f0, P0, P1)
+    xyz_list, valid_bitmap, valid_point_count = Triangulation(
+        pp, valid_bitmap, f0, P0, P1
+    )
+    print(f"Triangulation valid_point_count={valid_point_count}")
 
-    #Plot3D(xyz_list, new_loss_list)
+    PLY_Export_PointList(
+        InlierPointList_from_bitmap(xyz_list, valid_bitmap), result_3dpoints_ply
+    )
+    return True
 
-    PLY_Export_PointList(InlierPointList_from_bitmap(xyz_list, valid_bitmap), args.result_ply)
-    #PLY_Export_PointList(InlierPointList_from_inlierIdList(xyz_list, picked_up_ids), "ResultKernelPoints3D.ply")
-    return 0
 
 if __name__ == "__main__":
-    # args example: 
-    # --matched_point2d_csv             "twoCamPoints410_outlier10.csv" 
-    # --result_ply                      "ResultPoints3D.ply"
-    # --result_second_cam_csv           "ResultSecondCamPose.csv"
-    # --result_two_cam_ply              "ResultTwoCamEst2r.ply"
-    # --result_two_cam_focallengths_csv "ResultTwoCamFocalLengths.csv"
 
     parser = argparse.ArgumentParser(
-        description='reads two cam feature point list csv, performs two cam RANSAC to write 3d point list PLY')
+        description="reads two cam feature point list csv, performs two cam RANSAC to write 3d point list PLY"
+    )
 
-    parser.add_argument('--matched_point2d_csv',             type=str, help='CSV file contains xy coordinates of matched 2d point pair')
-    parser.add_argument('--result_ply',                      type=str, help='PLY file to write 3d point list')
-    parser.add_argument('--result_second_cam_csv',           type=str, help='CSV file to contain second camera pose t R')
-    parser.add_argument('--result_two_cam_focallengths_csv', type=str, help='CSV file to contain estimated two cam focal lengths')
-    parser.add_argument('--result_two_cam_ply',              type=str, help='PLY file to contain camera pose')
+    parser.add_argument(
+        "--matched_point2d_csv",
+        type=str,
+        help="CSV file contains xy coordinates of matched 2d point pair",
+        default="tmp/op0001_0002.csv",
+    )
+    parser.add_argument(
+        "--result_3dpoints_ply",
+        type=str,
+        help="PLY file to write 3d point list",
+        default="tmp/Run_TwoCam_Ransac_PointList.ply",
+    )
+    parser.add_argument(
+        "--result_two_cam_ply",
+        type=str,
+        help="PLY file to contain camera pose",
+        default="tmp/Run_TwoCam_Ransac_TwoCameraPoses.ply",
+    )
+    parser.add_argument(
+        "--result_two_cam_pose_csv",
+        type=str,
+        help="CSV file to contain camera pose",
+        default="tmp/Run_TwoCam_Ransac_TwoCameraPoses.csv",
+    )
+    parser.add_argument(
+        "--result_two_cam_focal_len_csv",
+        type=str,
+        help="PLY file to contain two cam focal length",
+        default=None,
+    )
+    parser.add_argument(
+        "--regressor",
+        type=str,
+        choices=["lsq", "fns"],
+        default="fns",
+        help="regressor to use for two-cam pose estimation (lsq or fns)",
+    )
+    parser.add_argument(
+        "--ite_count", type=int, default=1000, help="RANSAC maximum iterations"
+    )
+    parser.add_argument(
+        "--loss_threshold",
+        type=float,
+        default=5.0,
+        help="サンプソン誤差J threshold",
+    )
+    parser.add_argument(
+        "--close_points_ratio",
+        type=float,
+        default=0.8,
+        help="RANSACでインライアーと判定されるべき点の数の比率",
+    )
     args = parser.parse_args()
 
-    rv = main(args)
+    b = Run_TwoCam_Ransac(
+        args.matched_point2d_csv,
+        args.result_two_cam_ply,
+        args.result_3dpoints_ply,
+        args.result_two_cam_focal_len_csv,
+        args.result_two_cam_pose_csv,
+        args.regressor,
+        args.ite_count,
+        args.loss_threshold,
+        args.close_points_ratio,
+    )
+
+    if b == True:
+        rv = 0
+    else:
+        rv = 1
     sys.exit(rv)
-
-
-   

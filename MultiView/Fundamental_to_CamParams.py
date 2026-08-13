@@ -3,6 +3,8 @@ import numpy as np
 from numpy.linalg import eigh, svd, det
 import math
 from Common import *
+import scipy.linalg as scipy_linalg
+import pytest
 
 
 # 行列Mの最小の固有値に対応する固有ベクトルを得る。
@@ -38,7 +40,7 @@ def Fundamental_to_FocalLength(F, f0):
     k_dot_Fk_sq = k_dot_Fk * k_dot_Fk
 
     Fk_se = sqeuclidean(Fk)
-    Ftk_se = sqeuclidean(Ft @ k)
+    Ftk_se = sqeuclidean(Ftk)
 
     numerator_xi = Fk_se - k_dot_FFtFk * ep_cross_k_se / k_dot_Fk
     numerator_eta = Ftk_se - k_dot_FFtFk * e_cross_k_se / k_dot_Fk
@@ -64,6 +66,7 @@ def Scalar_triplet(a, b, c):
 
 # 3次元ベクトルa → 3x3行列ax (5.2章)
 def a_to_ax(a):
+    a = np.asarray(a).ravel()  # 1次元、または 3x1 列ベクトルを受け付ける
     a1 = np.float64(a[0])
     a2 = np.float64(a[1])
     a3 = np.float64(a[2])
@@ -136,14 +139,30 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, pp: Point2dPair, valid_bitmap):
     return t, R
 
 
-def TwoCamMat(f0, fl0, fl1, t, R):
+def Build_two_cam_P0_P1(f0, fl0, fl1, t, R):
+    """
+    p.78 eq 5.7
+    """
+
     P0 = np.array([[fl0, 0, 0, 0], [0, fl0, 0, 0], [0, 0, f0, 0]])
 
     RT = np.transpose(R)
     RTt = RT @ t
 
-    RTtt = np.concatenate((RT, RTt), axis=1)
+    RT_trans = np.concatenate((RT, -RTt), axis=1)
 
-    P1 = np.array([[fl1, 0, 0], [0, fl1, 0], [0, 0, f0]]) @ RTtt
+    P1 = np.array([[fl1, 0, 0], [0, fl1, 0], [0, 0, f0]]) @ RT_trans
 
     return P0, P1
+
+
+if __name__ == "__main__":
+    # テスト
+    F = CSV_Read_F("Chap5_GroundTruth_F.csv")
+
+    DEFAULT_F0 = 600
+    f, fp = Fundamental_to_FocalLength(F, DEFAULT_F0)
+    assert pytest.approx(f) == 846.937
+    assert pytest.approx(fp) == 849.379
+
+    print(f"TEST PASSED")

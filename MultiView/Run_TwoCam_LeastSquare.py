@@ -1,54 +1,81 @@
 ﻿# 3章 手順3.1 2つの画像の対応点から基礎行列Fを求める。
 
-# python Run_TwoCam_LeastSquare.py --matched_point2d_csv 0001_0002.csv 
+# python Run_TwoCam_LeastSquare.py --matched_point2d_csv tmp/0001_0002.csv
 
-import argparse
-from Common import *
-from Rank_Correction import Rank_Correction
-from Fundamental_to_CamParams import Fundamental_to_Trans_Rot, Fundamental_to_FocalLength
+from Common import (
+    AdjustTwoPoints,
+    CSV_Read_TwoCam_MatchedPointList,
+    Epipolar_Constraint_Error,
+    FToTheta,
+    InlierPointList_from_bitmap,
+    PLY_Export_PointList,
+    PLY_Export_TwoCam,
+    ThetaToF,
+    Triangulation,
+    TwoCam_LeastSquare,
+    Reconstruct_F_from,
+)
+from Rank_Correction import Optimal_rank_correction
+from Fundamental_to_CamParams import (
+    Fundamental_to_Trans_Rot,
+    Fundamental_to_FocalLength,
+    Build_two_cam_P0_P1,
+)
 
+if __name__ == "__main__":
+    DEFAULT_F0 = 600
 
-def main(args):
-    f0=1
+    f0 = DEFAULT_F0
 
-    pp = CSV_Read_TwoCamPointList(args.matched_point2d_csv)
+    pp = CSV_Read_TwoCam_MatchedPointList("tmp/op0001_0002.csv")
     N = pp.get_point_count()
-    
-    theta = TwoCam_LeastSquare(pp, f0)
-    print(f"theta={theta}")
-    F = ThetaToF(theta)
+
+    if False:
+        # 実験
+        F = CSV_Read_F("Chap5_GroundTruth_F.csv")
+        theta = FToTheta(F)
+    else:
+        theta = TwoCam_LeastSquare(pp, f0)
+        print(f"theta={theta}")
+
+        theta = Optimal_rank_correction(theta, pp, f0)
+        print(f"rank correction theta={theta}")
+
+        F = ThetaToF(theta)
+        print(f"least-sq optimal_rank_correction F=\n{F}")
+
     print(f"F={F}")
 
-    theta = Rank_Correction(theta, pp, f0)
-    print(f"rank correction theta={theta}")
-    
-    F = ThetaToF(theta)
-    print(f"F={F}")
+    focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    print(f"Focal length = {focalLen_Cam0} {focalLen_Cam1}")
 
     valid_bitmap = N * [True]
 
-    err = Epipolar_Constraint_Error(pp, valid_bitmap, f0, F)
-    print(f"Epipolar Constraint error = {err}")
+    err, valid_point_count = Epipolar_Constraint_Error(
+        pp, valid_bitmap, focalLen_Cam0, focalLen_Cam1, F
+    )
+    print(f"Epipolar Constraint error = {err}, valid point count = {valid_point_count}")
 
-    #fl0, fl1 = Fundamental_to_FocalLength(F, 1.0)
-    fl0 = fl1 = 0.12
-    print(f"Focal length = {fl0} {fl1}")
-
-    t, R = Fundamental_to_Trans_Rot(F, fl0, fl1, f0, pp, valid_bitmap)
-
+    t, R = Fundamental_to_Trans_Rot(
+        F, focalLen_Cam0, focalLen_Cam1, f0, pp, valid_bitmap
+    )
     print(f"trans={t}\nrot={R}")
+    PLY_Export_TwoCam(t, R, "tmp/Run_TwoCam_LeastSquare_TwoCam.ply")
 
-    PLY_Export_TwoCam(t, R, 'twoCamEst2.ply')
+    # Fから取得したt, R, focalLen_camを用いて、Fを再構築するテスト。
+    reconF = Reconstruct_F_from(t, R, f0, focalLen_Cam0, focalLen_Cam1)
+    print(f"reconstructedF={reconF}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='reads two cam feature point list csv, performs two cam least square')
+    P0, P1 = Build_two_cam_P0_P1(f0, focalLen_Cam0, focalLen_Cam1, t, R)
 
-    parser.add_argument('--matched_point2d_csv', type=str, help='CSV file contains xy coordinates of matched 2d point pair')
-    args = parser.parse_args()
+    AdjustTwoPoints(pp, valid_bitmap, theta, f0)
 
-    main(args)
+    xyz_list, valid_bitmap, valid_point_count = Triangulation(
+        pp, valid_bitmap, f0, P0, P1
+    )
+    print(f"Triangulation valid_point_count={valid_point_count}")
 
-
-
-
+    PLY_Export_PointList(
+        InlierPointList_from_bitmap(xyz_list, valid_bitmap),
+        "tmp/Run_TwoCam_LeastSquare_InlierPoints_3D.ply",
+    )

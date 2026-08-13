@@ -1,7 +1,15 @@
-from Common import ReadPointXY3, Plot, BuildXi, BuildV0, BuildM_FNS, BuildL_FNS
+from Common import (
+    ReadPointXY3,
+    Plot,
+    BuildXi_ellip,
+    BuildV0_ellip,
+    BuildM_FNS,
+    BuildL_FNS,
+)
 from Ransac import Ransac, RegresserBase
 import numpy as np
 from numpy.linalg import eigh
+
 
 class RegressorEllipFNS(RegresserBase):
     def __init__(self, MaxIter, ConvEPS, f0):
@@ -14,7 +22,7 @@ class RegressorEllipFNS(RegresserBase):
 
     def get_theta(self):
         return self.theta
-    
+
     def get_w_list(self):
         return self.w_list
 
@@ -28,8 +36,8 @@ class RegressorEllipFNS(RegresserBase):
         assert N == y_list.shape[0]
 
         theta = self.theta
-        xi_list = BuildXi(x_list, y_list, self.f0)
-        v0_list = BuildV0(x_list, y_list, self.f0)
+        xi_list = BuildXi_ellip(x_list, y_list, self.f0)
+        v0_list = BuildV0_ellip(x_list, y_list, self.f0)
 
         # サンプソン誤差J：点(x,y)と楕円上の点までの距離の近似値。
         J = np.zeros(N)
@@ -40,14 +48,14 @@ class RegressorEllipFNS(RegresserBase):
             xi_theta = (xi.T @ theta).item()
 
             v0_theta = v0 @ theta
-            #print("theta=",theta)
-            #print("v0theta=", v0_theta)
+            # print("theta=",theta)
+            # print("v0theta=", v0_theta)
 
             thetaT_v0_theta = (theta.T @ v0_theta).item()
 
-            J[i] = xi_theta ** 2 / (thetaT_v0_theta)
+            J[i] = xi_theta**2 / (thetaT_v0_theta)
 
-        #print(f"J={J}")
+        # print(f"J={J}")
 
         return J
 
@@ -58,14 +66,14 @@ class RegressorEllipFNS(RegresserBase):
 
         N = x_list.shape[0]
         assert N == y_list.shape[0]
-        
-        xi_list = BuildXi(x_list, y_list, f0)
-        v0_list = BuildV0(x_list, y_list, f0)
+
+        xi_list = BuildXi_ellip(x_list, y_list, f0)
+        v0_list = BuildV0_ellip(x_list, y_list, f0)
 
         # w_list: N個の1が入っている。
         w_list = np.asarray(N * [1.0])
 
-        theta0=np.vstack(np.zeros(6))
+        theta0 = np.vstack(np.zeros(6))
         for i in range(MaxIter):
             M = BuildM_FNS(xi_list, w_list)
             L = BuildL_FNS(xi_list, w_list, v0_list, theta0)
@@ -73,7 +81,7 @@ class RegressorEllipFNS(RegresserBase):
             X = M - L
 
             # Xの固有ベクトルthetaを得る。
-            _, eig_vec=eigh(X)
+            _, eig_vec = eigh(X)
             theta = eig_vec[:, 0].reshape(6)
             theta = np.vstack(theta)
 
@@ -83,13 +91,13 @@ class RegressorEllipFNS(RegresserBase):
             diff = np.linalg.norm(theta0 - theta)
             if diff < ConvEPS:
                 break
-            
+
             for al in range(N):
-                v0   = v0_list[al]
-                v0ev = np.matmul(v0, theta) # matrix mul vector
-                w_list[al] = 1.0 / (theta.T @ v0ev).item() # 1x1 mat to number
+                v0 = v0_list[al]
+                v0ev = np.matmul(v0, theta)  # matrix mul vector
+                w_list[al] = 1.0 / (theta.T @ v0ev).item()  # 1x1 mat to number
 
             theta0 = theta
 
-        #print(f'Iteration {i}, ev: {theta}')
+        # print(f'Iteration {i}, ev: {theta}')
         return theta, w_list
