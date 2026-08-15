@@ -6,7 +6,7 @@ conda env remove -y -n multiview
 conda create -y -n multiview python=3.12
 conda activate multiview
 conda install -y pip opencv scipy pytest
-pip install jupyter numpy matplotlib pandas
+pip install jupyter numpy matplotlib pandas opencv-python
 
 # jupyter notebook 実行
 

@@ -1,4 +1,4 @@
-#!/bin/bash -bx
+#!/bin/bash -b
 
 mkdir -p tmp
 
@@ -7,6 +7,31 @@ Feature_match() {
 		n1=$(printf "%04d" $i)
 		n2=$(printf "%04d" $((i+1)) )
 		python Run_FeatureMatch.py --img1 cylinder_img/$n1".png" --img2 cylinder_img/$n2".png" --result_csv tmp/$n1"_"$n2".csv" &
+	done
+	wait
+}
+
+Feature_match3() {
+	camNum=24
+	camNumMinus1=$((camNum - 1))
+
+	for i in $(seq 0 $camNumMinus1); do
+		i0=$i
+
+		i1=$((i+1))
+		if [ "$i1" -ge "$camNum" ]; then
+			i1=$((i1 - $camNum))
+		fi
+
+		i2=$((i+2))
+		if [ "$i2" -ge "$camNum" ]; then
+			i2=$((i2 - $camNum))
+		fi
+
+		n1=$(printf "%04d" $i0 )
+		n2=$(printf "%04d" $i1 )
+		n3=$(printf "%04d" $i2 )
+		echo python Run_FeatureMatch3.py --cam1id=$i0 --cam2id=$i1 --cam3id=$i2 --img1 Synthetic_OctPrism/$n1".png" --img2 Synthetic_OctPrism/$n2".png" --img3 Synthetic_OctPrism/$n3".png" --result_csv tmp/$n1"_"$n2"_"$n3".csv" &
 	done
 	wait
 }
@@ -27,5 +52,7 @@ Pose_estimation() {
 	wait
 }
 
-Feature_match
-Pose_estimation
+#Feature_match
+#Pose_estimation
+
+Feature_match3

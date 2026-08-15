@@ -1,12 +1,13 @@
 ﻿# https://docs.opencv.org/3.4/dc/dc3/tutorial_py_matcher.html
 
 # commandline examples
-# python Run_FeatureMatch3.py --img1 Synthetic_OctPrism/0001.png --img2 Synthetic_OctPrism/0002.png --img3 Synthetic_OctPrism/0003.png --result_csv 01_02_03.csv
+# python Run_FeatureMatch3.py --img1 Synthetic_OctPrism/0001.png --img2 Synthetic_OctPrism/0002.png --img3 Synthetic_OctPrism/0003.png --cam1id=1, --cam2id=2, --cam3id=3 --result_csv 01_02_03.csv
 
 import argparse
 from Common import *
 import numpy as np
 import cv2 as cv
+import os
 
 
 def Extract_GoodMatches(matches, ratio):
@@ -68,23 +69,27 @@ def SIFT_FLANN3(img1, img2, img3, ratio=0.7, ransac_threshold=35.0):
             j = good23.index(m23)
             if mask23[j] == 0:
                 continue
-            print(
-                f"kp1 {kp1[m.queryIdx].pt} kp2 {kp2[m.trainIdx].pt} kp3{kp3[m23.trainIdx].pt}"
-            )
+            # print(
+            #    f"kp1 {kp1[m.queryIdx].pt} kp2 {kp2[m.trainIdx].pt} kp3{kp3[m23.trainIdx].pt}"
+            # )
             xyz_triplet.append(
                 [kp1[m.queryIdx].pt, kp2[m.trainIdx].pt, kp3[m23.trainIdx].pt]
             )
     return xyz_triplet
 
 
-def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy):
+def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy, cam_id_list):
     sx = shift_xy[0]
     sy = shift_xy[1]
 
     # 座標系は、x+→, y+↓
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="\n") as f:
-        f.write(f"x0, y0, x1, y1, x2, y2\n")
+        f.write("cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC\n")
         for p in xyz_triplet:
+            c0 = cam_id_list[0]
+            c1 = cam_id_list[1]
+            c2 = cam_id_list[2]
             p0 = p[0]
             p1 = p[1]
             p2 = p[2]
@@ -92,31 +97,38 @@ def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy):
             p1 = ((p1[0] + sx), (p1[1] + sy))
             p2 = ((p2[0] + sx), (p2[1] + sy))
 
-            f.write(f"{p0[0]}, {p0[1]}, {p1[0]}, {p1[1]}, {p2[0]}, {p2[1]}\n")
+            f.write(
+                f"{c0}, {p0[0]}, {p0[1]}, {c1}, {p1[0]}, {p1[1]}, {c2}, {p2[0]}, {p2[1]}\n"
+            )
 
 
-def Run_SIFT_FLANN(args):
-    img1 = cv.imread(args.img1, cv.IMREAD_GRAYSCALE)
-    img2 = cv.imread(args.img2, cv.IMREAD_GRAYSCALE)
-    img3 = cv.imread(args.img3, cv.IMREAD_GRAYSCALE)
+def Run_FeatureMatch3(
+    cam1id,
+    img1path,
+    cam2id,
+    img2path,
+    cam3id,
+    img3path,
+    lowes_ratio,
+    ransac_threshold,
+    result_csv,
+):
+    img1 = cv.imread(img1path, cv.IMREAD_GRAYSCALE)
+    img2 = cv.imread(img2path, cv.IMREAD_GRAYSCALE)
+    img3 = cv.imread(img3path, cv.IMREAD_GRAYSCALE)
 
     img1_shape = img1.shape
-    xyz_triplet = SIFT_FLANN3(img1, img2, img3, args.ratio, args.ransac_threshold)
+    xyz_triplet = SIFT_FLANN3(img1, img2, img3, lowes_ratio, ransac_threshold)
 
     print(
-        f"triplet count={len(xyz_triplet)} (ratio={args.ratio}, ransac_threshold={args.ransac_threshold})"
+        f"triplet count={len(xyz_triplet)} (Lowe's ratio={lowes_ratio}, ransac_threshold={ransac_threshold})"
     )
 
     # CSVを出力します。
     shift_xy = np.array([-img1_shape[1] * 0.5, -img1_shape[0] * 0.5])
-    CSV_Write_MatchedPointList3(args.result_csv, xyz_triplet, shift_xy)
-
-    # draw_params = dict(matchColor = (0,255,0),
-    #                   singlePointColor = (255,0,0),
-    #                   matchesMask = matchesMask,
-    #                   flags = cv.DrawMatchesFlags_DEFAULT)
-    # img3 = cv.drawMatchesKnn(img1,kp1,img2,kp2,matches,None,**draw_params)
-    # plt.imshow(img3,),plt.show()
+    CSV_Write_MatchedPointList3(
+        result_csv, xyz_triplet, shift_xy, [cam1id, cam2id, cam3id]
+    )
 
 
 if __name__ == "__main__":
@@ -142,6 +154,24 @@ if __name__ == "__main__":
         default="Synthetic_OctPrism/0003.png",
     )
     parser.add_argument(
+        "--cam1id",
+        type=int,
+        default=1,
+        help="image 1 camera id",
+    )
+    parser.add_argument(
+        "--cam2id",
+        type=int,
+        default=2,
+        help="image 2 camera id",
+    )
+    parser.add_argument(
+        "--cam3id",
+        type=int,
+        default=3,
+        help="image 3 camera id",
+    )
+    parser.add_argument(
         "--result_csv",
         type=str,
         help="CSV file to write two cam feature point list",
@@ -161,4 +191,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    Run_SIFT_FLANN(args)
+    Run_FeatureMatch3(
+        args.cam1id,
+        args.img1,
+        args.cam2id,
+        args.img2,
+        args.cam3id,
+        args.img3,
+        args.ratio,
+        args.ransac_threshold,
+        args.result_csv,
+    )
