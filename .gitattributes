@@ -4,3 +4,4 @@
 *.csv eol=lf
 *.cpp eol=lf
 *.cs eol=lf
+*.sh eol=lf

@@ -5,6 +5,7 @@ import numpy as np
 from numpy.linalg import eigh
 import math
 import scipy.linalg as scipy_linalg
+import os
 
 # 右手座標系。
 # 行列の要素の並びは行優先。
@@ -876,6 +877,132 @@ def CSV_Write_TwoCamFocalLengths(path, FL0, FL1):
 
     with open(path, "w", newline="\n") as f:
         f.write(f"{FL0}, {FL1}\n")
+
+
+def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy, cam_id_list):
+    sx = shift_xy[0]
+    sy = shift_xy[1]
+
+    # 座標系は、x+→, y+↓
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", newline="\n") as f:
+        f.write("cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC\n")
+        for p in xyz_triplet:
+            c0 = cam_id_list[0]
+            c1 = cam_id_list[1]
+            c2 = cam_id_list[2]
+            p0 = p[0]
+            p1 = p[1]
+            p2 = p[2]
+            p0 = ((p0[0] + sx), (p0[1] + sy))
+            p1 = ((p1[0] + sx), (p1[1] + sy))
+            p2 = ((p2[0] + sx), (p2[1] + sy))
+
+            f.write(
+                f"{c0}, {p0[0]}, {p0[1]}, {c1}, {p1[0]}, {p1[1]}, {c2}, {p2[0]}, {p2[1]}\n"
+            )
+
+
+class FeaturePoint:
+    """
+    pointId番の特徴点1個の情報を保持。
+
+    カメラはM個(CameraCount()個)あり、
+    カメラ番号kは0から連番で振られる。
+
+    各カメラから見える特徴点の座標(x,y)を保持。
+    """
+
+    def __init__(self, pointId, xy_list, f0):
+        self.pointId = pointId
+        self.xy_list = xy_list
+        self.f0 = f0
+
+    def CameraCount(self):
+        return len(self.xy_list)
+
+    def FeaturePointCoordOfCam(self, i):
+        """
+        i番カメラの画像に写った特徴点の座標(x,y)を戻す。
+        """
+        return self.xy_list[i]
+
+    def x_ak(self, k):
+        """
+        p.201 eq.13.11
+        カメラ番号kのx_ak行列を戻す。
+        x_akは3行1列の行列。
+        """
+        xy = self.xy_list[k]
+        f0 = self.f0
+        return np.array([[xy[0] / f0], [xy[1] / f0], [1]])
+
+
+class CamId_x_y:
+    def __init__(self, camId, x, y):
+        self.camId = camId
+        self.x = x
+        self.y = y
+
+    def CamId(self):
+        return self.camId
+
+    def X(self):
+        return self.x
+
+    def Y(self):
+        return self.y
+
+
+def CSV_Read_FeaturePointList(csv_path, f0):
+    """
+    CSV_Write_MatchedPointList3が保存したCSVファイルを読み、
+    FeaturePointのlistを作る。
+
+    cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC
+    """
+    N_CAMS = 3
+
+    camId_list = []
+
+    fp_list = []
+    with open(csv_path) as f:
+        r = csv.reader(f, delimiter=",")
+        for b in r:
+            # ヘッダ行 (先頭が数値でない行) や空行はスキップする
+            if len(b) < N_CAMS * 3:
+                continue
+
+            xy_list = []
+            camIdxy_list = []
+            try:
+                idx = 0
+                for i in range(N_CAMS):
+                    camId = int(b[idx + 0])
+                    x = float(b[idx + 1])
+                    y = float(b[idx + 2])
+                    camIdxy_list.append(CamId_x_y(camId, x, y))
+                    xy_list.append(np.array([x, y]))
+                    idx += 3
+            except (ValueError, TypeError):
+                continue
+
+            if len(camId_list) == 0:
+                # 最初の行。
+                for i in range(N_CAMS):
+                    camId_list.append(camIdxy_list[i].CamId())
+            else:
+                # 2行目以降は、カメラIDが変わらないことを確認。
+                for i in range(N_CAMS):
+                    if camId_list[i] != camIdxy_list[i].CamId():
+                        print(
+                            f"Error: camID changed unexpectedly on line {r.line_num}. {camId_list[i]} {camIdxy_list[i].CamId()}"
+                        )
+
+            pointId = len(fp_list)
+            fp_list.append(FeaturePoint(pointId, xy_list, f0))
+
+    return fp_list
 
 
 def ReadPointXY3(path):

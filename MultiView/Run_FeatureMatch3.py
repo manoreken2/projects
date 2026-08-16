@@ -78,30 +78,6 @@ def SIFT_FLANN3(img1, img2, img3, ratio=0.7, ransac_threshold=35.0):
     return xyz_triplet
 
 
-def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy, cam_id_list):
-    sx = shift_xy[0]
-    sy = shift_xy[1]
-
-    # 座標系は、x+→, y+↓
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="\n") as f:
-        f.write("cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC\n")
-        for p in xyz_triplet:
-            c0 = cam_id_list[0]
-            c1 = cam_id_list[1]
-            c2 = cam_id_list[2]
-            p0 = p[0]
-            p1 = p[1]
-            p2 = p[2]
-            p0 = ((p0[0] + sx), (p0[1] + sy))
-            p1 = ((p1[0] + sx), (p1[1] + sy))
-            p2 = ((p2[0] + sx), (p2[1] + sy))
-
-            f.write(
-                f"{c0}, {p0[0]}, {p0[1]}, {c1}, {p1[0]}, {p1[1]}, {c2}, {p2[0]}, {p2[1]}\n"
-            )
-
-
 def Run_FeatureMatch3(
     cam1id,
     img1path,
