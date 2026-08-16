@@ -8,7 +8,7 @@ from Common import (
     Epipolar_Constraint_Error,
     FToTheta,
     InlierPointList_from_bitmap,
-    PLY_Export_PointList,
+    PLY_Export_PointNdArray,
     PLY_Export_TwoCam,
     ThetaToF,
     Triangulation,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     )
     print(f"Triangulation valid_point_count={valid_point_count}")
 
-    PLY_Export_PointList(
+    PLY_Export_PointNdArray(
         "tmp/Run_TwoCam_LeastSquare_InlierPoints_3D.ply",
         InlierPointList_from_bitmap(xyz_list, valid_bitmap),
     )

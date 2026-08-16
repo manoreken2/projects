@@ -105,6 +105,7 @@ def Generate_CameraMeshZM(scale=0.1):
 
 # Z+向きのカメラのメッシュ vertex listとtriangle list。
 def Generate_CameraMeshZP(scale=0.1):
+    # Z-向きのメッシュを作った後Y軸で180度回転する。
     p, t = Generate_CameraMeshZM(scale)
     p = Transform_PointList(p, RotY(math.pi))
     return p, t
@@ -136,7 +137,7 @@ def ExportMesh_Ply(path: str, p, v):
 
 
 # 3次元点群をPLYで保存。
-def PLY_Export_PointList(path: str, p):
+def PLY_Export_PointNdArray(path: str, p: np.ndarray):
     print(f"PLY__Export_PointList {path}")
 
     with open(path, "w", newline="\n") as f:
@@ -152,6 +153,25 @@ def PLY_Export_PointList(path: str, p):
 
         for i in range(ps[0]):
             f.write(f"{p[i,0]} {p[i,1]} {p[i,2]}\n")
+
+
+def PLY_Export_PointList(path: str, P_list: list):
+    print(f"PLY__Export_PointList {path}")
+
+    with open(path, "w", newline="\n") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+
+        nPoints = len(P_list)
+        f.write(f"element vertex {nPoints}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("end_header\n")
+
+        for i in range(nPoints):
+            p = P_list[i].flatten()
+            f.write(f"{p[0]} {p[1]} {p[2]}\n")
 
 
 # 色付き3次元点群をPLYで保存。
@@ -329,12 +349,28 @@ def PLY_Export_TwoCam(path: str, t, R):
     GeneratePLY_TwoCamPoseZP(path, E4, M)
 
 
+def Trans_Rot_to_CameraPoseMat(t, R):
+    # 回転してから平行移動する。
+    M = np.array(
+        [
+            [R[0, 0], R[0, 1], R[0, 2], t[0, 0]],
+            [R[1, 0], R[1, 1], R[1, 2], t[1, 0]],
+            [R[2, 0], R[2, 1], R[2, 2], t[2, 0]],
+            [0, 0, 0, 1],
+        ]
+    )
+    return M
+
+
 def PLY_Export_MultiCam(path: str, t_list, R_list):
     M_list = []
     for k in range(len(t_list)):
         t = t_list[k]
         R = R_list[k]
-        M = Trans_Rot_to_TransformMat(t, R)
+
+        # M = Trans_Rot_to_TransformMat(t, R)
+        M = Trans_Rot_to_CameraPoseMat(t, R)
+
         M_list.append(M)
 
     GeneratePLY_MultiCamPoseZP(path, M_list)
@@ -1010,6 +1046,7 @@ def CSV_Read_FeaturePointList(csv_path: str, f0):
                     camId = int(b[idx + 0])
                     x = float(b[idx + 1])
                     y = float(b[idx + 2])
+
                     camIdxy_list.append(CamId_x_y(camId, x, y))
                     xy_list.append(np.array([x, y]))
                     idx += 3

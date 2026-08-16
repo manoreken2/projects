@@ -88,7 +88,7 @@ def Run_TwoCam_Ransac(
     )
     print(f"Triangulation valid_point_count={valid_point_count}")
 
-    PLY_Export_PointList(
+    PLY_Export_PointNdArray(
         result_3dpoints_ply, InlierPointList_from_bitmap(xyz_list, valid_bitmap)
     )
     return True

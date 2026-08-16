@@ -73,11 +73,6 @@ def build_Aalpha(fp: FeaturePoint, U):
     return A
 
 
-def sgn(x):
-    # sgn関数。正なら1、負なら-1、0なら0を戻す。
-    return (x > 0) - (x < 0)
-
-
 class MultiCamSelfCalib:
     def __init__(self, f0):
         self.f0 = f0
@@ -134,7 +129,7 @@ class MultiCamSelfCalib:
         X_list = []
 
         prev_reproj_err = sys.float_info.max
-        for loop in range(100):
+        for loop in range(10000):
             W = build_observe_mat_W(fp_list, z_ak_mat)
             W = normalize_observe_mat(W)
 
@@ -189,7 +184,7 @@ class MultiCamSelfCalib:
 
             reproj_err = self.calc_reproj_err(fp_list, P_list, X_list)
             print(
-                f"PrimaryMethod reproj_err={reproj_err}, thr={reproj_err_converge_diff}"
+                f"PrimaryMethod {loop} reproj_err={reproj_err}, thr={reproj_err_converge_diff}"
             )
             if np.abs(prev_reproj_err - reproj_err) < reproj_err_converge_diff:
                 self.P_list = P_list
@@ -389,9 +384,25 @@ class MultiCamSelfCalib:
 
         return A
 
-    def Calc_Omega(self, Kk_list):
+    def build_Omega(self, omega):
         """
-        カメラk番のΩを求める。
+        p.211 eq.13.43
+        """
+        sq2 = np.sqrt(2.0)
+
+        Omega = np.array(
+            [
+                [omega[0], omega[4] / sq2, omega[5] / sq2, omega[6] / sq2],
+                [omega[4] / sq2, omega[1], omega[7] / sq2, omega[8] / sq2],
+                [omega[5] / sq2, omega[7] / sq2, omega[2], omega[9] / sq2],
+                [omega[6] / sq2, omega[8] / sq2, omega[9] / sq2, omega[3]],
+            ]
+        )
+        return Omega
+
+    def calc_Omega(self, Kk_list):
+        """
+        Ωを求める。
         p.209 §13.3.2
         特徴点の座標(x,y)は、画像の中心が原点になるよう平行移動してありprincipal_point=(0,0)。
 
@@ -407,7 +418,6 @@ class MultiCamSelfCalib:
 
             # 手順 13.4 eq.13.40
             Qk = np.linalg.inv(Kk) @ Pk
-
             Qk_list.append(Qk)
 
         # eq.13.41
@@ -416,21 +426,12 @@ class MultiCamSelfCalib:
         # p.210 eq.13.42
         A = self.build_A(A_)
 
-        _, eigvec = np.linalg.eigh(A)
-        # omega: 最小固有値に対する固有ベクトル
+        eigval, eigvec = np.linalg.eigh(A)
+        # omega: 最小固有値に対する固有ベクトル。(単位長さに正規化。)
         omega = eigvec[:, 0].flatten()
+        omega /= np.linalg.norm(omega)
 
-        sq2 = np.sqrt(2.0)
-
-        # p.211 eq.13.43
-        Omega = np.array(
-            [
-                [omega[0], omega[4] / sq2, omega[5] / sq2, omega[6] / sq2],
-                [omega[4] / sq2, omega[1], omega[7] / sq2, omega[8] / sq2],
-                [omega[5] / sq2, omega[7] / sq2, omega[2], omega[9] / sq2],
-                [omega[6] / sq2, omega[8] / sq2, omega[9] / sq2, omega[3]],
-            ]
-        )
+        Omega = self.build_Omega(omega)
 
         # Omegaの固有値を大きい順にs1,s2,s3,s4、
         # 対応固有ベクトルをo1,o2,o3,o4 (縦長)にセット。
@@ -444,22 +445,24 @@ class MultiCamSelfCalib:
         o3 = np.vstack(o_[:, 1])
         o4 = np.vstack(o_[:, 0])
 
-        # Omega: p.211 eq.13.44
+        # Omega2: p.211 eq.13.44
         # H: p.214 eq.13.59
         if s3 > 0:
-            Omega = s1 * o1 @ o1.T + s2 * o2 @ o2.T + s3 * o3 @ o3.T
-            H = np.array([np.sqrt(s1) * o1, np.sqrt(s2) * o2, np.sqrt(s3) * o3, o4])
+            Omega2 = s1 * o1 @ o1.T + s2 * o2 @ o2.T + s3 * o3 @ o3.T
+            H = np.concatenate(
+                [np.sqrt(s1) * o1, np.sqrt(s2) * o2, np.sqrt(s3) * o3, o4], axis=1
+            )
         elif s2 < 0:
-            Omega = -s4 * o4 @ o4.T - s3 * o3 @ o3.T - s2 * o2 @ o2.T
-            H = np.array([np.sqrt(-s4) * o4, np.sqrt(-s3) * o3, np.sqrt(-s2) * o2, o1])
+            Omega2 = -s4 * o4 @ o4.T - s3 * o3 @ o3.T - s2 * o2 @ o2.T
+            H = np.concatenate(
+                [np.sqrt(-s4) * o4, np.sqrt(-s3) * o3, np.sqrt(-s2) * o2, o1], axis=1
+            )
         else:
             raise RuntimeError(
                 f"Calc_Omega unexpected sign sigma. sigma3={s3}, sigma2={s2}"
             )
 
-        H = H.reshape(4, 4)
-
-        return Omega, H, Qk_list
+        return Omega2, H, Qk_list
 
     def improve_Kk_list(self, Omega, Kk_list, Qk_list):
         """
@@ -505,7 +508,7 @@ class MultiCamSelfCalib:
                 dv0k = 0
 
             # p.213 eq.13.54 焦点距離fkの修正量。
-            dfk = np.sqrt(0.5 * (((ck11 + ck22) / ck33) - du0k**2 - dv0k**2))
+            dfk = np.sqrt(0.5 * (((ck11 + ck22) / ck33) - (du0k**2) - (dv0k**2)))
 
             # p.213 eq.13.55
             dKk = np.array([[dfk, 0, du0k], [0, dfk, dv0k], [0, 0, 1]])
@@ -516,8 +519,8 @@ class MultiCamSelfCalib:
 
             # p.215 eq.13.60
             Jk = (
-                (ck11 / ck33 - 1.0) ** 2
-                + (ck22 / ck33 - 1.0) ** 2
+                ((ck11 / ck33 - 1.0) ** 2)
+                + ((ck22 / ck33 - 1.0) ** 2)
                 + 2.0 * (ck12**2 + ck23**2 + ck31**2) / (ck33**2)
             )
             Jk_list[k] = Jk
@@ -534,44 +537,84 @@ class MultiCamSelfCalib:
         prev_Jmed = Jmed
 
         while True:
-            Omega, H, Qk_list = self.Calc_Omega(Kk_list)
+            Omega, H, Qk_list = self.calc_Omega(Kk_list)
 
             Kk_list, Jk_list = self.improve_Kk_list(Omega, Kk_list, Qk_list)
 
             # p.215 eq.13.61
             Jmed = statistics.median(Jk_list)
             print(f"Euclidean_upgrade Jmed={Jmed}")
-            if Jmed < J_threshold or Jmed > prev_Jmed:
+            if Jmed < J_threshold or Jmed >= prev_Jmed:
                 # 終了条件達成。
                 return H, Kk_list
 
             prev_Jmed = Jmed
 
-    def Extract_Cam_Extrinsic(self, P_list, X_list, H, Kk_list):
+    def build_X3d_list(self, X_list, H_inv):
         """
-        p.216 §13.4 手順13.7
-        各カメラの並進tと回転Rを求める。
+        p.216 eq.13.63
         """
         nPoints = len(X_list)
-        nCams = len(P_list)
 
-        H_inv = np.linalg.inv(H)
-
-        # p.216 eq.13.63
         X3d_list = []
         for a in range(nPoints):
             Xa = X_list[a]
             Xa = H_inv @ Xa
 
             # p.198 eq.13.2
-            X3d = np.array([[Xa[0] / Xa[3]], [Xa[1] / Xa[3]], [Xa[2] / Xa[3]]])
+            X3d = Xa[0:3, 0:1] / Xa[3, 0]
             X3d_list.append(X3d)
+
+        return X3d_list
+
+    def calc_sum_all_points_Z_sgn(self, X3d_list, RkT, tk):
+        """
+        ほとんどの点がカメラが見える方向になっているかどうかを調べる。
+        座標をカメラ座標系に持って行ったとき、
+        カメラが見えている方向はZ+であることを利用。
+        """
+        nPoints = len(X3d_list)
+
+        sgn_sum = 0
+        for a in range(nPoints):
+            # Xak : 第kカメラ座標系から見た点aの座標。
+            # p.217 eq.13.71
+            Xa = X3d_list[a]
+
+            Xa_tk = Xa - tk
+
+            Xak = RkT @ Xa_tk
+            sgn_sum += np.sign(Xak[2, 0])
+
+        return sgn_sum
+
+    def flip_X3d_sign(self, X3d_list):
+        nPoints = len(X3d_list)
+
+        for a in range(nPoints):
+            Xa = X3d_list[a]
+            X3d_list[a] = -Xa
+
+        return X3d_list
+
+    def Extract_Cam_Extrinsic(self, P_list, X_list, H, Kk_list):
+        """
+        p.216 §13.4 手順13.7
+        各カメラの並進tと回転Rを求める。
+        """
+        nCams = len(P_list)
+        nPoints = len(X_list)
+
+        H_inv = np.linalg.inv(H)
+
+        # p.216 eq.13.63
+        X3d_list = self.build_X3d_list(X_list, H_inv)
 
         Rk_list = []
         tk_list = []
 
-        # p.216 eq.13.64
         for k in range(nCams):
+            # p.216 eq.13.64, p.198 eq.13.3, p.199 カメラに関する知識を用いる方法の説明参照。
             Pk = P_list[k]
             Pk = Pk @ H
 
@@ -596,29 +639,33 @@ class MultiCamSelfCalib:
             # p.217 eq.13.68
             Ua, SigmaA, VaT = np.linalg.svd(Ak, full_matrices=False)
 
+            # 元に戻る：OK
+            # Ua_S_VaT = Ua @ np.diag(SigmaA) @ VaT
+
             # p.217 eq.13.69
             Rk = VaT.T @ Ua.T
+
             Rk_list.append(Rk)
 
             # p.217 eq.13.70
             tk = -Rk @ bk
+
+            sgn_sum = self.calc_sum_all_points_Z_sgn(X3d_list, Rk.T, tk)
+            if sgn_sum <= 0:
+                # p.217 eq.13.72
+                tk = -tk
+                X3d_list = self.flip_X3d_sign(X3d_list)
+
             tk_list.append(tk)
 
-            # for a in range(nPoints):
-            #    # 第kカメラ座標系から見た点aの座標。
-            #    # p.217 eq.13.71
-            #    Xa = X3d_list[a]
-            #    Xk = Rk.T @ (Xa - tk)
-            #    if sgn(Xk[0])+sgn(Xk[1])+sgn(Xk[2]) <0:
-            #        Xk = -Xk
-
-        return Rk_list, tk_list
+        return Rk_list, tk_list, X3d_list
 
 
 def Run_MultiCamSelfCalib(
     in_feature_point_list_path,
     result_campose_csv,
     result_campose_ply,
+    result_points3d_ply,
     f0,
     reproj_err_threshold,
     J_threshold,
@@ -630,17 +677,19 @@ def Run_MultiCamSelfCalib(
     sc = MultiCamSelfCalib(f0)
     P_list, X_list = sc.PrimaryMethod(fp_list, reproj_err_threshold)
 
-    default_camFocalLen_list = [1] * nCams
+    default_camFocalLen_list = [f0] * nCams
 
     # Kk : cam intrinsic mat
     H, Kk_list = sc.Euclidean_upgrade(default_camFocalLen_list, J_threshold)
+    print(f"Kk_list=\n{Kk_list}")
 
-    Rk_list, tk_list = sc.Extract_Cam_Extrinsic(P_list, X_list, H, Kk_list)
+    Rk_list, tk_list, X3d_list = sc.Extract_Cam_Extrinsic(P_list, X_list, H, Kk_list)
 
     # print(f"Rk_list={Rk_list}\ntk_list={tk_list}")
 
     CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list)
     PLY_Export_MultiCam(result_campose_ply, tk_list, Rk_list)
+    PLY_Export_PointList(result_points3d_ply, X3d_list)
 
     return True
 
@@ -661,31 +710,37 @@ if __name__ == "__main__":
         "--f0",
         type=float,
         help="f0 param of csv file. Typically it is image size in pixel.",
-        default=600,
+        default=800,
     )
     parser.add_argument(
         "--reproj_err_converge",
         type=float,
         help="reprojection error converge iteration diff in pixel.",
-        default=0.01,
+        default=0.001,
     )
     parser.add_argument(
         "--j_threshold",
         type=float,
         help="Euclidean upgrade threshold in pixel.",
-        default=2.0,
+        default=1.0,
     )
     parser.add_argument(
         "--result_campose_csv",
         type=str,
-        help="output camera pose csv file",
-        default="tmp/campose_0000_0001_0002.csv",
+        help="output camera pose CSV file",
+        default="tmp/result_campose_0000_0001_0002.csv",
     )
     parser.add_argument(
         "--result_campose_ply",
         type=str,
-        help="output camera pose ply file",
-        default="tmp/campose_0000_0001_0002.ply",
+        help="output camera pose PLY file",
+        default="tmp/result_campose_0000_0001_0002.ply",
+    )
+    parser.add_argument(
+        "--result_points3d_ply",
+        type=str,
+        help="output 3d points PLY file",
+        default="tmp/result_points_0000_0001_0002.ply",
     )
     args = parser.parse_args()
 
@@ -693,6 +748,7 @@ if __name__ == "__main__":
         args.in_feature_point_list_csv,
         args.result_campose_csv,
         args.result_campose_ply,
+        args.result_points3d_ply,
         args.f0,
         args.reproj_err_converge,
         args.j_threshold,
