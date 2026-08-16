@@ -71,7 +71,7 @@ def Run_TwoCam_Ransac(
         F, focalLen_Cam0, focalLen_Cam1, f0, pp, valid_bitmap
     )
     print(f"trans={t}\nrot={R}")
-    PLY_Export_TwoCam(t, R, result_two_cam_ply)
+    PLY_Export_TwoCam(result_two_cam_ply, t, R)
     if result_cam_trans_rot_csv is not None:
         CSV_Write_CamPose(result_cam_trans_rot_csv, t, R)
 
@@ -89,7 +89,7 @@ def Run_TwoCam_Ransac(
     print(f"Triangulation valid_point_count={valid_point_count}")
 
     PLY_Export_PointList(
-        InlierPointList_from_bitmap(xyz_list, valid_bitmap), result_3dpoints_ply
+        result_3dpoints_ply, InlierPointList_from_bitmap(xyz_list, valid_bitmap)
     )
     return True
 

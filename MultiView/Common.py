@@ -111,11 +111,11 @@ def Generate_CameraMeshZP(scale=0.1):
 
 
 # メッシュをPLYで保存。
-def ExportMesh_Ply(p, v, fileName):
+def ExportMesh_Ply(path: str, p, v):
     ps = p.shape
     vs = v.shape
 
-    with open(fileName, "w", newline="\n") as f:
+    with open(path, "w", newline="\n") as f:
         f.write("ply\n")
         f.write("format ascii 1.0\n")
 
@@ -136,10 +136,10 @@ def ExportMesh_Ply(p, v, fileName):
 
 
 # 3次元点群をPLYで保存。
-def PLY_Export_PointList(p, fileName):
-    print(f"PLY__Export_PointList {fileName}")
+def PLY_Export_PointList(path: str, p):
+    print(f"PLY__Export_PointList {path}")
 
-    with open(fileName, "w", newline="\n") as f:
+    with open(path, "w", newline="\n") as f:
         f.write("ply\n")
         f.write("format ascii 1.0\n")
 
@@ -155,10 +155,10 @@ def PLY_Export_PointList(p, fileName):
 
 
 # 色付き3次元点群をPLYで保存。
-def ExportColoredPoints_Ply(p, c_list, fileName):
+def ExportColoredPoints_Ply(path: str, p, c_list):
     ps = p.shape
 
-    with open(fileName, "w", newline="\n") as f:
+    with open(path, "w", newline="\n") as f:
         f.write("ply\n")
         f.write("format ascii 1.0\n")
 
@@ -286,34 +286,58 @@ def Trans_Rot_to_TransformMat(t, R):
 # 2つのカメラの関係図のPLYファイルを出力。
 # カメラはOpenGL様式：Z-向き。
 # カメラ姿勢M0, M1
-def GeneratePLY_TwoCamPoseZM(M0, M1, fileName):
+def GeneratePLY_TwoCamPoseZM(path: str, M0, M1):
     p, v = Generate_CameraMeshZM()
 
     p0 = Transform_PointList(p, M0)
     p1 = Transform_PointList(p, M1)
 
     pW, vW = MergeMesh(p0, v, p1, v)
-    ExportMesh_Ply(pW, vW, fileName)
+    ExportMesh_Ply(path, pW, vW)
 
 
 # 2つのカメラの関係図のPLYファイルを出力。
 # カメラはZ+向き。
 # カメラ姿勢M0, M1
-def GeneratePLY_TwoCamPoseZP(M0, M1, fileName):
+def GeneratePLY_TwoCamPoseZP(path: str, M0, M1):
     p, v = Generate_CameraMeshZP()
 
     p0 = Transform_PointList(p, M0)
     p1 = Transform_PointList(p, M1)
 
     pW, vW = MergeMesh(p0, v, p1, v)
-    ExportMesh_Ply(pW, vW, fileName)
+    ExportMesh_Ply(path, pW, vW)
 
 
-def PLY_Export_TwoCam(t, R, fileName):
+def GeneratePLY_MultiCamPoseZP(path: str, M_list):
+    p, v = Generate_CameraMeshZP()
+
+    pW = Transform_PointList(p, M_list[0])
+    vW = v
+    for k in range(1, len(M_list)):
+        M = M_list[k]
+        pk = Transform_PointList(p, M)
+        pW, vW = MergeMesh(pW, vW, pk, v)
+
+    ExportMesh_Ply(path, pW, vW)
+
+
+def PLY_Export_TwoCam(path: str, t, R):
     E4 = np.eye(4)
     M = Trans_Rot_to_TransformMat(t, R)
 
-    GeneratePLY_TwoCamPoseZP(E4, M, fileName)
+    GeneratePLY_TwoCamPoseZP(path, E4, M)
+
+
+def PLY_Export_MultiCam(path: str, t_list, R_list):
+    M_list = []
+    for k in range(len(t_list)):
+        t = t_list[k]
+        R = R_list[k]
+        M = Trans_Rot_to_TransformMat(t, R)
+        M_list.append(M)
+
+    GeneratePLY_MultiCamPoseZP(path, M_list)
 
 
 # 楕円用。
@@ -742,7 +766,7 @@ def BuildL_ModFNS(xi_list, v0_list, theta):
     return L
 
 
-def CSV_Read_F(path):
+def CSV_Read_F(path: str):
 
     with open(path) as f:
         r = csv.reader(f, delimiter=",")
@@ -765,7 +789,7 @@ def CSV_Read_F(path):
             return np.array([[f00, f01, f02], [f10, f11, f12], [f20, f21, f22]])
 
 
-def CSV_Read_TwoCam_MatchedPointList(path):
+def CSV_Read_TwoCam_MatchedPointList(path: str):
     # print(f"ReadTwoCamPoints({path})")
     xy0_list = []
     xy1_list = []
@@ -787,7 +811,7 @@ def CSV_Read_TwoCam_MatchedPointList(path):
     return Point2dPair(np.asarray(xy0_list), np.asarray(xy1_list))
 
 
-def CSV_Write_TwoCam_MatchedPointList(path, xy_pair, shift_xy=None):
+def CSV_Write_TwoCam_MatchedPointList(path: str, xy_pair, shift_xy=None):
     """
     対応点ペアリストを
     画素座標(x+→, y+↓)、単位ピクセル、画像左上が原点
@@ -858,28 +882,33 @@ def PointPairList_Shift(pp_list, shift_xy):
     return Point2dPair(np.asarray(r0_list), np.asarray(r1_list))
 
 
-def CSV_Write_CamPose(path, t, R):
-    # print(f"Writing cam pose to {path}...")
-
+def CSV_Write_CamPose_list(path: str, t_list, R_list):
     with open(path, "w", newline="\n") as f:
         # t: 1行3列 列ベクトル
         # R: 3行3列 回転ベクトル
 
         f.write(f"tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
-        f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
-        f.write(f"{R[0,0]}, {R[0,1]}, {R[0,2]}, ")
-        f.write(f"{R[1,0]}, {R[1,1]}, {R[1,2]}, ")
-        f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}\n")
+        for k in range(len(t_list)):
+            t = t_list[k]
+            R = R_list[k]
+            f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
+            f.write(f"{R[0,0]}, {R[0,1]}, {R[0,2]}, ")
+            f.write(f"{R[1,0]}, {R[1,1]}, {R[1,2]}, ")
+            f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}\n")
 
 
-def CSV_Write_TwoCamFocalLengths(path, FL0, FL1):
+def CSV_Write_CamPose(path: str, t, R):
+    CSV_Write_CamPose_list(path, [t], [R])
+
+
+def CSV_Write_TwoCamFocalLengths(path: str, FL0, FL1):
     # print(f"Writing two cam focal lengths to {path}...")
 
     with open(path, "w", newline="\n") as f:
         f.write(f"{FL0}, {FL1}\n")
 
 
-def CSV_Write_MatchedPointList3(path, xyz_triplet, shift_xy, cam_id_list):
+def CSV_Write_MatchedPointList3(path: str, xyz_triplet, shift_xy, cam_id_list):
     sx = shift_xy[0]
     sy = shift_xy[1]
 
@@ -954,7 +983,7 @@ class CamId_x_y:
         return self.y
 
 
-def CSV_Read_FeaturePointList(csv_path, f0):
+def CSV_Read_FeaturePointList(csv_path: str, f0):
     """
     CSV_Write_MatchedPointList3が保存したCSVファイルを読み、
     FeaturePointのlistを作る。
@@ -1005,7 +1034,7 @@ def CSV_Read_FeaturePointList(csv_path, f0):
     return fp_list
 
 
-def ReadPointXY3(path):
+def ReadPointXY3(path: str):
     x_list = []
     y_list = []
     with open(path) as f:

@@ -60,7 +60,7 @@ if __name__ == "__main__":
         F, focalLen_Cam0, focalLen_Cam1, f0, pp, valid_bitmap
     )
     print(f"trans={t}\nrot={R}")
-    PLY_Export_TwoCam(t, R, "tmp/Run_TwoCam_LeastSquare_TwoCam.ply")
+    PLY_Export_TwoCam("tmp/Run_TwoCam_LeastSquare_TwoCam.ply", t, R)
 
     # Fから取得したt, R, focalLen_camを用いて、Fを再構築するテスト。
     reconF = Reconstruct_F_from(t, R, f0, focalLen_Cam0, focalLen_Cam1)
@@ -76,6 +76,6 @@ if __name__ == "__main__":
     print(f"Triangulation valid_point_count={valid_point_count}")
 
     PLY_Export_PointList(
-        InlierPointList_from_bitmap(xyz_list, valid_bitmap),
         "tmp/Run_TwoCam_LeastSquare_InlierPoints_3D.ply",
+        InlierPointList_from_bitmap(xyz_list, valid_bitmap),
     )

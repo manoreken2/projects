@@ -4,6 +4,7 @@ import numpy as np
 import cv2 as cv
 import os
 import sys
+import statistics
 
 
 def build_observe_mat_W(fp_list, z_ak_mat):
@@ -70,6 +71,11 @@ def build_Aalpha(fp: FeaturePoint, U):
 
             A[k, L] = s
     return A
+
+
+def sgn(x):
+    # sgn関数。正なら1、負なら-1、0なら0を戻す。
+    return (x > 0) - (x < 0)
 
 
 class MultiCamSelfCalib:
@@ -167,8 +173,8 @@ class MultiCamSelfCalib:
             SigmaVh = np.diag(Sigma) @ Vh_
             S = SigmaVh[0:4, :]
 
-            # P: カメラ行列
-            # X: 3次元点座標
+            # P: カメラ行列(射影変換の不定性を含む。ユークリッド復元必要)
+            # X: 3次元点座標の同次座標(射影変換の不定性を含む)
 
             P_list = []
             for k in range(nCams):
@@ -186,18 +192,455 @@ class MultiCamSelfCalib:
                 f"PrimaryMethod reproj_err={reproj_err}, thr={reproj_err_converge_diff}"
             )
             if np.abs(prev_reproj_err - reproj_err) < reproj_err_converge_diff:
+                self.P_list = P_list
+                self.X_list = X_list
                 return P_list, X_list
             prev_reproj_err = reproj_err
-        return None
+        return None, None
+
+    def build_initial_Kk_list(self, camFocalLen_list):
+        Kk_list = []
+
+        nCams = len(camFocalLen_list)
+        f0 = self.f0
+
+        for k in range(nCams):
+            # Kk: カメラの内部パラメーター行列
+            f_k = camFocalLen_list[k]
+            Kk = np.array([[f_k, 0, 0], [0, f_k, 0], [0, 0, f0]])
+            Kk_list.append(Kk)
+
+        return Kk_list
+
+    def build_A_(self, Qk_list, nCams):
+        """
+        eq.13.41
+        """
+        A_ = np.zeros((4, 4, 4, 4))
+
+        for a in range(4):
+            for b in range(4):
+                for c in range(4):
+                    for d in range(4):
+                        s = 0.0
+                        for i in range(nCams):
+                            Qk = Qk_list[i]
+                            s += (
+                                Qk[0, a] * Qk[0, b] * Qk[0, c] * Qk[0, d]
+                                - Qk[0, a] * Qk[0, b] * Qk[1, c] * Qk[1, d]
+                                - Qk[1, a] * Qk[1, b] * Qk[0, c] * Qk[0, d]
+                                + Qk[1, a] * Qk[1, b] * Qk[1, c] * Qk[1, d]
+                                + 0.25
+                                * (
+                                    Qk[0, a] * Qk[1, b] * Qk[0, c] * Qk[1, d]
+                                    + Qk[1, a] * Qk[0, b] * Qk[0, c] * Qk[1, d]
+                                    + Qk[0, a] * Qk[1, b] * Qk[1, c] * Qk[0, d]
+                                    + Qk[1, a] * Qk[0, b] * Qk[1, c] * Qk[0, d]
+                                )
+                                + 0.25
+                                * (
+                                    Qk[1, a] * Qk[2, b] * Qk[1, c] * Qk[2, d]
+                                    + Qk[2, a] * Qk[1, b] * Qk[1, c] * Qk[2, d]
+                                    + Qk[1, a] * Qk[2, b] * Qk[2, c] * Qk[1, d]
+                                    + Qk[2, a] * Qk[1, b] * Qk[2, c] * Qk[1, d]
+                                )
+                                + 0.25
+                                * (
+                                    Qk[2, a] * Qk[0, b] * Qk[2, c] * Qk[0, d]
+                                    + Qk[0, a] * Qk[2, b] * Qk[2, c] * Qk[0, d]
+                                    + Qk[2, a] * Qk[0, b] * Qk[0, c] * Qk[2, d]
+                                    + Qk[0, a] * Qk[2, b] * Qk[0, c] * Qk[2, d]
+                                )
+                            )
+
+                        A_[a, b, c, d] = s
+
+        return A_
+
+    def build_A(self, A_):
+        """
+        p.210 eq.13.42
+        """
+        sq2 = np.sqrt(2.0)
+        A = np.array(
+            [
+                [
+                    A_[0, 0, 0, 0],
+                    A_[0, 0, 1, 1],
+                    A_[0, 0, 2, 2],
+                    A_[0, 0, 3, 3],
+                    sq2 * A_[0, 0, 0, 1],
+                    sq2 * A_[0, 0, 0, 2],
+                    sq2 * A_[0, 0, 0, 3],
+                    sq2 * A_[0, 0, 1, 2],
+                    sq2 * A_[0, 0, 1, 3],
+                    sq2 * A_[0, 0, 2, 3],
+                ],
+                [
+                    A_[1, 1, 0, 0],
+                    A_[1, 1, 1, 1],
+                    A_[1, 1, 2, 2],
+                    A_[1, 1, 3, 3],
+                    sq2 * A_[1, 1, 0, 1],
+                    sq2 * A_[1, 1, 0, 2],
+                    sq2 * A_[1, 1, 0, 3],
+                    sq2 * A_[1, 1, 1, 2],
+                    sq2 * A_[1, 1, 1, 3],
+                    sq2 * A_[1, 1, 2, 3],
+                ],
+                [
+                    A_[2, 2, 0, 0],
+                    A_[2, 2, 1, 1],
+                    A_[2, 2, 2, 2],
+                    A_[2, 2, 3, 3],
+                    sq2 * A_[2, 2, 0, 1],
+                    sq2 * A_[2, 2, 0, 2],
+                    sq2 * A_[2, 2, 0, 3],
+                    sq2 * A_[2, 2, 1, 2],
+                    sq2 * A_[2, 2, 1, 3],
+                    sq2 * A_[2, 2, 2, 3],
+                ],
+                [
+                    A_[3, 3, 0, 0],
+                    A_[3, 3, 1, 1],
+                    A_[3, 3, 2, 2],
+                    A_[3, 3, 3, 3],
+                    sq2 * A_[3, 3, 0, 1],
+                    sq2 * A_[3, 3, 0, 2],
+                    sq2 * A_[3, 3, 0, 3],
+                    sq2 * A_[3, 3, 1, 2],
+                    sq2 * A_[3, 3, 1, 3],
+                    sq2 * A_[3, 3, 2, 3],
+                ],
+                [
+                    sq2 * A_[0, 1, 0, 0],
+                    sq2 * A_[0, 1, 1, 1],
+                    sq2 * A_[0, 1, 2, 2],
+                    sq2 * A_[0, 1, 3, 3],
+                    2.0 * A_[0, 1, 0, 1],
+                    2.0 * A_[0, 1, 0, 2],
+                    2.0 * A_[0, 1, 0, 3],
+                    2.0 * A_[0, 1, 1, 2],
+                    2.0 * A_[0, 1, 1, 3],
+                    2.0 * A_[0, 1, 2, 3],
+                ],
+                [
+                    sq2 * A_[0, 2, 0, 0],
+                    sq2 * A_[0, 2, 1, 1],
+                    sq2 * A_[0, 2, 2, 2],
+                    sq2 * A_[0, 2, 3, 3],
+                    2.0 * A_[0, 2, 0, 1],
+                    2.0 * A_[0, 2, 0, 2],
+                    2.0 * A_[0, 2, 0, 3],
+                    2.0 * A_[0, 2, 1, 2],
+                    2.0 * A_[0, 2, 1, 3],
+                    2.0 * A_[0, 2, 2, 3],
+                ],
+                [
+                    sq2 * A_[0, 3, 0, 0],
+                    sq2 * A_[0, 3, 1, 1],
+                    sq2 * A_[0, 3, 2, 2],
+                    sq2 * A_[0, 3, 3, 3],
+                    2.0 * A_[0, 3, 0, 1],
+                    2.0 * A_[0, 3, 0, 2],
+                    2.0 * A_[0, 3, 0, 3],
+                    2.0 * A_[0, 3, 1, 2],
+                    2.0 * A_[0, 3, 1, 3],
+                    2.0 * A_[0, 3, 2, 3],
+                ],
+                [
+                    sq2 * A_[1, 2, 0, 0],
+                    sq2 * A_[1, 2, 1, 1],
+                    sq2 * A_[1, 2, 2, 2],
+                    sq2 * A_[1, 2, 3, 3],
+                    2.0 * A_[1, 2, 0, 1],
+                    2.0 * A_[1, 2, 0, 2],
+                    2.0 * A_[1, 2, 0, 3],
+                    2.0 * A_[1, 2, 1, 2],
+                    2.0 * A_[1, 2, 1, 3],
+                    2.0 * A_[1, 2, 2, 3],
+                ],
+                [
+                    sq2 * A_[1, 3, 0, 0],
+                    sq2 * A_[1, 3, 1, 1],
+                    sq2 * A_[1, 3, 2, 2],
+                    sq2 * A_[1, 3, 3, 3],
+                    2.0 * A_[1, 3, 0, 1],
+                    2.0 * A_[1, 3, 0, 2],
+                    2.0 * A_[1, 3, 0, 3],
+                    2.0 * A_[1, 3, 1, 2],
+                    2.0 * A_[1, 3, 1, 3],
+                    2.0 * A_[1, 3, 2, 3],
+                ],
+                [
+                    sq2 * A_[2, 3, 0, 0],
+                    sq2 * A_[2, 3, 1, 1],
+                    sq2 * A_[2, 3, 2, 2],
+                    sq2 * A_[2, 3, 3, 3],
+                    2.0 * A_[2, 3, 0, 1],
+                    2.0 * A_[2, 3, 0, 2],
+                    2.0 * A_[2, 3, 0, 3],
+                    2.0 * A_[2, 3, 1, 2],
+                    2.0 * A_[2, 3, 1, 3],
+                    2.0 * A_[2, 3, 2, 3],
+                ],
+            ]
+        )
+
+        return A
+
+    def Calc_Omega(self, Kk_list):
+        """
+        カメラk番のΩを求める。
+        p.209 §13.3.2
+        特徴点の座標(x,y)は、画像の中心が原点になるよう平行移動してありprincipal_point=(0,0)。
+
+        Kk: カメラの内部パラメーター行列。
+        """
+        P_list = self.P_list
+        nCams = len(P_list)
+
+        Qk_list = []
+        for k in range(nCams):
+            Kk = Kk_list[k]
+            Pk = P_list[k]
+
+            # 手順 13.4 eq.13.40
+            Qk = np.linalg.inv(Kk) @ Pk
+
+            Qk_list.append(Qk)
+
+        # eq.13.41
+        A_ = self.build_A_(Qk_list, nCams)
+
+        # p.210 eq.13.42
+        A = self.build_A(A_)
+
+        _, eigvec = np.linalg.eigh(A)
+        # omega: 最小固有値に対する固有ベクトル
+        omega = eigvec[:, 0].flatten()
+
+        sq2 = np.sqrt(2.0)
+
+        # p.211 eq.13.43
+        Omega = np.array(
+            [
+                [omega[0], omega[4] / sq2, omega[5] / sq2, omega[6] / sq2],
+                [omega[4] / sq2, omega[1], omega[7] / sq2, omega[8] / sq2],
+                [omega[5] / sq2, omega[7] / sq2, omega[2], omega[9] / sq2],
+                [omega[6] / sq2, omega[8] / sq2, omega[9] / sq2, omega[3]],
+            ]
+        )
+
+        # Omegaの固有値を大きい順にs1,s2,s3,s4、
+        # 対応固有ベクトルをo1,o2,o3,o4 (縦長)にセット。
+        s_, o_ = np.linalg.eigh(Omega)
+        s1 = s_[3]
+        s2 = s_[2]
+        s3 = s_[1]
+        s4 = s_[0]
+        o1 = np.vstack(o_[:, 3])
+        o2 = np.vstack(o_[:, 2])
+        o3 = np.vstack(o_[:, 1])
+        o4 = np.vstack(o_[:, 0])
+
+        # Omega: p.211 eq.13.44
+        # H: p.214 eq.13.59
+        if s3 > 0:
+            Omega = s1 * o1 @ o1.T + s2 * o2 @ o2.T + s3 * o3 @ o3.T
+            H = np.array([np.sqrt(s1) * o1, np.sqrt(s2) * o2, np.sqrt(s3) * o3, o4])
+        elif s2 < 0:
+            Omega = -s4 * o4 @ o4.T - s3 * o3 @ o3.T - s2 * o2 @ o2.T
+            H = np.array([np.sqrt(-s4) * o4, np.sqrt(-s3) * o3, np.sqrt(-s2) * o2, o1])
+        else:
+            raise RuntimeError(
+                f"Calc_Omega unexpected sign sigma. sigma3={s3}, sigma2={s2}"
+            )
+
+        H = H.reshape(4, 4)
+
+        return Omega, H, Qk_list
+
+    def improve_Kk_list(self, Omega, Kk_list, Qk_list):
+        """
+        p.213 手順13.5 Kkの補正
+        """
+
+        nCams = len(Kk_list)
+
+        better_Kk_list = []
+        Jk_list = [sys.float_info.max] * nCams
+
+        for k in range(nCams):
+            Kk = Kk_list[k]
+            Qk = Qk_list[k]
+
+            # p.213 eq.13.52
+            Qk_Omega_QkT = Qk @ Omega @ Qk.T
+
+            ck11 = Qk_Omega_QkT[0, 0]
+            # ck21 = Qk_Omega_QkT[1, 0]
+            ck31 = Qk_Omega_QkT[2, 0]
+            ck12 = Qk_Omega_QkT[0, 1]
+            ck22 = Qk_Omega_QkT[1, 1]
+            # ck32 = Qk_Omega_QkT[2, 1]
+            ck13 = Qk_Omega_QkT[0, 2]
+            ck23 = Qk_Omega_QkT[1, 2]
+            ck33 = Qk_Omega_QkT[2, 2]
+
+            # p.213 eq.13.53
+            Fk = ((ck11 + ck22) / ck33) - ((ck13 / ck33) ** 2) - ((ck23 / ck33) ** 2)
+
+            if ck33 <= 0 or Fk <= 0:
+                # Kk修正不要。
+                continue
+
+            if False:
+                # p.213 eq.13.54 光軸点の修正。
+                du0k = ck13 / ck33
+                dv0k = ck23 / ck33
+            else:
+                # 光軸点の修正はスキップ。
+                du0k = 0
+                dv0k = 0
+
+            # p.213 eq.13.54 焦点距離fkの修正量。
+            dfk = np.sqrt(0.5 * (((ck11 + ck22) / ck33) - du0k**2 - dv0k**2))
+
+            # p.213 eq.13.55
+            dKk = np.array([[dfk, 0, du0k], [0, dfk, dv0k], [0, 0, 1]])
+
+            # p.213 eq.13.56
+            newKk = np.sqrt(ck33) * Kk @ dKk
+            better_Kk_list.append(newKk)
+
+            # p.215 eq.13.60
+            Jk = (
+                (ck11 / ck33 - 1.0) ** 2
+                + (ck22 / ck33 - 1.0) ** 2
+                + 2.0 * (ck12**2 + ck23**2 + ck31**2) / (ck33**2)
+            )
+            Jk_list[k] = Jk
+
+        return better_Kk_list, Jk_list
+
+    def Euclidean_upgrade(self, camFocalLen_list, J_threshold):
+        """
+        p.215 手順13.6
+        """
+        Jmed = sys.float_info.max
+        Kk_list = self.build_initial_Kk_list(camFocalLen_list)
+
+        prev_Jmed = Jmed
+
+        while True:
+            Omega, H, Qk_list = self.Calc_Omega(Kk_list)
+
+            Kk_list, Jk_list = self.improve_Kk_list(Omega, Kk_list, Qk_list)
+
+            # p.215 eq.13.61
+            Jmed = statistics.median(Jk_list)
+            print(f"Euclidean_upgrade Jmed={Jmed}")
+            if Jmed < J_threshold or Jmed > prev_Jmed:
+                # 終了条件達成。
+                return H, Kk_list
+
+            prev_Jmed = Jmed
+
+    def Extract_Cam_Extrinsic(self, P_list, X_list, H, Kk_list):
+        """
+        p.216 §13.4 手順13.7
+        各カメラの並進tと回転Rを求める。
+        """
+        nPoints = len(X_list)
+        nCams = len(P_list)
+
+        H_inv = np.linalg.inv(H)
+
+        # p.216 eq.13.63
+        X3d_list = []
+        for a in range(nPoints):
+            Xa = X_list[a]
+            Xa = H_inv @ Xa
+
+            # p.198 eq.13.2
+            X3d = np.array([[Xa[0] / Xa[3]], [Xa[1] / Xa[3]], [Xa[2] / Xa[3]]])
+            X3d_list.append(X3d)
+
+        Rk_list = []
+        tk_list = []
+
+        # p.216 eq.13.64
+        for k in range(nCams):
+            Pk = P_list[k]
+            Pk = Pk @ H
+
+            # p.216 eq. 13.65
+            Kk = Kk_list[k]
+            KkInv_Pk = np.linalg.inv(Kk) @ Pk
+            Ak = KkInv_Pk[:, 0:3]
+            bk = np.vstack(KkInv_Pk[:, 3:4])
+
+            # p.216 eq.13.66
+            detAk = np.linalg.det(Ak)
+            sign_detAk = np.sign(detAk)
+            detAk = np.abs(detAk)
+            s = detAk ** (1.0 / 3.0)
+            if sign_detAk < 1.0:
+                s = -s
+
+            # p.217 eq.13.67
+            Ak = Ak * (1.0 / s)
+            bk = bk * (1.0 / s)
+
+            # p.217 eq.13.68
+            Ua, SigmaA, VaT = np.linalg.svd(Ak, full_matrices=False)
+
+            # p.217 eq.13.69
+            Rk = VaT.T @ Ua.T
+            Rk_list.append(Rk)
+
+            # p.217 eq.13.70
+            tk = -Rk @ bk
+            tk_list.append(tk)
+
+            # for a in range(nPoints):
+            #    # 第kカメラ座標系から見た点aの座標。
+            #    # p.217 eq.13.71
+            #    Xa = X3d_list[a]
+            #    Xk = Rk.T @ (Xa - tk)
+            #    if sgn(Xk[0])+sgn(Xk[1])+sgn(Xk[2]) <0:
+            #        Xk = -Xk
+
+        return Rk_list, tk_list
 
 
-def Run_MultiCamSelfCalib(csv_path, f0, reproj_err_threshold):
-    fp_list = CSV_Read_FeaturePointList(csv_path, f0)
+def Run_MultiCamSelfCalib(
+    in_feature_point_list_path,
+    result_campose_csv,
+    result_campose_ply,
+    f0,
+    reproj_err_threshold,
+    J_threshold,
+):
+    fp_list = CSV_Read_FeaturePointList(in_feature_point_list_path, f0)
+
+    nCams = fp_list[0].CameraCount()
 
     sc = MultiCamSelfCalib(f0)
-    P_list, _ = sc.PrimaryMethod(fp_list, reproj_err_threshold)
+    P_list, X_list = sc.PrimaryMethod(fp_list, reproj_err_threshold)
 
-    print(f"P_list=\n{P_list}")
+    default_camFocalLen_list = [1] * nCams
+
+    # Kk : cam intrinsic mat
+    H, Kk_list = sc.Euclidean_upgrade(default_camFocalLen_list, J_threshold)
+
+    Rk_list, tk_list = sc.Extract_Cam_Extrinsic(P_list, X_list, H, Kk_list)
+
+    # print(f"Rk_list={Rk_list}\ntk_list={tk_list}")
+
+    CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list)
+    PLY_Export_MultiCam(result_campose_ply, tk_list, Rk_list)
 
     return True
 
@@ -208,7 +651,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--multicam_csv",
+        "--in_feature_point_list_csv",
         type=str,
         help="input csv file",
         default="tmp/0000_0001_0002.csv",
@@ -226,9 +669,34 @@ if __name__ == "__main__":
         help="reprojection error converge iteration diff in pixel.",
         default=0.01,
     )
+    parser.add_argument(
+        "--j_threshold",
+        type=float,
+        help="Euclidean upgrade threshold in pixel.",
+        default=2.0,
+    )
+    parser.add_argument(
+        "--result_campose_csv",
+        type=str,
+        help="output camera pose csv file",
+        default="tmp/campose_0000_0001_0002.csv",
+    )
+    parser.add_argument(
+        "--result_campose_ply",
+        type=str,
+        help="output camera pose ply file",
+        default="tmp/campose_0000_0001_0002.ply",
+    )
     args = parser.parse_args()
 
-    br = Run_MultiCamSelfCalib(args.multicam_csv, args.f0, args.reproj_err_converge)
+    br = Run_MultiCamSelfCalib(
+        args.in_feature_point_list_csv,
+        args.result_campose_csv,
+        args.result_campose_ply,
+        args.f0,
+        args.reproj_err_converge,
+        args.j_threshold,
+    )
     if br == True:
         rv = 0
     else:
