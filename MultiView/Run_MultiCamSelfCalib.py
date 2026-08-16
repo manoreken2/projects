@@ -73,6 +73,30 @@ def build_Aalpha(fp: FeaturePoint, U):
     return A
 
 
+def build_Calpha(fp: FeaturePoint, U):
+    """
+    特徴点fpに関する行列Cを作る。(faster法)
+    primary_method.cc faster_primary_method 相当。
+
+    Cは CamNum x 4 行列。
+    C(kp, i) = (x_ak / |x_ak|)・u_ik
+    """
+    nCams = fp.CameraCount()
+
+    C = np.zeros((nCams, 4))
+
+    for k in range(nCams):
+        x_ak = fp.x_ak(k)
+        x_ak_nrm = np.linalg.norm(x_ak)
+        x_ak_hat = x_ak / x_ak_nrm
+
+        for i in range(4):
+            u_ik = U[3 * k : 3 * k + 3, i]
+            C[k, i] = np.vdot(x_ak_hat, u_ik)
+
+    return C
+
+
 class MultiCamSelfCalib:
     def __init__(self, f0):
         self.f0 = f0
@@ -193,6 +217,88 @@ class MultiCamSelfCalib:
             prev_reproj_err = reproj_err
         return None, None
 
+    def PrimaryMethodFaster(self, fp_list, reproj_err_converge_diff):
+        """
+        基本法 (faster版)。
+        primary_method.cc faster_primary_method 相当。
+
+        射影深度z_akの更新を、originalの
+        Aalpha(固有分解)の代わりに、C行列のSVDで行うことで高速化する。
+
+        reproj_err_converge_diff: 再投影誤差改善量の打ち切り値(pixel)
+
+        """
+        nPoints = len(fp_list)
+        nCams = fp_list[0].CameraCount()
+
+        z_ak_mat = np.ones((nPoints, nCams))
+
+        # P: カメラ行列 3x4
+        # X: 特徴点の3次元座標の同次座標 4x1
+        P_list = []
+        X_list = []
+
+        prev_reproj_err = sys.float_info.max
+        for loop in range(10000):
+            W = build_observe_mat_W(fp_list, z_ak_mat)
+            W = normalize_observe_mat(W)
+
+            U_, Sigma, Vh_ = np.linalg.svd(W, full_matrices=False)
+
+            # Uは、3Mx4 行列。
+            U = U_[:, 0:4]
+
+            for a in range(nPoints):
+                fp = fp_list[a]
+                C = build_Calpha(fp, U)
+
+                # CのSVD。特異値は降順なので、
+                # 左特異ベクトルの第0列が最大特異値に対応。
+                Uc, _, _ = np.linalg.svd(C, full_matrices=False)
+                xi_a = Uc[:, 0]
+
+                # xi_aの符号を選ぶ。
+                if np.sum(xi_a) < 0:
+                    xi_a = -xi_a
+
+                # 射影的奥行き更新。
+                # (左特異ベクトルは単位ベクトル。)
+                for k in range(nCams):
+                    z = xi_a[k] / np.linalg.norm(fp.x_ak(k))
+                    z_ak_mat[a, k] = z
+
+            # p.201 eq.13.10
+            M = U
+
+            # Sは、4xN行列。
+            SigmaVh = np.diag(Sigma) @ Vh_
+            S = SigmaVh[0:4, :]
+
+            # P: カメラ行列(射影変換の不定性を含む。ユークリッド復元必要)
+            # X: 3次元点座標の同次座標(射影変換の不定性を含む)
+
+            P_list = []
+            for k in range(nCams):
+                P = M[3 * k : 3 * k + 3, :]
+                P_list.append(P)
+
+            X_list = []
+            for a in range(nPoints):
+                X = S[0:4, a]
+                X = X.reshape(4, 1)
+                X_list.append(X)
+
+            reproj_err = self.calc_reproj_err(fp_list, P_list, X_list)
+            print(
+                f"PrimaryMethodFaster {loop} reproj_err={reproj_err}, thr={reproj_err_converge_diff}"
+            )
+            if np.abs(prev_reproj_err - reproj_err) < reproj_err_converge_diff:
+                self.P_list = P_list
+                self.X_list = X_list
+                return P_list, X_list
+            prev_reproj_err = reproj_err
+        return None, None
+
     def build_initial_Kk_list(self, camFocalLen_list):
         Kk_list = []
 
@@ -206,183 +312,6 @@ class MultiCamSelfCalib:
             Kk_list.append(Kk)
 
         return Kk_list
-
-    def build_A_(self, Qk_list, nCams):
-        """
-        eq.13.41
-        """
-        A_ = np.zeros((4, 4, 4, 4))
-
-        for a in range(4):
-            for b in range(4):
-                for c in range(4):
-                    for d in range(4):
-                        s = 0.0
-                        for i in range(nCams):
-                            Qk = Qk_list[i]
-                            s += (
-                                Qk[0, a] * Qk[0, b] * Qk[0, c] * Qk[0, d]
-                                - Qk[0, a] * Qk[0, b] * Qk[1, c] * Qk[1, d]
-                                - Qk[1, a] * Qk[1, b] * Qk[0, c] * Qk[0, d]
-                                + Qk[1, a] * Qk[1, b] * Qk[1, c] * Qk[1, d]
-                                + 0.25
-                                * (
-                                    Qk[0, a] * Qk[1, b] * Qk[0, c] * Qk[1, d]
-                                    + Qk[1, a] * Qk[0, b] * Qk[0, c] * Qk[1, d]
-                                    + Qk[0, a] * Qk[1, b] * Qk[1, c] * Qk[0, d]
-                                    + Qk[1, a] * Qk[0, b] * Qk[1, c] * Qk[0, d]
-                                )
-                                + 0.25
-                                * (
-                                    Qk[1, a] * Qk[2, b] * Qk[1, c] * Qk[2, d]
-                                    + Qk[2, a] * Qk[1, b] * Qk[1, c] * Qk[2, d]
-                                    + Qk[1, a] * Qk[2, b] * Qk[2, c] * Qk[1, d]
-                                    + Qk[2, a] * Qk[1, b] * Qk[2, c] * Qk[1, d]
-                                )
-                                + 0.25
-                                * (
-                                    Qk[2, a] * Qk[0, b] * Qk[2, c] * Qk[0, d]
-                                    + Qk[0, a] * Qk[2, b] * Qk[2, c] * Qk[0, d]
-                                    + Qk[2, a] * Qk[0, b] * Qk[0, c] * Qk[2, d]
-                                    + Qk[0, a] * Qk[2, b] * Qk[0, c] * Qk[2, d]
-                                )
-                            )
-
-                        A_[a, b, c, d] = s
-
-        return A_
-
-    def build_A(self, A_):
-        """
-        p.210 eq.13.42
-        """
-        sq2 = np.sqrt(2.0)
-        A = np.array(
-            [
-                [
-                    A_[0, 0, 0, 0],
-                    A_[0, 0, 1, 1],
-                    A_[0, 0, 2, 2],
-                    A_[0, 0, 3, 3],
-                    sq2 * A_[0, 0, 0, 1],
-                    sq2 * A_[0, 0, 0, 2],
-                    sq2 * A_[0, 0, 0, 3],
-                    sq2 * A_[0, 0, 1, 2],
-                    sq2 * A_[0, 0, 1, 3],
-                    sq2 * A_[0, 0, 2, 3],
-                ],
-                [
-                    A_[1, 1, 0, 0],
-                    A_[1, 1, 1, 1],
-                    A_[1, 1, 2, 2],
-                    A_[1, 1, 3, 3],
-                    sq2 * A_[1, 1, 0, 1],
-                    sq2 * A_[1, 1, 0, 2],
-                    sq2 * A_[1, 1, 0, 3],
-                    sq2 * A_[1, 1, 1, 2],
-                    sq2 * A_[1, 1, 1, 3],
-                    sq2 * A_[1, 1, 2, 3],
-                ],
-                [
-                    A_[2, 2, 0, 0],
-                    A_[2, 2, 1, 1],
-                    A_[2, 2, 2, 2],
-                    A_[2, 2, 3, 3],
-                    sq2 * A_[2, 2, 0, 1],
-                    sq2 * A_[2, 2, 0, 2],
-                    sq2 * A_[2, 2, 0, 3],
-                    sq2 * A_[2, 2, 1, 2],
-                    sq2 * A_[2, 2, 1, 3],
-                    sq2 * A_[2, 2, 2, 3],
-                ],
-                [
-                    A_[3, 3, 0, 0],
-                    A_[3, 3, 1, 1],
-                    A_[3, 3, 2, 2],
-                    A_[3, 3, 3, 3],
-                    sq2 * A_[3, 3, 0, 1],
-                    sq2 * A_[3, 3, 0, 2],
-                    sq2 * A_[3, 3, 0, 3],
-                    sq2 * A_[3, 3, 1, 2],
-                    sq2 * A_[3, 3, 1, 3],
-                    sq2 * A_[3, 3, 2, 3],
-                ],
-                [
-                    sq2 * A_[0, 1, 0, 0],
-                    sq2 * A_[0, 1, 1, 1],
-                    sq2 * A_[0, 1, 2, 2],
-                    sq2 * A_[0, 1, 3, 3],
-                    2.0 * A_[0, 1, 0, 1],
-                    2.0 * A_[0, 1, 0, 2],
-                    2.0 * A_[0, 1, 0, 3],
-                    2.0 * A_[0, 1, 1, 2],
-                    2.0 * A_[0, 1, 1, 3],
-                    2.0 * A_[0, 1, 2, 3],
-                ],
-                [
-                    sq2 * A_[0, 2, 0, 0],
-                    sq2 * A_[0, 2, 1, 1],
-                    sq2 * A_[0, 2, 2, 2],
-                    sq2 * A_[0, 2, 3, 3],
-                    2.0 * A_[0, 2, 0, 1],
-                    2.0 * A_[0, 2, 0, 2],
-                    2.0 * A_[0, 2, 0, 3],
-                    2.0 * A_[0, 2, 1, 2],
-                    2.0 * A_[0, 2, 1, 3],
-                    2.0 * A_[0, 2, 2, 3],
-                ],
-                [
-                    sq2 * A_[0, 3, 0, 0],
-                    sq2 * A_[0, 3, 1, 1],
-                    sq2 * A_[0, 3, 2, 2],
-                    sq2 * A_[0, 3, 3, 3],
-                    2.0 * A_[0, 3, 0, 1],
-                    2.0 * A_[0, 3, 0, 2],
-                    2.0 * A_[0, 3, 0, 3],
-                    2.0 * A_[0, 3, 1, 2],
-                    2.0 * A_[0, 3, 1, 3],
-                    2.0 * A_[0, 3, 2, 3],
-                ],
-                [
-                    sq2 * A_[1, 2, 0, 0],
-                    sq2 * A_[1, 2, 1, 1],
-                    sq2 * A_[1, 2, 2, 2],
-                    sq2 * A_[1, 2, 3, 3],
-                    2.0 * A_[1, 2, 0, 1],
-                    2.0 * A_[1, 2, 0, 2],
-                    2.0 * A_[1, 2, 0, 3],
-                    2.0 * A_[1, 2, 1, 2],
-                    2.0 * A_[1, 2, 1, 3],
-                    2.0 * A_[1, 2, 2, 3],
-                ],
-                [
-                    sq2 * A_[1, 3, 0, 0],
-                    sq2 * A_[1, 3, 1, 1],
-                    sq2 * A_[1, 3, 2, 2],
-                    sq2 * A_[1, 3, 3, 3],
-                    2.0 * A_[1, 3, 0, 1],
-                    2.0 * A_[1, 3, 0, 2],
-                    2.0 * A_[1, 3, 0, 3],
-                    2.0 * A_[1, 3, 1, 2],
-                    2.0 * A_[1, 3, 1, 3],
-                    2.0 * A_[1, 3, 2, 3],
-                ],
-                [
-                    sq2 * A_[2, 3, 0, 0],
-                    sq2 * A_[2, 3, 1, 1],
-                    sq2 * A_[2, 3, 2, 2],
-                    sq2 * A_[2, 3, 3, 3],
-                    2.0 * A_[2, 3, 0, 1],
-                    2.0 * A_[2, 3, 0, 2],
-                    2.0 * A_[2, 3, 0, 3],
-                    2.0 * A_[2, 3, 1, 2],
-                    2.0 * A_[2, 3, 1, 3],
-                    2.0 * A_[2, 3, 2, 3],
-                ],
-            ]
-        )
-
-        return A
 
     def build_Omega(self, omega):
         """
@@ -421,10 +350,10 @@ class MultiCamSelfCalib:
             Qk_list.append(Qk)
 
         # eq.13.41
-        A_ = self.build_A_(Qk_list, nCams)
+        A_ = build_A_(Qk_list)
 
         # p.210 eq.13.42
-        A = self.build_A(A_)
+        A = build_A(A_)
 
         eigval, eigvec = np.linalg.eigh(A)
         # omega: 最小固有値に対する固有ベクトル。(単位長さに正規化。)
@@ -675,7 +604,7 @@ def Run_MultiCamSelfCalib(
     nCams = fp_list[0].CameraCount()
 
     sc = MultiCamSelfCalib(f0)
-    P_list, X_list = sc.PrimaryMethod(fp_list, reproj_err_threshold)
+    P_list, X_list = sc.PrimaryMethodFaster(fp_list, reproj_err_threshold)
 
     default_camFocalLen_list = [f0] * nCams
 
