@@ -1518,3 +1518,92 @@ def build_A(A_):
     )
 
     return A
+
+
+def build_observe_mat_W(fp_list, z_ak_mat):
+    """
+    p.201 eq.13.12
+    観測行列W作成。
+    """
+    nPoints = len(fp_list)
+    nCams = fp_list[0].CameraCount()
+
+    #            行の数,    列の数
+    W = np.zeros((3 * nCams, nPoints))
+
+    for a in range(nPoints):
+        fp = fp_list[a]
+        for k in range(nCams):
+            x_ak = fp.x_ak(k)
+            z_ak = z_ak_mat[a, k]
+            W[3 * k + 0 : 3 * k + 3, a : a + 1] = x_ak * z_ak
+
+    return W
+
+
+def normalize_vec(v):
+    return v / np.linalg.norm(v)
+
+
+def normalize_observe_mat(W):
+    """
+    観測行列Wの各列を単位ベクトルに正規化する。
+    """
+    nPoints = W.shape[1]
+
+    newW = W.copy()
+    for p in range(nPoints):
+        newW[:, p] = normalize_vec(W[:, p])
+
+    return newW
+
+
+def build_Aalpha(fp: FeaturePoint, U):
+    """
+    特徴点fpに関する行列Aalphaを作る。
+    p.202 eq.13.13
+    """
+    nCams = fp.CameraCount()
+
+    A = np.zeros((nCams, nCams))
+
+    for k in range(nCams):
+        x_ak = fp.x_ak(k)
+        norm_x_ak = np.linalg.norm(x_ak)
+        for L in range(nCams):
+            x_aL = fp.x_ak(L)
+            norm_x_aL = np.linalg.norm(x_aL)
+
+            scale = 1.0 / (norm_x_ak * norm_x_aL)
+
+            s = 0.0
+            for i in range(4):
+                u_ik = U[3 * k : 3 * k + 3, i : i + 1]
+                u_iL = U[3 * L : 3 * L + 3, i : i + 1]
+                s += np.vdot(x_ak, u_ik) * np.vdot(x_aL, u_iL) * scale
+
+            A[k, L] = s
+    return A
+
+
+def build_Calpha(fp: FeaturePoint, U):
+    """
+    特徴点fpに関する行列Cを作る。(faster法)
+
+    Cは CamNum x 4 行列。
+    C(kp, i) = (x_ak / |x_ak|)・u_ik
+    """
+    nCams = fp.CameraCount()
+
+    C = np.zeros((nCams, 4))
+
+    for k in range(nCams):
+        x_ak = fp.x_ak(k)
+        x_ak_nrm = np.linalg.norm(x_ak)
+        x_ak_hat = x_ak / x_ak_nrm
+
+        for i in range(4):
+            u_ik = U[3 * k : 3 * k + 3, i]
+            C[k, i] = np.vdot(x_ak_hat, u_ik)
+
+    return C
