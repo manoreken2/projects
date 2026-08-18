@@ -918,16 +918,23 @@ def PointPairList_Shift(pp_list, shift_xy):
     return Point2dPair(np.asarray(r0_list), np.asarray(r1_list))
 
 
-def CSV_Write_CamPose_list(path: str, t_list, R_list):
+def CSV_Write_CamPose_list(path: str, t_list, R_list, cam_id_list=None):
     with open(path, "w", newline="\n") as f:
         # t: 1行3列 列ベクトル
         # R: 3行3列 回転ベクトル
 
-        f.write(f"tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
+        if cam_id_list is None:
+            f.write("tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
+        else:
+            f.write("camera_id, tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
+
         for k in range(len(t_list)):
             t = t_list[k]
             R = R_list[k]
-            f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
+            if cam_id_list is None:
+                f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
+            else:
+                f.write(f"{cam_id_list[k]}, {t[0,0]}, {t[1,0]}, {t[2,0]}, ")
             f.write(f"{R[0,0]}, {R[0,1]}, {R[0,2]}, ")
             f.write(f"{R[1,0]}, {R[1,1]}, {R[1,2]}, ")
             f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}\n")
@@ -935,6 +942,14 @@ def CSV_Write_CamPose_list(path: str, t_list, R_list):
 
 def CSV_Write_CamPose(path: str, t, R):
     CSV_Write_CamPose_list(path, [t], [R])
+
+
+def CSV_Write_Point3d_list(path: str, p_list):
+    with open(path, "w", newline="\n") as f:
+        f.write("X, Y, Z\n")
+        for p in p_list:
+            xyz = p.flatten()
+            f.write(f"{xyz[0]}, {xyz[1]}, {xyz[2]}\n")
 
 
 def CSV_Write_TwoCamFocalLengths(path: str, FL0, FL1):

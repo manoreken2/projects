@@ -1,10 +1,50 @@
 import argparse
+import csv
 from Common import *
 import numpy as np
 import cv2 as cv
 import os
 import sys
 import statistics
+
+
+def SelectF0_FromFeatureSpread(feature_point_list_csv):
+    """
+    3カメラ対応点CSVの特徴点座標の広がりから、f0を自動決定する。
+
+    f0は、画像中心を原点とした特徴点座標(u, v)が、
+    正規化ベクトル x_ak = [u/f0, v/f0, 1] においてO(1)になるよう、
+    座標の代表的な広がり(最大絶対値)に合わせる。
+
+    戻り値: 推定したf0。CSVが読めない/座標が無い場合はNone。
+    """
+    abs_u = []
+    abs_v = []
+    with open(feature_point_list_csv) as f:
+        r = csv.reader(f, delimiter=",")
+        for l in r:
+            # ヘッダ行や空行をスキップ。
+            if len(l) < 9:
+                continue
+            try:
+                # cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC
+                for i in range(3):
+                    abs_u.append(abs(float(l[1 + 3 * i])))
+                    abs_v.append(abs(float(l[2 + 3 * i])))
+            except (ValueError, TypeError):
+                continue
+
+    if not abs_u:
+        return None
+
+    # 外れ値の影響を抑えるため、99.5パーセンタイルで代表させる。
+    u_q = np.percentile(abs_u, 99.5)
+    v_q = np.percentile(abs_v, 99.5)
+    f0 = max(u_q, v_q)
+
+    if f0 <= 0:
+        return None
+    return f0
 
 
 class MultiCamSelfCalib:
@@ -504,11 +544,19 @@ def Run_MultiCamSelfCalib(
     in_feature_point_list_path,
     result_campose_csv,
     result_campose_ply,
+    result_points3d_csv,
     result_points3d_ply,
-    f0,
     reproj_err_threshold,
     J_threshold,
+    cam_id_list=None,
 ):
+    f0_auto = SelectF0_FromFeatureSpread(in_feature_point_list_path)
+    if f0_auto is None:
+        raise RuntimeError("auto f0: failed to compute; fall back to provided f0.")
+    else:
+        print(f"auto f0 = {f0_auto}")
+        f0 = f0_auto
+
     fp_list = CSV_Read_FeaturePointList(in_feature_point_list_path, f0)
 
     nCams = fp_list[0].CameraCount()
@@ -526,7 +574,8 @@ def Run_MultiCamSelfCalib(
 
     # print(f"Rk_list={Rk_list}\ntk_list={tk_list}")
 
-    CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list)
+    CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list, cam_id_list)
+    CSV_Write_Point3d_list(result_points3d_csv, X3d_list)
     PLY_Export_MultiCam(result_campose_ply, tk_list, Rk_list)
     PLY_Export_PointList(result_points3d_ply, X3d_list)
 
@@ -545,6 +594,31 @@ if __name__ == "__main__":
         default="tmp/0000_0001_0002.csv",
     )
 
+    parser.add_argument(
+        "--cam1_id",
+        type=int,
+        default=1,
+        help="camera id 1 (written to camera pose CSV).",
+    )
+    parser.add_argument(
+        "--cam2_id",
+        type=int,
+        default=2,
+        help="camera id 2 (written to camera pose CSV).",
+    )
+    parser.add_argument(
+        "--cam3_id",
+        type=int,
+        default=3,
+        help="camera id 3 (written to camera pose CSV).",
+    )
+    parser.add_argument(
+        "--no_auto_f0",
+        action="store_false",
+        dest="auto_f0",
+        default=True,
+        help="disable auto f0 selection (use --f0 value).",
+    )
     parser.add_argument(
         "--f0",
         type=float,
@@ -576,6 +650,12 @@ if __name__ == "__main__":
         default="tmp/result_campose_0000_0001_0002.ply",
     )
     parser.add_argument(
+        "--result_points3d_csv",
+        type=str,
+        help="output 3d points CSV file",
+        default="tmp/result_points_0000_0001_0002.csv",
+    )
+    parser.add_argument(
         "--result_points3d_ply",
         type=str,
         help="output 3d points PLY file",
@@ -587,10 +667,13 @@ if __name__ == "__main__":
         args.in_feature_point_list_csv,
         args.result_campose_csv,
         args.result_campose_ply,
+        args.result_points3d_csv,
         args.result_points3d_ply,
         args.f0,
+        args.auto_f0,
         args.reproj_err_converge,
         args.j_threshold,
+        [args.cam1_id, args.cam2_id, args.cam3_id],
     )
     if br == True:
         rv = 0

@@ -79,19 +79,19 @@ def SIFT_FLANN3(img1, img2, img3, ratio=0.7, ransac_threshold=35.0):
 
 
 def Run_FeatureMatch3(
-    cam1id,
-    img1path,
-    cam2id,
-    img2path,
-    cam3id,
-    img3path,
+    img1_path,
+    cam1_id,
+    img2_path,
+    cam2_id,
+    img3_path,
+    cam3_id,
+    result_csv,
     lowes_ratio,
     ransac_threshold,
-    result_csv,
 ):
-    img1 = cv.imread(img1path, cv.IMREAD_GRAYSCALE)
-    img2 = cv.imread(img2path, cv.IMREAD_GRAYSCALE)
-    img3 = cv.imread(img3path, cv.IMREAD_GRAYSCALE)
+    img1 = cv.imread(img1_path, cv.IMREAD_GRAYSCALE)
+    img2 = cv.imread(img2_path, cv.IMREAD_GRAYSCALE)
+    img3 = cv.imread(img3_path, cv.IMREAD_GRAYSCALE)
 
     img1_shape = img1.shape
     xyz_triplet = SIFT_FLANN3(img1, img2, img3, lowes_ratio, ransac_threshold)
@@ -103,8 +103,9 @@ def Run_FeatureMatch3(
     # CSVを出力します。
     shift_xy = np.array([-img1_shape[1] * 0.5, -img1_shape[0] * 0.5])
     CSV_Write_MatchedPointList3(
-        result_csv, xyz_triplet, shift_xy, [cam1id, cam2id, cam3id]
+        result_csv, xyz_triplet, shift_xy, [cam1_id, cam2_id, cam3_id]
     )
+    return True
 
 
 if __name__ == "__main__":
@@ -118,22 +119,16 @@ if __name__ == "__main__":
         default="Synthetic_OctPrism/0001.png",
     )
     parser.add_argument(
-        "--img2",
-        type=str,
-        help="image 2 png file",
-        default="Synthetic_OctPrism/0002.png",
-    )
-    parser.add_argument(
-        "--img3",
-        type=str,
-        help="image 3 png file",
-        default="Synthetic_OctPrism/0003.png",
-    )
-    parser.add_argument(
         "--cam1id",
         type=int,
         default=1,
         help="image 1 camera id",
+    )
+    parser.add_argument(
+        "--img2",
+        type=str,
+        help="image 2 png file",
+        default="Synthetic_OctPrism/0002.png",
     )
     parser.add_argument(
         "--cam2id",
@@ -142,19 +137,25 @@ if __name__ == "__main__":
         help="image 2 camera id",
     )
     parser.add_argument(
+        "--img3",
+        type=str,
+        help="image 3 png file",
+        default="Synthetic_OctPrism/0003.png",
+    )
+    parser.add_argument(
         "--cam3id",
         type=int,
         default=3,
         help="image 3 camera id",
     )
     parser.add_argument(
-        "--result_csv",
+        "--result_feature_point_list_csv",
         type=str,
-        help="CSV file to write two cam feature point list",
+        help="CSV file to write 3 cam feature point list",
         default="tmp/op0001_0002_0003.csv",
     )
     parser.add_argument(
-        "--ratio",
+        "--lowes_ratio",
         type=float,
         default=0.7,
         help="Lowe ratio test threshold (0.7 default, larger = more candidates)",
@@ -168,13 +169,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     Run_FeatureMatch3(
-        args.cam1id,
         args.img1,
-        args.cam2id,
+        args.cam1id,
         args.img2,
-        args.cam3id,
+        args.cam2id,
         args.img3,
-        args.ratio,
+        args.cam3id,
+        args.result_feature_point_list_csv,
+        args.lowes_ratio,
         args.ransac_threshold,
-        args.result_csv,
     )

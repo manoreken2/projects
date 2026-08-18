@@ -1,0 +1,374 @@
+import argparse
+import csv
+import os
+
+import numpy as np
+
+from Common import CSV_Write_CamPose_list, PLY_Export_MultiCam
+
+
+def inv_rigid(M):
+    """
+    4x4剛体変換行列 [R t; 0 0 0 1] の逆行列を返す。
+    """
+    M = np.asarray(M, dtype=float)
+    R = M[:3, :3]
+    t = M[:3, 3]
+    M_inv = np.eye(4)
+    M_inv[:3, :3] = R.T
+    M_inv[:3, 3] = -R.T @ t
+    return M_inv
+
+
+def R_to_quat(R):
+    """
+    回転行列(3x3)をクォータニオン [w, x, y, z] に変換する。
+    """
+    R = np.asarray(R, dtype=float)
+    tr = R[0, 0] + R[1, 1] + R[2, 2]
+    if tr > 0:
+        s = np.sqrt(tr + 1.0) * 2.0
+        w = 0.25 * s
+        x = (R[2, 1] - R[1, 2]) / s
+        y = (R[0, 2] - R[2, 0]) / s
+        z = (R[1, 0] - R[0, 1]) / s
+    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
+        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
+        w = (R[2, 1] - R[1, 2]) / s
+        x = 0.25 * s
+        y = (R[0, 1] + R[1, 0]) / s
+        z = (R[0, 2] + R[2, 0]) / s
+    elif R[1, 1] > R[2, 2]:
+        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
+        w = (R[0, 2] - R[2, 0]) / s
+        x = (R[0, 1] + R[1, 0]) / s
+        y = 0.25 * s
+        z = (R[1, 2] + R[2, 1]) / s
+    else:
+        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
+        w = (R[1, 0] - R[0, 1]) / s
+        x = (R[0, 2] + R[2, 0]) / s
+        y = (R[1, 2] + R[2, 1]) / s
+        z = 0.25 * s
+    q = np.array([w, x, y, z])
+    return q / np.linalg.norm(q)
+
+
+def quat_to_R(q):
+    """
+    クォータニオン [w, x, y, z] を回転行列(3x3)に変換する。
+    """
+    q = np.asarray(q, dtype=float)
+    q = q / np.linalg.norm(q)
+    w, x, y, z = q
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def average_rotation(R_list):
+    """
+    複数の回転行列の平均を、クォータニオン平均で求める。
+    回転が近いことを仮定し、符号の反転を最初のクォータニオンに揃えて加算する。
+    """
+    if len(R_list) == 1:
+        return np.asarray(R_list[0], dtype=float)
+
+    q_mean = R_to_quat(R_list[0])
+    for R in R_list[1:]:
+        q = R_to_quat(R)
+        if np.dot(q_mean, q) < 0:
+            q = -q
+        q_mean = q_mean + q
+    q_mean = q_mean / np.linalg.norm(q_mean)
+    return quat_to_R(q_mean)
+
+
+def estimate_similarity_transform(final, d, overlap_cams):
+    """
+    重複カメラの姿勢行列のペアから、フレーム間の相似変換 (s, R, t) を
+    頑健に推定する。
+
+    各ファイルは並進tに未知の絶対スケールを持つため、剛体変換ではなく
+    スケールsを含む相似変換で接続する。
+
+      - スケールs: 共有ベースライン(重複カメラ2台の並進差)の長さの比
+                    s = |final[c2] - final[c1]| / |d[c2] - d[c1]|
+      - 回転R:      重複カメラそれぞれの姿勢から得た回転のクォータニオン平均
+      - 並進t:      最小の重複カメラ(アンカー)が final の位置に一致するよう決定
+
+    これにより、アンカーカメラは final の位置に留まりつつ、そのファイル内の
+    相対ベースラインが共通スケールに揃う。
+    """
+    cams = sorted(overlap_cams)
+    c1, c2 = cams[0], cams[1]  # アンカーと、ベースライン用の2台目
+
+    base_final = final[c2][:3, 3] - final[c1][:3, 3]
+    base_raw = d[c2][:3, 3] - d[c1][:3, 3]
+
+    s = np.linalg.norm(base_final) / np.linalg.norm(base_raw)
+
+    R = average_rotation([final[c][:3, :3] @ d[c][:3, :3].T for c in overlap_cams])
+
+    # アンカー(c1)の位置を final に一致させる。
+    t = final[c1][:3, 3] - s * (R @ d[c1][:3, 3])
+
+    return s, R, t
+
+
+def apply_similarity_to_pose(M, s, R, t):
+    """
+    相似変換 (s, R, t) をカメラ姿勢行列 M=[Rc tc] に適用した新しい姿勢を返す。
+
+    注意: カメラ姿勢は回転部が直交行列でなければならないため、単純な
+    S=[sR t] の左乗(回転部がs倍されて不正になる)は行わない。回転は直交のまま
+    保持し、並進のみをスケールする:
+
+        R_new = R @ Rc
+        t_new = s * (R @ tc) + t
+    """
+    R_new = R @ M[:3, :3]
+    t_new = s * (R @ M[:3, 3]) + t
+
+    M_new = np.eye(4)
+    M_new[:3, :3] = R_new
+    M_new[:3, 3] = t_new
+    return M_new
+
+
+def Read_CamPose_CSV(path):
+    """
+    camPose CSVを読み、[(camera_id, 4x4行列M)] のリストを返す。
+
+    M = [R t; 0 0 0 1] はワールド座標にカメラを置く変換行列。
+
+    CSV形式:
+      camera_id, tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22
+    または camera_id 列の無い従来形式:
+      tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22
+    """
+    poses = []
+    with open(path, newline="") as f:
+        r = csv.reader(f)
+        header = next(r)
+        has_cam_id = header and header[0].strip().lower() == "camera_id"
+        for idx, row in enumerate(r):
+            if len(row) < 12:
+                continue
+            vals = [float(v) for v in row[:13] if v.strip() != ""]
+            if has_cam_id:
+                cam_id = int(row[0])
+                t = np.array([vals[1], vals[2], vals[3]])
+                R = np.array(
+                    [
+                        [vals[4], vals[5], vals[6]],
+                        [vals[7], vals[8], vals[9]],
+                        [vals[10], vals[11], vals[12]],
+                    ]
+                )
+            else:
+                cam_id = idx
+                t = np.array([vals[0], vals[1], vals[2]])
+                R = np.array(
+                    [
+                        [vals[3], vals[4], vals[5]],
+                        [vals[6], vals[7], vals[8]],
+                        [vals[9], vals[10], vals[11]],
+                    ]
+                )
+            M = np.eye(4)
+            M[:3, :3] = R
+            M[:3, 3] = t
+            poses.append((cam_id, M))
+    return poses
+
+
+def ChainMergeMultiCam(cam_pose_csv_list):
+    """
+    複数のcamPose CSVを、順次チェーン方式で統合し、最小のcamera_idを
+    単位行列とした各カメラの相対姿勢を求める。
+
+    各ファイルの並進tは未知の絶対スケールを持つため、参照カメラ間距離を
+    基準にスケールを正規化し、以降はスケールを含む相似変換で接続する。
+
+    処理の流れ:
+      1. 最初のファイル camPose_0000_0001_0002.csv の最小camera_id(=0)の
+         姿勢M0_0の逆行列を、3つの姿勢に左から掛け、M0a, M1a, M2a とする。
+         (M0a=I, M1a=inv(M0_0)@M1_0, M2a=inv(M0_0)@M2_0)
+         その後、cam0からcam1へのベースラインを長さ1にスケール正規化する。
+      2. 次のファイル camPose_0001_0002_0003.csv では、既に確定している
+         重複カメラ(1,2)から、スケールsを含む相似変換Sを推定する。
+         sは共有ベースライン(cam1->cam2)の長さの比。Sでファイル全体を
+         共通フレームへ移し、アンカーcam1は最終位置に留まる。
+      3. 以降のファイルも同様に、重複カメラのベースライン比でスケールを
+         揃えながら新規カメラを次々に確定する。
+
+    戻り値: sorted(camera_id) 順の (cam_id, 相対姿勢M) リスト。
+    """
+    if not cam_pose_csv_list:
+        raise ValueError("No input csv files.")
+
+    # 各ファイルを {camera_id: 4x4行列M} として読み込む。
+    file_poses = []
+    for path in cam_pose_csv_list:
+        d = {}
+        for cam_id, M in Read_CamPose_CSV(path):
+            d[cam_id] = M
+        file_poses.append(d)
+
+    # 1. 最初のファイルで最小camera_idを単位行列にする。
+    first = file_poses[0]
+    first_cams = sorted(first.keys())
+    ref_id = first_cams[0]
+    T0 = inv_rigid(first[ref_id])
+
+    final = {}
+    for cam_id in first_cams:
+        final[cam_id] = T0 @ first[cam_id]
+
+    # 参照スケール: cam_ref(原点)から次のカメラまでのベースラインを長さ1にする。
+    # (並進は未知の絶対スケールを持つため、この1つのカメラ間距離を基準に正規化)
+    c1 = first_cams[1]
+    s0 = 1.0 / np.linalg.norm(final[c1][:3, 3])
+    for cam_id in final:
+        final[cam_id][:3, 3] *= s0
+
+    # 2,3. 以降のファイルを順次チェーンで確定する。
+    #     各ファイルで既に確定済みの重複カメラの行列ペア全てを使い、
+    #     スケールを含む相似変換Sを頑健に推定して接続する。
+    for d in file_poses[1:]:
+        cams = sorted(d.keys())
+
+        # このファイル内で既に確定済みのカメラ(重複カメラ)。
+        overlap_cams = [c for c in cams if c in final]
+
+        if not overlap_cams:
+            raise ValueError(
+                f"no overlap camera found in file {cams}. "
+                "Feed files in ring order (0000_0001_0002, 0001_0002_0003, ...)."
+            )
+
+        if len(overlap_cams) >= 2:
+            # 重複2台以上: 共有ベースラインからスケールを含む相似変換を推定。
+            s, R, t = estimate_similarity_transform(final, d, overlap_cams)
+        else:
+            # 重複1台のみ: スケール情報が得られないので剛体変換で接続(フォールバック)。
+            anchor_id = overlap_cams[0]
+            R = final[anchor_id][:3, :3] @ d[anchor_id][:3, :3].T
+            t = final[anchor_id][:3, 3] - R @ d[anchor_id][:3, 3]
+            s = 1.0
+
+        # このファイル内の全カメラ(重複+新規)を、推定した相似変換で共通フレーム
+        # へ移す。アンカーカメラは構成上 final の位置に留まり、他カメラは
+        # スケール補正された位置に更新される。
+        for cam_id in cams:
+            final[cam_id] = apply_similarity_to_pose(d[cam_id], s, R, t)
+
+    return sorted(final.items())
+
+
+def Run_MergeMultiCam(in_cam_pose_csv_list, out_cam_pose_csv, out_cam_pose_ply=None):
+    merged = ChainMergeMultiCam(in_cam_pose_csv_list)
+
+    cam_id_list = [cam_id for cam_id, _ in merged]
+    t_list = [M[:3, 3].reshape(3, 1) for _, M in merged]
+    R_list = [M[:3, :3] for _, M in merged]
+
+    CSV_Write_CamPose_list(out_cam_pose_csv, t_list, R_list, cam_id_list)
+    if out_cam_pose_ply:
+        PLY_Export_MultiCam(out_cam_pose_ply, t_list, R_list)
+
+    return True
+
+
+def Build_RangeCamPose_Files(dir_path, prefix, start, cam_num):
+    """
+    cam_num個の連番カメラトリプレットのcamPoseファイル名を自動生成する。
+
+    例: dir_path="tmp", prefix="camPose", start=0, cam_num=22 の場合、
+        tmp/camPose_0000_0001_0002.csv ~ tmp/camPose_0021_0022_0023.csv を返す。
+    """
+    files = []
+    for i in range(start, start + cam_num):
+        n1 = f"{i:04d}"
+        n2 = f"{i + 1:04d}"
+        n3 = f"{i + 2:04d}"
+        files.append(os.path.join(dir_path, f"{prefix}_{n1}_{n2}_{n3}.csv"))
+    return files
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="merge multiple camPose CSVs into one relative-to-min-camera_id pose"
+    )
+    parser.add_argument(
+        "--cam_pose_csv",
+        nargs="+",
+        default=None,
+        help="input camPose csv files (space separated). "
+        "If omitted, files are auto-generated from --dir/--prefix/--start/--cam_num.",
+    )
+    parser.add_argument(
+        "--dir",
+        type=str,
+        default="tmp",
+        help="directory of camPose csv files (used when --cam_pose_csv is omitted).",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        default="camPose",
+        help="file name prefix (used when --cam_pose_csv is omitted).",
+    )
+    parser.add_argument(
+        "--start",
+        type=int,
+        default=0,
+        help="first camera triplet index (used when --cam_pose_csv is omitted).",
+    )
+    parser.add_argument(
+        "--cam_num",
+        type=int,
+        default=None,
+        help="number of camPose csv files to merge (used when --cam_pose_csv is omitted). "
+        "For the 24-camera ring use 22.",
+    )
+    parser.add_argument(
+        "--out_cam_pose_csv",
+        type=str,
+        default="tmp/camPose_merged.csv",
+        help="output merged camPose csv",
+    )
+    parser.add_argument(
+        "--out_cam_pose_ply",
+        type=str,
+        default=None,
+        help="output merged camPose ply (optional)",
+    )
+    args = parser.parse_args()
+
+    if args.cam_pose_csv is None:
+        if args.cam_num is None:
+            parser.error("either --cam_pose_csv or --cam_num must be given")
+        args.cam_pose_csv = Build_RangeCamPose_Files(
+            args.dir, args.prefix, args.start, args.cam_num
+        )
+
+    br = Run_MergeMultiCam(args.cam_pose_csv, args.out_cam_pose_csv, args.out_cam_pose_ply)
+    if br == True:
+        rv = 0
+    else:
+        rv = 1
+
+    print(f"merged {len(args.cam_pose_csv)} csv files -> {args.out_cam_pose_csv}")
+    sys.exit(rv)
+
+
+if __name__ == "__main__":
+    import sys
+
+    main()
