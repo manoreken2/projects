@@ -26,7 +26,12 @@ def Run_Estimate3CamPose(
     homography_ransac_threshold,
     reproj_err_converge,
     j_threshold,
+    f0=-1,
+    method="dual",
 ):
+    """
+    f0: f0 parameter. if it is negative number, f0 is calculated from feature point spread.
+    """
     b = Run_FeatureMatch3(
         img1_path,
         cam1_id,
@@ -50,7 +55,9 @@ def Run_Estimate3CamPose(
         result_points3d_ply,
         reproj_err_converge,
         j_threshold,
+        f0,
         [cam1_id, cam2_id, cam3_id],
+        method,
     )
 
     return b
@@ -148,6 +155,19 @@ if __name__ == "__main__":
         help="Euclidean upgrade threshold in pixel.",
         default=1.0,
     )
+    parser.add_argument(
+        "--f0",
+        type=float,
+        help="f0 parameter in pixel. typically 600 to 800. When unspecified, optimal value is calculated from feature point spread.",
+        default=-1.0,
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=["primary", "dual"],
+        help="perspective self calibration method.",
+        default="dual",
+    )
     args = parser.parse_args()
 
     b = Run_Estimate3CamPose(
@@ -166,6 +186,8 @@ if __name__ == "__main__":
         args.ransac_threshold,
         args.reproj_err_converge,
         args.j_threshold,
+        args.f0,
+        args.method,
     )
     if b is not True:
         raise SystemExit(1)

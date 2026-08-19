@@ -1,6 +1,7 @@
 import argparse
 import csv
 import os
+import statistics
 
 import numpy as np
 
@@ -70,25 +71,46 @@ def quat_to_R(q):
     )
 
 
-def average_rotation(R_list):
+def average_rotation(R_list, weights=None):
     """
-    複数の回転行列の平均を、クォータニオン平均で求める。
+    複数の回転行列の平均を、重み付きクォータニオン平均で求める。
     回転が近いことを仮定し、符号の反転を最初のクォータニオンに揃えて加算する。
     """
     if len(R_list) == 1:
         return np.asarray(R_list[0], dtype=float)
 
-    q_mean = R_to_quat(R_list[0])
-    for R in R_list[1:]:
+    if weights is None:
+        weights = [1.0] * len(R_list)
+
+    ref = R_to_quat(R_list[0])
+    q_sum = np.zeros(4)
+    w_sum = 0.0
+    for R, w in zip(R_list, weights):
         q = R_to_quat(R)
-        if np.dot(q_mean, q) < 0:
+        if np.dot(ref, q) < 0:
             q = -q
-        q_mean = q_mean + q
+        q_sum += w * q
+        w_sum += w
+    q_mean = q_sum / w_sum
     q_mean = q_mean / np.linalg.norm(q_mean)
     return quat_to_R(q_mean)
 
 
-def estimate_similarity_transform(final, d, overlap_cams):
+def weighted_median(values, weights):
+    """
+    値と重みから重み付き中央値を返す。
+    """
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    order = np.argsort(values)
+    vals = values[order]
+    ws = weights[order]
+    cw = np.cumsum(ws)
+    idx = int(np.searchsorted(cw, 0.5 * cw[-1]))
+    return vals[idx]
+
+
+def estimate_similarity_transform(final, d, overlap_cams, weights=None):
     """
     重複カメラの姿勢行列のペアから、フレーム間の相似変換 (s, R, t) を
     頑健に推定する。
@@ -96,26 +118,49 @@ def estimate_similarity_transform(final, d, overlap_cams):
     各ファイルは並進tに未知の絶対スケールを持つため、剛体変換ではなく
     スケールsを含む相似変換で接続する。
 
-      - スケールs: 共有ベースライン(重複カメラ2台の並進差)の長さの比
-                    s = |final[c2] - final[c1]| / |d[c2] - d[c1]|
-      - 回転R:      重複カメラそれぞれの姿勢から得た回転のクォータニオン平均
-      - 並進t:      最小の重複カメラ(アンカー)が final の位置に一致するよう決定
+      - スケールs: 重複カメラのペアから得たベースライン長の比の重み付き中央値
+                    s_ij = |final[cj] - final[ci]| / |d[cj] - d[ci]|
+      - 回転R:      重複カメラそれぞれの姿勢から得た回転の重み付きクォータニオン平均
+      - 並進t:      最大重みの重複カメラ(アンカー)が final の位置に一致するよう決定
+
+    weights: {camera_id: 重み}。低confidence(信頼度の低い)カメラの寄与を下げる。
+    既定では全カメラを均等に扱う。
 
     これにより、アンカーカメラは final の位置に留まりつつ、そのファイル内の
     相対ベースラインが共通スケールに揃う。
     """
     cams = sorted(overlap_cams)
-    c1, c2 = cams[0], cams[1]  # アンカーと、ベースライン用の2台目
+    if weights is None:
+        weights = {c: 1.0 for c in cams}
 
-    base_final = final[c2][:3, 3] - final[c1][:3, 3]
-    base_raw = d[c2][:3, 3] - d[c1][:3, 3]
+    # アンカー: 最も重みの大きいカメラ。
+    anchor = max(cams, key=lambda c: weights.get(c, 0.0))
 
-    s = np.linalg.norm(base_final) / np.linalg.norm(base_raw)
+    # 回転: 重み付きクォータニオン平均。
+    R = average_rotation(
+        [final[c][:3, :3] @ d[c][:3, :3].T for c in cams],
+        [weights.get(c, 0.0) for c in cams],
+    )
 
-    R = average_rotation([final[c][:3, :3] @ d[c][:3, :3].T for c in overlap_cams])
+    # スケール: 全ペアのベースライン長の比の重み付き中央値。
+    s_list = []
+    w_list = []
+    for ia in range(len(cams)):
+        for ib in range(ia + 1, len(cams)):
+            ca, cb = cams[ia], cams[ib]
+            base_final = np.linalg.norm(final[cb][:3, 3] - final[ca][:3, 3])
+            base_raw = np.linalg.norm(d[cb][:3, 3] - d[ca][:3, 3])
+            s_list.append(base_final / base_raw)
+            w_list.append(weights.get(ca, 0.0) * weights.get(cb, 0.0))
 
-    # アンカー(c1)の位置を final に一致させる。
-    t = final[c1][:3, 3] - s * (R @ d[c1][:3, 3])
+    if not any(w > 0 for w in w_list):
+        # 全重みが0の場合は均等にフォールバック。
+        s = sum(s_list) / len(s_list)
+    else:
+        s = weighted_median(s_list, w_list)
+
+    # アンカーの位置を final に一致させる。
+    t = final[anchor][:3, 3] - s * (R @ d[anchor][:3, 3])
 
     return s, R, t
 
@@ -187,7 +232,101 @@ def Read_CamPose_CSV(path):
     return poses
 
 
-def ChainMergeMultiCam(cam_pose_csv_list):
+def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
+    """
+    低confidence(信頼度の低い)カメラを含むため信用できない新規カメラ target_cam を、
+    隣接トリプレット file_poses[i+1] = (b, c, d) から修復して final に追加する。
+
+    file_poses[i] = (a, b, c) の新規カメラ c(=target_cam) の姿勢が、このファイル内の
+    低信頼度カメラ(新規カメラ自身、またはそれが依存する重複カメラ)により信用できない。
+    同じカメラ c が正しく推定されている隣接トリプレットから取り直す。
+
+    前提: 全トリプレットの相対カメラ幾何は同一(正規リング)であり、リングの
+    1ステップ分のベースライン長は等しい。a, b は既に final で正しく確定済み。
+
+    手順:
+      - 隣接トリプレットをカメラ b で final へ回転整列する(R)。
+      - スケール s を「final[a] -> final[b]」(=1ステップ長) と
+        「next[b] -> next[c]」(隣接内の同ステップ長) の比で決定する。
+      - final[b] に留め、c を b からの相対位置・回転で配置する。
+    """
+    d_failed = file_poses[i]
+    cams = sorted(d_failed.keys())
+    if target_cam not in d_failed:
+        raise ValueError(f"target camera {target_cam} not in triplet {cams}")
+
+    if target_cam in final:
+        return  # 既に確定済み(修復不要)
+
+    if i + 1 >= len(file_poses):
+        raise ValueError(
+            f"low-confidence camera {target_cam} in {cams} has no next triplet to repair from"
+        )
+
+    # 隣接トリプレット (b, c, d) 内のアンカー b と修復対象 c の姿勢を使う。
+    a, b = cams[0], cams[1]
+    c = target_cam
+
+    d_next = file_poses[i + 1]
+    next_b = d_next.get(b)
+    next_c = d_next.get(c)
+    if next_b is None or next_c is None:
+        raise ValueError(
+            f"next triplet does not contain repair cameras {b}, {c}"
+        )
+
+    final_a = final.get(a)
+    final_b = final.get(b)
+    if final_a is None or final_b is None:
+        raise ValueError(f"anchor cameras {a}, {b} not yet in final for repair")
+
+    # 隣接ファイルのカメラ b の回転を final のカメラ b に揃える回転 R。
+    R = final_b[:3, :3] @ next_b[:3, :3].T
+    # 隣接ファイル内の b -> c の相対並進(方向)を final フレームへ回転したもの。
+    rel_t = next_c[:3, 3] - next_b[:3, 3]
+    # スケール: リングの1ステップ長 |final[a] -> final[b]| に揃える。
+    s = np.linalg.norm(final_b[:3, 3] - final_a[:3, 3]) / np.linalg.norm(rel_t)
+
+    # final[b] に留め、c を b からの相対位置・回転で配置する。
+    final_c = np.eye(4)
+    final_c[:3, :3] = R @ next_c[:3, :3]
+    final_c[:3, 3] = final_b[:3, 3] + s * (R @ rel_t)
+    final[c] = final_c
+    print(
+        f"REPAIR: camera {c} unreliable (low-confidence cameras "
+        f"{sorted(unreliable)} in triplet {cams}); repaired from "
+        f"adjacent triplet {sorted(d_next.keys())} (s={s:.4f})"
+    )
+
+
+def read_confidence(path):
+    """
+    Run_MultiCamSelfCalib が出力する confidence CSV (camera_id, Jk, confidence) を読み、
+    ({camera_id: confidence}, {camera_id: Jk}) を返す。ファイルが無い場合は ({}, {})。
+    """
+    conf = {}
+    jk = {}
+    if not os.path.exists(path):
+        return conf, jk
+    with open(path) as f:
+        r = csv.reader(f)
+        next(r)
+        for row in r:
+            if len(row) < 3:
+                continue
+            try:
+                cam_id = int(row[0])
+            except (ValueError, TypeError):
+                continue
+            try:
+                jk[cam_id] = float(row[1])
+                conf[cam_id] = float(row[2])
+            except (ValueError, TypeError):
+                continue
+    return conf, jk
+
+
+def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
     """
     複数のcamPose CSVを、順次チェーン方式で統合し、最小のcamera_idを
     単位行列とした各カメラの相対姿勢を求める。
@@ -195,16 +334,16 @@ def ChainMergeMultiCam(cam_pose_csv_list):
     各ファイルの並進tは未知の絶対スケールを持つため、参照カメラ間距離を
     基準にスケールを正規化し、以降はスケールを含む相似変換で接続する。
 
+    各ファイルの per-camera confidence (Jkベース) を参照し、
+      - 新規カメラが低信頼度なら隣接トリプレットから修復して確定する。
+      - 重複カメラの低信頼度は、相似変換推定でダウンウェイトする。
+
     処理の流れ:
       1. 最初のファイル camPose_0000_0001_0002.csv の最小camera_id(=0)の
          姿勢M0_0の逆行列を、3つの姿勢に左から掛け、M0a, M1a, M2a とする。
          (M0a=I, M1a=inv(M0_0)@M1_0, M2a=inv(M0_0)@M2_0)
          その後、cam0からcam1へのベースラインを長さ1にスケール正規化する。
-      2. 次のファイル camPose_0001_0002_0003.csv では、既に確定している
-         重複カメラ(1,2)から、スケールsを含む相似変換Sを推定する。
-         sは共有ベースライン(cam1->cam2)の長さの比。Sでファイル全体を
-         共通フレームへ移し、アンカーcam1は最終位置に留まる。
-      3. 以降のファイルも同様に、重複カメラのベースライン比でスケールを
+      2. 以降のファイルも同様に、重複カメラのベースライン比でスケールを
          揃えながら新規カメラを次々に確定する。
 
     戻り値: sorted(camera_id) 順の (cam_id, 相対姿勢M) リスト。
@@ -219,6 +358,9 @@ def ChainMergeMultiCam(cam_pose_csv_list):
         for cam_id, M in Read_CamPose_CSV(path):
             d[cam_id] = M
         file_poses.append(d)
+
+    # 各ファイルの confidence CSV ({camera_id: Jk}, {camera_id: confidence})。
+    file_conf = [read_confidence(path + ".conf") for path in cam_pose_csv_list]
 
     # 1. 最初のファイルで最小camera_idを単位行列にする。
     first = file_poses[0]
@@ -240,11 +382,39 @@ def ChainMergeMultiCam(cam_pose_csv_list):
     # 2,3. 以降のファイルを順次チェーンで確定する。
     #     各ファイルで既に確定済みの重複カメラの行列ペア全てを使い、
     #     スケールを含む相似変換Sを頑健に推定して接続する。
-    for d in file_poses[1:]:
+    for i in range(1, len(file_poses)):
+        d = file_poses[i]
+        jk_i = file_conf[i][1]
+        conf_i = file_conf[i][0]
+
+        # このファイル内の低信頼度カメラを判定する。
+        # (per-camera Jk が同ファイル内の中央値より rel_thr 倍以上大きいカメラ)
+        if jk_i:
+            med = statistics.median(list(jk_i.values()))
+            unreliable = {c for c, j in jk_i.items() if j > rel_thr * med}
+        else:
+            unreliable = set()
+
         cams = sorted(d.keys())
 
         # このファイル内で既に確定済みのカメラ(重複カメラ)。
         overlap_cams = [c for c in cams if c in final]
+
+        # このファイルで新規に追加されるカメラ(まだ final に無いもの)。
+        new_cams = [c for c in cams if c not in final]
+
+        # 新規カメラが低信頼度、もしくは新規カメラが依存する重複カメラ(アンカー)が
+        # 低信頼度の場合、このファイルの相対幾何は信用できない。
+        # → 新規カメラを隣接トリプレットから修復して確定し、このファイルの
+        #   劣化した新規カメラ出力は使わない。
+        if new_cams and (
+            new_cams[0] in unreliable
+            or any(c in unreliable for c in overlap_cams)
+        ):
+            repair_low_conf_camera(
+                final, file_poses, i, new_cams[0], unreliable=unreliable
+            )
+            continue
 
         if not overlap_cams:
             raise ValueError(
@@ -252,9 +422,19 @@ def ChainMergeMultiCam(cam_pose_csv_list):
                 "Feed files in ring order (0000_0001_0002, 0001_0002_0003, ...)."
             )
 
+        # 重複カメラの重み: 低信頼度カメラは相似変換推定から除外(ダウンウェイト)。
+        weights = {c: conf_i.get(c, 1.0) for c in overlap_cams}
+        for c in overlap_cams:
+            if c in unreliable:
+                weights[c] = 0.0
+        print(
+            f"file[{i}] {cams}: unreliable={sorted(unreliable)} "
+            f"weights={ {c: round(weights.get(c, 0.0), 4) for c in overlap_cams} }"
+        )
+
         if len(overlap_cams) >= 2:
             # 重複2台以上: 共有ベースラインからスケールを含む相似変換を推定。
-            s, R, t = estimate_similarity_transform(final, d, overlap_cams)
+            s, R, t = estimate_similarity_transform(final, d, overlap_cams, weights)
         else:
             # 重複1台のみ: スケール情報が得られないので剛体変換で接続(フォールバック)。
             anchor_id = overlap_cams[0]
@@ -272,6 +452,8 @@ def ChainMergeMultiCam(cam_pose_csv_list):
 
 
 def Run_MergeMultiCam(in_cam_pose_csv_list, out_cam_pose_csv, out_cam_pose_ply=None):
+    # 各ファイルの per-camera confidence(Jkベース) に従い、低信頼度カメラを
+    # ダウンウェイト / 隣接トリプレットから修復してマージする。
     merged = ChainMergeMultiCam(in_cam_pose_csv_list)
 
     cam_id_list = [cam_id for cam_id, _ in merged]

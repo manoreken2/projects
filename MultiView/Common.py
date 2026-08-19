@@ -1573,6 +1573,25 @@ def normalize_observe_mat(W):
     return newW
 
 
+def normalize_each_3rows(W):
+    """
+    観測行列Wの3行(1カメラ分)ごとのブロックを単位長に正規化する。
+    PerspectiveSelfCalibration_common.cc normalize_each_3rows 相当。
+    """
+    nRow = W.shape[0]
+
+    newW = W.copy()
+    for r in range(0, nRow, 3):
+        nrm = np.sqrt(
+            np.linalg.norm(newW[r, :]) ** 2
+            + np.linalg.norm(newW[r + 1, :]) ** 2
+            + np.linalg.norm(newW[r + 2, :]) ** 2
+        )
+        newW[r : r + 3, :] /= nrm
+
+    return newW
+
+
 def build_Aalpha(fp: FeaturePoint, U):
     """
     特徴点fpに関する行列Aalphaを作る。

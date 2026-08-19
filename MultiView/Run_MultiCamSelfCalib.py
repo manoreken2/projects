@@ -249,6 +249,87 @@ class MultiCamSelfCalib:
             prev_reproj_err = reproj_err
         return None, None
 
+    def DualMethodFaster(self, fp_list, reproj_err_converge_diff):
+        """
+        双対法 (faster版)。
+        dual_method.cc faster_dual_method 相当。
+
+        射影深度z_akの更新を、カメラごとに
+        C行列(全特徴点分)のSVDで行うことで高速化する。
+
+        reproj_err_converge_diff: 再投影誤差改善量の打ち切り値(pixel)
+
+        """
+        nPoints = len(fp_list)
+        nCams = fp_list[0].CameraCount()
+
+        z_ak_mat = np.ones((nPoints, nCams))
+
+        # W: 観測行列 3MxN
+        # (初回は、ループの外で3行ブロック正規化する。)
+        W = build_observe_mat_W(fp_list, z_ak_mat)
+        W = normalize_each_3rows(W)
+
+        prev_reproj_err = sys.float_info.max
+        for loop in range(10000):
+            # WのSVDから、Vの最初の4列 v (Nx4) を取り出す。
+            U_, Sigma, Vh_ = np.linalg.svd(W, full_matrices=False)
+            v = Vh_.T[:, 0:4]
+
+            # 各カメラについて射影的奥行きを更新する。
+            for kp in range(nCams):
+                # C = [C1 | C2 | C3]: N x 12 行列
+                C = np.zeros((nPoints, 12))
+                for al in range(nPoints):
+                    xa = fp_list[al].x_ak(kp)
+                    xa_nrm = np.linalg.norm(xa)
+                    val = v[al, :] / xa_nrm
+                    C[al, 0:4] = xa[0, 0] * val
+                    C[al, 4:8] = xa[1, 0] * val
+                    C[al, 8:12] = xa[2, 0] * val
+
+                # CのSVD。特異値は降順なので、
+                # 左特異ベクトルの第0列が最大特異値に対応。
+                Uc, _, _ = np.linalg.svd(C, full_matrices=False)
+                xi = Uc[:, 0]
+
+                # xiの符号を選ぶ。
+                if np.sum(xi) < 0:
+                    xi = -xi
+
+                # 射影的奥行き更新。
+                for al in range(nPoints):
+                    z = xi[al] / np.linalg.norm(fp_list[al].x_ak(kp))
+                    z_ak_mat[al, kp] = z
+
+            # Wを再構築する。
+            W = build_observe_mat_W(fp_list, z_ak_mat)
+            W = normalize_each_3rows(W)
+
+            # X: v^T の各列 (= v の各行の転置, 4x1)
+            X_list = []
+            for al in range(nPoints):
+                X = v[al, :]
+                X = X.reshape(4, 1)
+                X_list.append(X)
+
+            # P: Wの各カメラブロック (3xN) と v の積 (3x4)
+            P_list = []
+            for kp in range(nCams):
+                P = W[3 * kp : 3 * kp + 3, :] @ v
+                P_list.append(P)
+
+            reproj_err = self.calc_reproj_err(fp_list, P_list, X_list)
+            print(
+                f"DualMethodFaster {loop} reproj_err={reproj_err}, thr={reproj_err_converge_diff}"
+            )
+            if np.abs(prev_reproj_err - reproj_err) < reproj_err_converge_diff:
+                self.P_list = P_list
+                self.X_list = X_list
+                return P_list, X_list
+            prev_reproj_err = reproj_err
+        return None, None
+
     def build_initial_Kk_list(self, camFocalLen_list):
         Kk_list = []
 
@@ -425,7 +506,8 @@ class MultiCamSelfCalib:
             print(f"Euclidean_upgrade Jmed={Jmed}")
             if Jmed < J_threshold or Jmed >= prev_Jmed:
                 # 終了条件達成。
-                return H, Kk_list
+                converged = Jmed < J_threshold
+                return H, Kk_list, Jk_list, converged
 
             prev_Jmed = Jmed
 
@@ -548,12 +630,15 @@ def Run_MultiCamSelfCalib(
     result_points3d_ply,
     reproj_err_threshold,
     J_threshold,
+    f0=-1,
     cam_id_list=None,
+    method="dual",
 ):
-    f0_auto = SelectF0_FromFeatureSpread(in_feature_point_list_path)
-    if f0_auto is None:
-        raise RuntimeError("auto f0: failed to compute; fall back to provided f0.")
-    else:
+    if f0 < 0:
+        f0_auto = SelectF0_FromFeatureSpread(in_feature_point_list_path)
+        if f0_auto is None:
+            raise RuntimeError("auto f0: failed to compute!")
+
         print(f"auto f0 = {f0_auto}")
         f0 = f0_auto
 
@@ -562,17 +647,49 @@ def Run_MultiCamSelfCalib(
     nCams = fp_list[0].CameraCount()
 
     sc = MultiCamSelfCalib(f0)
-    P_list, X_list = sc.PrimaryMethodFaster(fp_list, reproj_err_threshold)
+    if method == "primary":
+        P_list, X_list = sc.PrimaryMethodFaster(fp_list, reproj_err_threshold)
+    elif method == "dual":
+        P_list, X_list = sc.DualMethodFaster(fp_list, reproj_err_threshold)
+    else:
+        raise ValueError(f"unknown method: {method}")
 
     default_camFocalLen_list = [f0] * nCams
 
     # Kk : cam intrinsic mat
-    H, Kk_list = sc.Euclidean_upgrade(default_camFocalLen_list, J_threshold)
+    H, Kk_list, Jk_list, converged = sc.Euclidean_upgrade(
+        default_camFocalLen_list, J_threshold
+    )
     print(f"Kk_list=\n{Kk_list}")
+    print(f"per-camera upgrade cost Jk={np.round(np.asarray(Jk_list, dtype=float), 4)}")
+
+    if not converged:
+        marker = result_campose_csv + ".failed"
+        with open(marker, "w") as f:
+            f.write("Euclidean upgrade did not converge (Jmed >= threshold)\n")
+        print(
+            f"WARNING: Euclidean upgrade did not converge "
+            f"(Jmed >= {J_threshold}). Wrote marker {marker}"
+        )
 
     Rk_list, tk_list, X3d_list = sc.Extract_Cam_Extrinsic(P_list, X_list, H, Kk_list)
 
     # print(f"Rk_list={Rk_list}\ntk_list={tk_list}")
+
+    # カメラごとのユークリッド復元コスト Jk から confidence(0,1] を求め、CSVに出力する。
+    # Jkが大きい(=絶対二次曲線の拘束が破れている)カメラほど低い信頼度。
+    confidence_list = 1.0 / (1.0 + np.asarray(Jk_list, dtype=float))
+    result_confidence_csv = result_campose_csv + ".conf"
+    with open(result_confidence_csv, "w") as f:
+        f.write("camera_id, Jk, confidence\n")
+        for k, cam_id in enumerate(cam_id_list):
+            f.write(
+                f"{cam_id}, {float(Jk_list[k]):.6f}, {float(confidence_list[k]):.8f}\n"
+            )
+    print(
+        f"per-camera upgrade cost Jk={np.round(np.asarray(Jk_list, dtype=float), 4)} "
+        f"confidence={np.round(confidence_list, 6)} -> {result_confidence_csv}"
+    )
 
     CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list, cam_id_list)
     CSV_Write_Point3d_list(result_points3d_csv, X3d_list)
@@ -622,8 +739,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--f0",
         type=float,
-        help="f0 param of csv file. Typically it is image size in pixel.",
-        default=800,
+        help="f0 param in pixel. if negative value is specified, f0 is calculated from feature point spread.",
+        default=-1,
     )
     parser.add_argument(
         "--reproj_err_converge",
@@ -636,6 +753,13 @@ if __name__ == "__main__":
         type=float,
         help="Euclidean upgrade threshold in pixel.",
         default=1.0,
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        choices=["primary", "dual"],
+        help="perspective self calibration method.",
+        default="dual",
     )
     parser.add_argument(
         "--result_campose_csv",
@@ -669,11 +793,11 @@ if __name__ == "__main__":
         args.result_campose_ply,
         args.result_points3d_csv,
         args.result_points3d_ply,
-        args.f0,
-        args.auto_f0,
         args.reproj_err_converge,
         args.j_threshold,
+        args.f0,
         [args.cam1_id, args.cam2_id, args.cam3_id],
+        args.method,
     )
     if br == True:
         rv = 0
