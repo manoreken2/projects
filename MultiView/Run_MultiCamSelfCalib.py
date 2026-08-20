@@ -676,22 +676,14 @@ def Run_MultiCamSelfCalib(
 
     # print(f"Rk_list={Rk_list}\ntk_list={tk_list}")
 
-    # カメラごとのユークリッド復元コスト Jk から confidence(0,1] を求め、CSVに出力する。
-    # Jkが大きい(=絶対二次曲線の拘束が破れている)カメラほど低い信頼度。
+    # カメラごとのユークリッド復元コスト Jk から confidence(0,1]を求める。
+    # Jk: 大きい(=絶対二次曲線の拘束が破れている)カメラほど低い信頼度。
+    # confidence :大きいほど信頼度が高い。
     confidence_list = 1.0 / (1.0 + np.asarray(Jk_list, dtype=float))
-    result_confidence_csv = result_campose_csv + ".conf"
-    with open(result_confidence_csv, "w") as f:
-        f.write("camera_id, Jk, confidence\n")
-        for k, cam_id in enumerate(cam_id_list):
-            f.write(
-                f"{cam_id}, {float(Jk_list[k]):.6f}, {float(confidence_list[k]):.8f}\n"
-            )
-    print(
-        f"per-camera upgrade cost Jk={np.round(np.asarray(Jk_list, dtype=float), 4)} "
-        f"confidence={np.round(confidence_list, 6)} -> {result_confidence_csv}"
-    )
 
-    CSV_Write_CamPose_list(result_campose_csv, tk_list, Rk_list, cam_id_list)
+    CSV_Write_CamPose_list(
+        result_campose_csv, tk_list, Rk_list, cam_id_list, Jk_list, confidence_list
+    )
     CSV_Write_Point3d_list(result_points3d_csv, X3d_list)
     PLY_Export_MultiCam(result_campose_ply, tk_list, Rk_list)
     PLY_Export_PointList(result_points3d_ply, X3d_list)

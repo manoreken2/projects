@@ -918,30 +918,103 @@ def PointPairList_Shift(pp_list, shift_xy):
     return Point2dPair(np.asarray(r0_list), np.asarray(r1_list))
 
 
-def CSV_Write_CamPose_list(path: str, t_list, R_list, cam_id_list=None):
+def CSV_Write_CamPose_list(
+    path: str, t_list, R_list, cam_id_list=None, Jk_list=None, confidence_list=None
+):
     with open(path, "w", newline="\n") as f:
         # t: 1行3列 列ベクトル
         # R: 3行3列 回転ベクトル
 
-        if cam_id_list is None:
-            f.write("tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
-        else:
-            f.write("camera_id, tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22\n")
+        if cam_id_list is not None:
+            f.write("camera_id, ")
+
+        f.write("tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22")
+
+        if Jk_list is not None:
+            f.write(", Jk")
+
+        if confidence_list is not None:
+            f.write(", confidence")
+
+        f.write("\n")
 
         for k in range(len(t_list)):
             t = t_list[k]
             R = R_list[k]
-            if cam_id_list is None:
-                f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
-            else:
-                f.write(f"{cam_id_list[k]}, {t[0,0]}, {t[1,0]}, {t[2,0]}, ")
+            if cam_id_list is not None:
+                f.write(f"{cam_id_list[k]}, ")
+
+            f.write(f"{t[0,0]}, {t[1,0]}, {t[2,0]}, ")
+
             f.write(f"{R[0,0]}, {R[0,1]}, {R[0,2]}, ")
             f.write(f"{R[1,0]}, {R[1,1]}, {R[1,2]}, ")
-            f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}\n")
+            f.write(f"{R[2,0]}, {R[2,1]}, {R[2,2]}")
+
+            if Jk_list is not None:
+                f.write(f", {Jk_list[k]}")
+
+            if confidence_list is not None:
+                f.write(f", {confidence_list[k]}")
+
+            f.write("\n")
 
 
 def CSV_Write_CamPose(path: str, t, R):
     CSV_Write_CamPose_list(path, [t], [R])
+
+
+def Read_CamPose_CSV(path):
+    """
+    camPose CSVを読み、[(camera_id, 4x4行列M, Jk, confidence)] のリストを返す。
+
+    M = [R t; 0 0 0 1] はワールド座標にカメラを置く変換行列。
+
+    CSV形式(Jk/confidence列付き):
+      camera_id, tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22, Jk, confidence
+
+    従来形式(Jk/confidence列無し)でも読み込める。この場合 Jk=None, confidence=1.0。
+    """
+    poses = []
+    with open(path, newline="") as f:
+        r = csv.reader(f)
+        header = next(r)
+        header_cols = [h.strip().lower() for h in header]
+        has_cam_id = header_cols and header_cols[0] == "camera_id"
+        has_jk = "jk" in header_cols
+        has_conf = "confidence" in header_cols
+        for idx, row in enumerate(r):
+            if len(row) < 12:
+                continue
+            vals = [float(v) for v in row[:15] if v.strip() != ""]
+            if has_cam_id:
+                cam_id = int(row[0])
+                t = np.array([vals[1], vals[2], vals[3]])
+                R = np.array(
+                    [
+                        [vals[4], vals[5], vals[6]],
+                        [vals[7], vals[8], vals[9]],
+                        [vals[10], vals[11], vals[12]],
+                    ]
+                )
+                jk = vals[13] if has_jk and len(vals) > 13 else None
+                conf = vals[14] if has_conf and len(vals) > 14 else 1.0
+            else:
+                cam_id = idx
+                t = np.array([vals[0], vals[1], vals[2]])
+                R = np.array(
+                    [
+                        [vals[3], vals[4], vals[5]],
+                        [vals[6], vals[7], vals[8]],
+                        [vals[9], vals[10], vals[11]],
+                    ]
+                )
+                jk = vals[12] if has_jk and len(vals) > 12 else None
+                conf = vals[13] if has_conf and len(vals) > 13 else 1.0
+            M = np.eye(4)
+            M[:3, :3] = R
+            M[:3, 3] = t
+            poses.append((cam_id, M, jk, conf))
+    return poses
 
 
 def CSV_Write_Point3d_list(path: str, p_list):
@@ -1641,3 +1714,163 @@ def build_Calpha(fp: FeaturePoint, U):
             C[k, i] = np.vdot(x_ak_hat, u_ik)
 
     return C
+
+
+def inv_rigid(M):
+    """
+    4x4剛体変換行列 [R t; 0 0 0 1] の逆行列を返す。
+    """
+    M = np.asarray(M, dtype=float)
+    R = M[:3, :3]
+    t = M[:3, 3]
+    M_inv = np.eye(4)
+    M_inv[:3, :3] = R.T
+    M_inv[:3, 3] = -R.T @ t
+    return M_inv
+
+
+def SelectF0_FromFeatureSpread(feature_point_list_csv):
+    """
+    3カメラ対応点CSVの特徴点座標の広がりからf0を自動決定する(99.5パーセンタイル)。
+    画像中心原点の座標が正規化ベクトル x_ak=[u/f0, v/f0, 1] で O(1) になるよう決める。
+    """
+    abs_u, abs_v = [], []
+    with open(feature_point_list_csv) as f:
+        for l in csv.reader(f, delimiter=","):
+            if len(l) < 9:
+                continue
+            try:
+                for i in range(3):
+                    abs_u.append(abs(float(l[1 + 3 * i])))
+                    abs_v.append(abs(float(l[2 + 3 * i])))
+            except (ValueError, TypeError):
+                continue
+    if not abs_u:
+        return None
+    f0 = max(np.percentile(abs_u, 99.5), np.percentile(abs_v, 99.5))
+    return f0 if f0 > 0 else None
+
+
+def R_to_quat(R):
+    """
+    回転行列(3x3)をクォータニオン [w, x, y, z] に変換する。
+    """
+    R = np.asarray(R, dtype=float)
+    tr = R[0, 0] + R[1, 1] + R[2, 2]
+    if tr > 0:
+        s = np.sqrt(tr + 1.0) * 2.0
+        w = 0.25 * s
+        x = (R[2, 1] - R[1, 2]) / s
+        y = (R[0, 2] - R[2, 0]) / s
+        z = (R[1, 0] - R[0, 1]) / s
+    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
+        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
+        w = (R[2, 1] - R[1, 2]) / s
+        x = 0.25 * s
+        y = (R[0, 1] + R[1, 0]) / s
+        z = (R[0, 2] + R[2, 0]) / s
+    elif R[1, 1] > R[2, 2]:
+        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
+        w = (R[0, 2] - R[2, 0]) / s
+        x = (R[0, 1] + R[1, 0]) / s
+        y = 0.25 * s
+        z = (R[1, 2] + R[2, 1]) / s
+    else:
+        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
+        w = (R[1, 0] - R[0, 1]) / s
+        x = (R[0, 2] + R[2, 0]) / s
+        y = (R[1, 2] + R[2, 1]) / s
+        z = 0.25 * s
+    q = np.array([w, x, y, z])
+    return q / np.linalg.norm(q)
+
+
+def quat_to_R(q):
+    """
+    クォータニオン [w, x, y, z] を回転行列(3x3)に変換する。
+    """
+    q = np.asarray(q, dtype=float)
+    q = q / np.linalg.norm(q)
+    w, x, y, z = q
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def average_rotation(R_list, weights=None):
+    """
+    複数の回転行列の平均を、重み付きクォータニオン平均で求める。
+    回転が近いことを仮定し、符号の反転を最初のクォータニオンに揃えて加算する。
+    """
+    if len(R_list) == 1:
+        return np.asarray(R_list[0], dtype=float)
+
+    if weights is None:
+        weights = [1.0] * len(R_list)
+
+    ref = R_to_quat(R_list[0])
+    q_sum = np.zeros(4)
+    w_sum = 0.0
+    for R, w in zip(R_list, weights):
+        q = R_to_quat(R)
+        if np.dot(ref, q) < 0:
+            q = -q
+        q_sum += w * q
+        w_sum += w
+    q_mean = q_sum / w_sum
+    q_mean = q_mean / np.linalg.norm(q_mean)
+    return quat_to_R(q_mean)
+
+
+def weighted_median(values, weights):
+    """
+    値と重みから重み付き中央値を返す。
+    """
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    order = np.argsort(values)
+    vals = values[order]
+    ws = weights[order]
+    cw = np.cumsum(ws)
+    idx = int(np.searchsorted(cw, 0.5 * cw[-1]))
+    return vals[idx]
+
+
+def apply_similarity_to_pose(M, s, R, t):
+    """
+    相似変換 (s, R, t) をカメラ姿勢行列 M=[Rc tc] に適用した新しい姿勢を返す。
+
+    注意: カメラ姿勢は回転部が直交行列でなければならないため、単純な
+    S=[sR t] の左乗(回転部がs倍されて不正になる)は行わない。回転は直交のまま
+    保持し、並進のみをスケールする:
+
+        R_new = R @ Rc
+        t_new = s * (R @ tc) + t
+    """
+    R_new = R @ M[:3, :3]
+    t_new = s * (R @ M[:3, 3]) + t
+
+    M_new = np.eye(4)
+    M_new[:3, :3] = R_new
+    M_new[:3, 3] = t_new
+    return M_new
+
+
+def Build_RangeCamPose_Files(dir_path, prefix, start, cam_num):
+    """
+    cam_num個の連番カメラトリプレットのcamPoseファイル名を自動生成する。
+
+    例: dir_path="tmp", prefix="camPose", start=0, cam_num=22 の場合、
+        tmp/camPose_0000_0001_0002.csv ~ tmp/camPose_0021_0022_0023.csv を返す。
+    """
+    files = []
+    for i in range(start, start + cam_num):
+        n1 = f"{i:04d}"
+        n2 = f"{i + 1:04d}"
+        n3 = f"{i + 2:04d}"
+        files.append(os.path.join(dir_path, f"{prefix}_{n1}_{n2}_{n3}.csv"))
+    return files

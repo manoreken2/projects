@@ -5,109 +5,20 @@ import statistics
 
 import numpy as np
 
-from Common import CSV_Write_CamPose_list, PLY_Export_MultiCam
+from Common import (
+    CSV_Write_CamPose_list,
+    PLY_Export_MultiCam,
+    CSV_Write_Point3d_list,
+    Read_CamPose_CSV,
+    inv_rigid,
+    SelectF0_FromFeatureSpread,
+    weighted_median,
+    average_rotation,
+    apply_similarity_to_pose,
+    Build_RangeCamPose_Files,
+)
 
-
-def inv_rigid(M):
-    """
-    4x4剛体変換行列 [R t; 0 0 0 1] の逆行列を返す。
-    """
-    M = np.asarray(M, dtype=float)
-    R = M[:3, :3]
-    t = M[:3, 3]
-    M_inv = np.eye(4)
-    M_inv[:3, :3] = R.T
-    M_inv[:3, 3] = -R.T @ t
-    return M_inv
-
-
-def R_to_quat(R):
-    """
-    回転行列(3x3)をクォータニオン [w, x, y, z] に変換する。
-    """
-    R = np.asarray(R, dtype=float)
-    tr = R[0, 0] + R[1, 1] + R[2, 2]
-    if tr > 0:
-        s = np.sqrt(tr + 1.0) * 2.0
-        w = 0.25 * s
-        x = (R[2, 1] - R[1, 2]) / s
-        y = (R[0, 2] - R[2, 0]) / s
-        z = (R[1, 0] - R[0, 1]) / s
-    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
-        w = (R[2, 1] - R[1, 2]) / s
-        x = 0.25 * s
-        y = (R[0, 1] + R[1, 0]) / s
-        z = (R[0, 2] + R[2, 0]) / s
-    elif R[1, 1] > R[2, 2]:
-        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
-        w = (R[0, 2] - R[2, 0]) / s
-        x = (R[0, 1] + R[1, 0]) / s
-        y = 0.25 * s
-        z = (R[1, 2] + R[2, 1]) / s
-    else:
-        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
-        w = (R[1, 0] - R[0, 1]) / s
-        x = (R[0, 2] + R[2, 0]) / s
-        y = (R[1, 2] + R[2, 1]) / s
-        z = 0.25 * s
-    q = np.array([w, x, y, z])
-    return q / np.linalg.norm(q)
-
-
-def quat_to_R(q):
-    """
-    クォータニオン [w, x, y, z] を回転行列(3x3)に変換する。
-    """
-    q = np.asarray(q, dtype=float)
-    q = q / np.linalg.norm(q)
-    w, x, y, z = q
-    return np.array(
-        [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
-            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
-            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
-        ]
-    )
-
-
-def average_rotation(R_list, weights=None):
-    """
-    複数の回転行列の平均を、重み付きクォータニオン平均で求める。
-    回転が近いことを仮定し、符号の反転を最初のクォータニオンに揃えて加算する。
-    """
-    if len(R_list) == 1:
-        return np.asarray(R_list[0], dtype=float)
-
-    if weights is None:
-        weights = [1.0] * len(R_list)
-
-    ref = R_to_quat(R_list[0])
-    q_sum = np.zeros(4)
-    w_sum = 0.0
-    for R, w in zip(R_list, weights):
-        q = R_to_quat(R)
-        if np.dot(ref, q) < 0:
-            q = -q
-        q_sum += w * q
-        w_sum += w
-    q_mean = q_sum / w_sum
-    q_mean = q_mean / np.linalg.norm(q_mean)
-    return quat_to_R(q_mean)
-
-
-def weighted_median(values, weights):
-    """
-    値と重みから重み付き中央値を返す。
-    """
-    values = np.asarray(values, dtype=float)
-    weights = np.asarray(weights, dtype=float)
-    order = np.argsort(values)
-    vals = values[order]
-    ws = weights[order]
-    cw = np.cumsum(ws)
-    idx = int(np.searchsorted(cw, 0.5 * cw[-1]))
-    return vals[idx]
+from Run_BundleAdjustment import Run_BundleAdjustment
 
 
 def estimate_similarity_transform(final, d, overlap_cams, weights=None):
@@ -165,73 +76,6 @@ def estimate_similarity_transform(final, d, overlap_cams, weights=None):
     return s, R, t
 
 
-def apply_similarity_to_pose(M, s, R, t):
-    """
-    相似変換 (s, R, t) をカメラ姿勢行列 M=[Rc tc] に適用した新しい姿勢を返す。
-
-    注意: カメラ姿勢は回転部が直交行列でなければならないため、単純な
-    S=[sR t] の左乗(回転部がs倍されて不正になる)は行わない。回転は直交のまま
-    保持し、並進のみをスケールする:
-
-        R_new = R @ Rc
-        t_new = s * (R @ tc) + t
-    """
-    R_new = R @ M[:3, :3]
-    t_new = s * (R @ M[:3, 3]) + t
-
-    M_new = np.eye(4)
-    M_new[:3, :3] = R_new
-    M_new[:3, 3] = t_new
-    return M_new
-
-
-def Read_CamPose_CSV(path):
-    """
-    camPose CSVを読み、[(camera_id, 4x4行列M)] のリストを返す。
-
-    M = [R t; 0 0 0 1] はワールド座標にカメラを置く変換行列。
-
-    CSV形式:
-      camera_id, tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22
-    または camera_id 列の無い従来形式:
-      tX, tY, tZ, r00, r01, r02, r10, r11, r12, r20, r21, r22
-    """
-    poses = []
-    with open(path, newline="") as f:
-        r = csv.reader(f)
-        header = next(r)
-        has_cam_id = header and header[0].strip().lower() == "camera_id"
-        for idx, row in enumerate(r):
-            if len(row) < 12:
-                continue
-            vals = [float(v) for v in row[:13] if v.strip() != ""]
-            if has_cam_id:
-                cam_id = int(row[0])
-                t = np.array([vals[1], vals[2], vals[3]])
-                R = np.array(
-                    [
-                        [vals[4], vals[5], vals[6]],
-                        [vals[7], vals[8], vals[9]],
-                        [vals[10], vals[11], vals[12]],
-                    ]
-                )
-            else:
-                cam_id = idx
-                t = np.array([vals[0], vals[1], vals[2]])
-                R = np.array(
-                    [
-                        [vals[3], vals[4], vals[5]],
-                        [vals[6], vals[7], vals[8]],
-                        [vals[9], vals[10], vals[11]],
-                    ]
-                )
-            M = np.eye(4)
-            M[:3, :3] = R
-            M[:3, 3] = t
-            poses.append((cam_id, M))
-    return poses
-
-
 def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
     """
     低confidence(信頼度の低い)カメラを含むため信用できない新規カメラ target_cam を、
@@ -271,9 +115,7 @@ def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
     next_b = d_next.get(b)
     next_c = d_next.get(c)
     if next_b is None or next_c is None:
-        raise ValueError(
-            f"next triplet does not contain repair cameras {b}, {c}"
-        )
+        raise ValueError(f"next triplet does not contain repair cameras {b}, {c}")
 
     final_a = final.get(a)
     final_b = final.get(b)
@@ -297,33 +139,6 @@ def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
         f"{sorted(unreliable)} in triplet {cams}); repaired from "
         f"adjacent triplet {sorted(d_next.keys())} (s={s:.4f})"
     )
-
-
-def read_confidence(path):
-    """
-    Run_MultiCamSelfCalib が出力する confidence CSV (camera_id, Jk, confidence) を読み、
-    ({camera_id: confidence}, {camera_id: Jk}) を返す。ファイルが無い場合は ({}, {})。
-    """
-    conf = {}
-    jk = {}
-    if not os.path.exists(path):
-        return conf, jk
-    with open(path) as f:
-        r = csv.reader(f)
-        next(r)
-        for row in r:
-            if len(row) < 3:
-                continue
-            try:
-                cam_id = int(row[0])
-            except (ValueError, TypeError):
-                continue
-            try:
-                jk[cam_id] = float(row[1])
-                conf[cam_id] = float(row[2])
-            except (ValueError, TypeError):
-                continue
-    return conf, jk
 
 
 def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
@@ -352,15 +167,21 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
         raise ValueError("No input csv files.")
 
     # 各ファイルを {camera_id: 4x4行列M} として読み込む。
+    # 併せて、カメラ行列CSVの追加列から per-camera の Jk / confidence を読み出す。
     file_poses = []
+    file_conf = []
     for path in cam_pose_csv_list:
         d = {}
-        for cam_id, M in Read_CamPose_CSV(path):
+        jk_i = {}
+        conf_i = {}
+        for cam_id, M, jk, conf in Read_CamPose_CSV(path):
             d[cam_id] = M
+            if jk is not None:
+                jk_i[cam_id] = jk
+            conf_i[cam_id] = conf
         file_poses.append(d)
-
-    # 各ファイルの confidence CSV ({camera_id: Jk}, {camera_id: confidence})。
-    file_conf = [read_confidence(path + ".conf") for path in cam_pose_csv_list]
+        # file_conf[i] = ( {camera_id: confidence}, {camera_id: Jk} )
+        file_conf.append((conf_i, jk_i))
 
     # 1. 最初のファイルで最小camera_idを単位行列にする。
     first = file_poses[0]
@@ -408,8 +229,7 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
         # → 新規カメラを隣接トリプレットから修復して確定し、このファイルの
         #   劣化した新規カメラ出力は使わない。
         if new_cams and (
-            new_cams[0] in unreliable
-            or any(c in unreliable for c in overlap_cams)
+            new_cams[0] in unreliable or any(c in unreliable for c in overlap_cams)
         ):
             repair_low_conf_camera(
                 final, file_poses, i, new_cams[0], unreliable=unreliable
@@ -451,10 +271,92 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
     return sorted(final.items())
 
 
-def Run_MergeMultiCam(in_cam_pose_csv_list, out_cam_pose_csv, out_cam_pose_ply=None):
+def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
+    """
+    ループクロージャにより累積スケールドリフトを補正する。
+
+    チェーンマージの結果 final (cam0=I, 辺0->1 を長さ1に正規化) は、スケール
+    推定誤差がリング一周で累積し、閉ループ辺(23->0)の長さが本来の値から
+    ずれる(ドリフト)。
+
+    折り返しトリプレット(0022_0023_0000, 0023_0000_0001)のうち、参照辺 0->1 と
+    閉ループ辺 23->0 を同一スケールで持つファイルから真の閉ループ辺長 L_true を求め、
+    チェーンの辺を滑らかに(線形ランプ)スケール補正してリングを閉じる。
+    回転は保持し、並進(位置)のみ補正する。
+    """
+    cams = sorted(final.keys())
+    if 0 not in cams or 23 not in cams:
+        return final  # リングでない場合は補正しない
+
+    # 1. 参照辺 0->1 と閉ループ辺 23->0 を同一スケールで持つ折り返しファイルから
+    #    真の閉ループ辺長 L_true を求める。
+    L_true = None
+    for path in wrap_pose_files:
+        d = {}
+        for cam_id, M, _jk, _cf in Read_CamPose_CSV(path):
+            d[cam_id] = M
+        if 0 in d and 1 in d and 23 in d:
+            e_ref = np.linalg.norm(d[1][:3, 3] - d[0][:3, 3])
+            e_close = np.linalg.norm(d[23][:3, 3] - d[0][:3, 3])
+            if e_ref > 1e-12:
+                L_true = L_ref * (e_close / e_ref)
+                break
+    if L_true is None:
+        L_true = L_ref  # フォールバック: 正規リングと仮定
+
+    # 2. チェーンの閉ループ辺長(ドリフトした値)。
+    l_chain = np.linalg.norm(final[23][:3, 3] - final[0][:3, 3])
+
+    if abs(l_chain - L_true) < 1e-9 * L_ref:
+        print(
+            f"loop closure: closing edge already {l_chain:.4f} ~ L_true {L_true:.4f}; no correction"
+        )
+        return final
+
+    # 3. 位置を「放射方向」に滑らかにスケール補正する。
+    #    累積スケールドリフトは乗算的(約2倍)で、線形な辺ランプでは閉じられないため、
+    #    各カメラの原点からの位置ベクトルを g_k = 1 + c*(k/23) でスケールする。
+    #    p'_k = g_k * p_k は方向を保ち、回転行列はそのまま保持する。
+    #    閉ループ条件 |p'_23| = L_true から c は一意に決まり、常に解が存在する:
+    #        |(1 + c) * p_23| = L_true  =>  c = L_true / |p_23| - 1
+    N = 23  # カメラ総数(0..22がチェーン、23が閉ループ端)
+    r = np.linalg.norm(final[N][:3, 3])
+    if r <= 1e-12:
+        print("loop closure: closing camera at origin; no correction")
+        return final
+    c = L_true / r - 1.0
+
+    # 4. 位置を再構成(回転はfinalのまま、並進のみ放射方向にスケール)。
+    new_final = {}
+    for k in range(N + 1):
+        g = 1.0 + c * (k / N)
+        M = final[k].copy()
+        M[:3, 3] = g * final[k][:3, 3]
+        new_final[k] = M
+
+    print(
+        f"loop closure: closing edge {l_chain:.4f} -> L_true {L_true:.4f} "
+        f"(drift ratio {l_chain / L_true:.4f}); applied radial scale correction "
+        f"(factor range 1.0 -> {1.0 + c:.4f})"
+    )
+    return new_final
+
+
+def Run_MergeMultiCam(
+    in_cam_pose_csv_list,
+    out_cam_pose_csv,
+    out_cam_pose_ply=None,
+    loop_closure_csv_list=None,
+):
     # 各ファイルの per-camera confidence(Jkベース) に従い、低信頼度カメラを
     # ダウンウェイト / 隣接トリプレットから修復してマージする。
     merged = ChainMergeMultiCam(in_cam_pose_csv_list)
+
+    # ループクロージャ: 折り返しトリプレットで累積スケールドリフトを補正する。
+    if loop_closure_csv_list:
+        merged_dict = dict(merged)
+        merged_dict = loop_closure_scale_correction(merged_dict, loop_closure_csv_list)
+        merged = sorted(merged_dict.items())
 
     cam_id_list = [cam_id for cam_id, _ in merged]
     t_list = [M[:3, 3].reshape(3, 1) for _, M in merged]
@@ -465,22 +367,6 @@ def Run_MergeMultiCam(in_cam_pose_csv_list, out_cam_pose_csv, out_cam_pose_ply=N
         PLY_Export_MultiCam(out_cam_pose_ply, t_list, R_list)
 
     return True
-
-
-def Build_RangeCamPose_Files(dir_path, prefix, start, cam_num):
-    """
-    cam_num個の連番カメラトリプレットのcamPoseファイル名を自動生成する。
-
-    例: dir_path="tmp", prefix="camPose", start=0, cam_num=22 の場合、
-        tmp/camPose_0000_0001_0002.csv ~ tmp/camPose_0021_0022_0023.csv を返す。
-    """
-    files = []
-    for i in range(start, start + cam_num):
-        n1 = f"{i:04d}"
-        n2 = f"{i + 1:04d}"
-        n3 = f"{i + 2:04d}"
-        files.append(os.path.join(dir_path, f"{prefix}_{n1}_{n2}_{n3}.csv"))
-    return files
 
 
 def main():
@@ -531,6 +417,48 @@ def main():
         default=None,
         help="output merged camPose ply (optional)",
     )
+    parser.add_argument(
+        "--loop_closure_csv",
+        nargs="+",
+        default=None,
+        help="wrap-around triplet camPose csv files (space separated) used to "
+        "correct cumulative scale drift by loop closure (optional).",
+    )
+    parser.add_argument(
+        "--bundle_adjustment",
+        action="store_true",
+        help="run global ring bundle adjustment after merging (optional).",
+    )
+    parser.add_argument(
+        "--f0",
+        type=float,
+        default=None,
+        help="initial focal length for bundle adjustment (default: auto from feature spread).",
+    )
+    parser.add_argument(
+        "--out_cam_pose_ba_csv",
+        type=str,
+        default="tmp/camPose_ba.csv",
+        help="output bundle-adjusted merged camPose csv",
+    )
+    parser.add_argument(
+        "--out_cam_pose_ba_ply",
+        type=str,
+        default=None,
+        help="output bundle-adjusted merged camPose ply (optional)",
+    )
+    parser.add_argument(
+        "--out_points3d_ba_csv",
+        type=str,
+        default=None,
+        help="output bundle-adjusted 3D points csv (optional)",
+    )
+    parser.add_argument(
+        "--out_points3d_ba_ply",
+        type=str,
+        default=None,
+        help="output bundle-adjusted 3D points ply (optional)",
+    )
     args = parser.parse_args()
 
     if args.cam_pose_csv is None:
@@ -540,13 +468,38 @@ def main():
             args.dir, args.prefix, args.start, args.cam_num
         )
 
-    br = Run_MergeMultiCam(args.cam_pose_csv, args.out_cam_pose_csv, args.out_cam_pose_ply)
+    br = Run_MergeMultiCam(
+        args.cam_pose_csv,
+        args.out_cam_pose_csv,
+        args.out_cam_pose_ply,
+        loop_closure_csv_list=args.loop_closure_csv,
+    )
     if br == True:
         rv = 0
     else:
         rv = 1
 
     print(f"merged {len(args.cam_pose_csv)} csv files -> {args.out_cam_pose_csv}")
+
+    if args.bundle_adjustment and rv == 0:
+        br = Run_BundleAdjustment(
+            args.cam_pose_csv,
+            args.out_cam_pose_csv,
+            args.out_cam_pose_ba_csv,
+            out_cam_pose_ply=args.out_cam_pose_ba_ply,
+            out_points3d_csv=args.out_points3d_ba_csv,
+            out_points3d_ply=args.out_points3d_ba_ply,
+            f0=args.f0,
+        )
+        if br == True:
+            rv = 0
+        else:
+            rv = 1
+        print(
+            f"bundle adjusted {len(args.cam_pose_csv)} csv files -> "
+            f"{args.out_cam_pose_ba_csv}"
+        )
+
     sys.exit(rv)
 
 
