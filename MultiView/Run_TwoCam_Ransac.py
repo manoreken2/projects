@@ -23,11 +23,8 @@ def Run_TwoCam_Ransac(
     ite_count=1000,
     loss_threshold=5.0,
     close_points_ratio=0.8,
+    f0=600,
 ):
-    DEFAULT_F0 = 600
-
-    f0 = DEFAULT_F0
-
     pp = CSV_Read_TwoCam_MatchedPointList(matched_point2d_csv)
     N = pp.get_point_count()
 

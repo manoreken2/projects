@@ -35,9 +35,8 @@ def Run_EstimateTwoCamPose(
     ite_count,
     loss_threshold,
     close_points_ratio,
+    f0,
 ):
-    f0 = 600.0
-
     base, _ = os.path.splitext(result_matched_points2d_csv)
     result_matched_points2d_png = base + ".png"
 
@@ -65,6 +64,7 @@ def Run_EstimateTwoCamPose(
         ite_count,
         loss_threshold,
         close_points_ratio,
+        f0,
     )
 
     return b
@@ -154,6 +154,12 @@ if __name__ == "__main__":
         default="fns",
         help="regressor to use for two-cam pose estimation (lsq or fns)",
     )
+    parser.add_argument(
+        "--f0",
+        type=float,
+        default=600,
+        help="f0 parameter. feature point spread in px.",
+    )
     args = parser.parse_args()
 
     b = Run_EstimateTwoCamPose(
@@ -170,6 +176,7 @@ if __name__ == "__main__":
         args.ite_count,
         args.loss_threshold,
         args.close_points_ratio,
+        args.f0,
     )
     if b is not True:
         raise SystemExit(1)

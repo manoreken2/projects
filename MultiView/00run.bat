@@ -57,7 +57,9 @@ echo [Step2] merge 24 triplets -> %OUT_DIR%\camPose_merged.csv
     --out_cam_pose_ba_csv "%OUT_DIR%\camPose_ba.csv" ^
     --out_cam_pose_ba_ply "%OUT_DIR%\camPose_ba.ply" ^
     --out_points3d_ba_csv "%OUT_DIR%\points3d_ba.csv" ^
-    --out_points3d_ba_ply "%OUT_DIR%\points3d_ba.ply"
+    --out_points3d_ba_ply "%OUT_DIR%\points3d_ba.ply" ^
+    --shared_intrinsic ^
+    --ba_pose_lambda 30.0
 
 if errorlevel 1 (
     echo ERROR: Run_MergeMultiCam failed

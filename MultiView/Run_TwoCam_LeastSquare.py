@@ -26,6 +26,7 @@ if __name__ == "__main__":
     DEFAULT_F0 = 600
 
     f0 = DEFAULT_F0
+    focal_len = 2174.0
 
     pp = CSV_Read_TwoCam_MatchedPointList("tmp/op0001_0002.csv")
     N = pp.get_point_count()
@@ -44,9 +45,8 @@ if __name__ == "__main__":
         F = ThetaToF(theta)
         print(f"least-sq optimal_rank_correction F=\n{F}")
 
-    print(f"F={F}")
-
-    focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    # focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    focalLen_Cam0 = focalLen_Cam1 = focal_len
     print(f"Focal length = {focalLen_Cam0} {focalLen_Cam1}")
 
     valid_bitmap = N * [True]

@@ -28,6 +28,7 @@ def Run_Estimate3CamPose(
     j_threshold,
     f0=-1,
     method="dual",
+    shared_intrinsic=False,
 ):
     """
     f0: f0 parameter. if it is negative number, f0 is calculated from feature point spread.
@@ -58,6 +59,7 @@ def Run_Estimate3CamPose(
         f0,
         [cam1_id, cam2_id, cam3_id],
         method,
+        shared_intrinsic,
     )
 
     return b
@@ -168,6 +170,12 @@ if __name__ == "__main__":
         help="perspective self calibration method.",
         default="dual",
     )
+    parser.add_argument(
+        "--shared_intrinsic",
+        action="store_true",
+        help="constrain all cameras to share one common intrinsic K "
+        "(same physical camera assumption)",
+    )
     args = parser.parse_args()
 
     b = Run_Estimate3CamPose(
@@ -188,6 +196,7 @@ if __name__ == "__main__":
         args.j_threshold,
         args.f0,
         args.method,
+        args.shared_intrinsic,
     )
     if b is not True:
         raise SystemExit(1)

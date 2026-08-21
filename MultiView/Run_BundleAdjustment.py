@@ -1,5 +1,6 @@
 import argparse
 import csv
+import itertools
 import os
 import statistics
 
@@ -35,11 +36,26 @@ class BundleAdjustment:
     u,v は principal point=(0,0) のため常に0のまま更新しない。
     """
 
-    def __init__(self, f0, delta=0.0001, max_iter=400, max_inner=80):
+    def __init__(
+        self,
+        f0,
+        delta=0.0001,
+        max_iter=400,
+        max_inner=80,
+        shared_intrinsic=False,
+        pose_lambda=0.0,
+        pose_w_reg=1.0,
+    ):
         self.f0 = float(f0)
         self.delta = delta
         self.max_iter = max_iter
         self.max_inner = max_inner
+        self.shared_intrinsic = shared_intrinsic
+        # 姿勢アンカー正則化: 目的関数に
+        #   lambda * ( ||t_k - t_ref_k||^2 + pose_w_reg * ||log(R_k R_ref_k^T)||^2 )
+        # を加え、BAを初期(merged)姿勢からの精緻化として動作させる。
+        self.pose_lambda = float(pose_lambda)
+        self.pose_w_reg = float(pose_w_reg)
 
     # ------------------------------------------------------------------
     def setParams(self, X_global, cam_t, cam_R, alpha_v, kappa_v, x_v, y_v, cam_ids):
@@ -71,6 +87,10 @@ class BundleAdjustment:
         self.R = np.einsum("ij,mjk->mik", R1.T, self.cam_R0)
         self.X = (1.0 / self.s) * np.einsum("ij,nj->ni", R1.T, self.X_global0 - t0)
 
+        # 姿勢アンカー正則化の参照(ゲージ正規化座標での初期姿勢)。
+        self.t_ref = self.t.copy()
+        self.R_ref = self.R.copy()
+
         # カメラ内部パラメータ初期値(全カメラ共通、principal point=中心=0)。
         self.f = np.full(self.M, self.f0)
         self.u = np.zeros(self.M)
@@ -80,15 +100,22 @@ class BundleAdjustment:
 
         # 自由パラメータのコンパクト列マッピング。
         # 固定: カメラ0の t(3,4,5),R(6,7,8) と カメラ1の t_{gauge_axis}(=3+a)。
+        # shared_intrinsic 時は、全カメラの f(param 0) が1つの共有列にマップされる
+        # (同じ物理カメラで撮影した全画像の内部パラメータは同一という拘束)。
         self.colmap = np.full((self.M, 9), -1, dtype=int)
         a = self.gauge_axis
         idx = 0
+        if self.shared_intrinsic:
+            self.colmap[:, 0] = idx  # 共有焦点距離 f の列
+            idx += 1
         for kappa in range(self.M):
             for param in range(9):
                 if (kappa == 0 and param in (3, 4, 5, 6, 7, 8)) or (
                     kappa == 1 and param == 3 + a
                 ):
                     continue
+                if self.shared_intrinsic and param == 0:
+                    continue  # 共有f列へは既に割り当て済み
                 self.colmap[kappa, param] = idx
                 idx += 1
         self.M9_7 = idx
@@ -205,6 +232,7 @@ class BundleAdjustment:
             term = 2 * (eql1 * Lc[:, i] + eqr1 * Rc[:, i]) / r2
             np.add.at(derror_cam[:, i], self.kappa_v, term)
         self.derror_cam = derror_cam
+        self._add_pose_prior(derror_cam)
 
     def _calchE(self, pd):
         eql1, eqr1, dXv, dCv, Lp, Rp, Lc, Rc = pd
@@ -260,6 +288,7 @@ class BundleAdjustment:
                 valid = (ci >= 0) & (cj >= 0)
                 np.add.at(hG, (ci[valid], cj[valid]), G[valid, i, j])
         hG[np.arange(self.M9_7), np.arange(self.M9_7)] *= 1.0 + self.c
+        self._add_pose_prior(np.zeros((self.M, 9)), hG=hG)
         self.hG = hG
 
     def calcddError(self):
@@ -287,10 +316,52 @@ class BundleAdjustment:
         )
         return np.eye(3) + np.sin(theta) * K + (1.0 - np.cos(theta)) * (K @ K)
 
+    def _rotvec(self, R):
+        """回転行列Rのlog map(回転ベクトル)。getRotateMatの逆。"""
+        tr = np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)
+        theta = np.arccos(tr)
+        v = np.array(
+            [
+                R[2, 1] - R[1, 2],
+                R[0, 2] - R[2, 0],
+                R[1, 0] - R[0, 1],
+            ]
+        )
+        s = 0.5 * np.sin(theta)
+        if abs(s) < 1e-12:
+            return 0.5 * v
+        return v * (theta / (2.0 * s))
+
+    def _add_pose_prior(self, derror_cam, hG=None):
+        """姿勢アンカー正則化の1次/2次微分を加える。"""
+        lam = self.pose_lambda
+        if lam <= 0:
+            return
+        w = self.pose_w_reg
+        for k in range(self.M):
+            derror_cam[k, 3:6] += 2.0 * lam * (self.t[k] - self.t_ref[k])
+            om = self._rotvec(self.R[k] @ self.R_ref[k].T)
+            derror_cam[k, 6:9] += 2.0 * lam * w * om
+            if hG is not None:
+                for param in (3, 4, 5):
+                    col = self.colmap[k, param]
+                    if col >= 0:
+                        hG[col, col] += 2.0 * lam
+                for param in (6, 7, 8):
+                    col = self.colmap[k, param]
+                    if col >= 0:
+                        hG[col, col] += 2.0 * lam * w
+
     def solveEquations(self):
         derror_point = self.derror_point
         derror_cam = self.derror_cam
-        self.dF = derror_cam[self.free_mask]
+        # 共有列(共有f等)へは複数カメラの微分が合算される。
+        self.dF = np.zeros(self.M9_7)
+        for kappa in range(self.M):
+            for param in range(9):
+                col = self.colmap[kappa, param]
+                if col >= 0:
+                    self.dF[col] += derror_cam[kappa, param]
 
         invhE = np.linalg.inv(self.hE)
         M9_7 = self.M9_7
@@ -499,12 +570,23 @@ def Build_Global_BA_Data(cam_pose_csv_list, merged_pose):
         pts3 = _derive_sibling(path, "points3d")
         local = {c: M for c, M, _jk, _cf in Read_CamPose_CSV(path)}
         a = min(local.keys())
-        Mloc = local[a]
-        Rm, tm = merged_pose[a]
-        T = np.eye(4)
-        T[:3, :3] = Rm
-        T[:3, 3] = tm
-        T = T @ inv_rigid(Mloc)
+        Rl_a, tl_a = local[a][:3, :3], local[a][:3, 3]
+        Rm_a, tm_a = merged_pose[a]
+
+        # ローカルフレーム→マージフレームは相似変換(スケールsを含む)。
+        # 各トリプレットは任意の絶対スケールを持つため、剛体変換では点群の
+        # スケールがマージカメラと一致しない(点群だけがずれる原因)。
+        R = Rm_a @ Rl_a.T
+        # スケール: トリプレット内カメラペアのベースライン長の比(マージ/ローカル)の中央値。
+        s_list = []
+        cams_local = sorted(local.keys())
+        for ca, cb in itertools.combinations(cams_local, 2):
+            d_loc = np.linalg.norm(local[ca][:3, 3] - local[cb][:3, 3])
+            d_mer = np.linalg.norm(merged_pose[ca][1] - merged_pose[cb][1])
+            if d_loc > 1e-12:
+                s_list.append(d_mer / d_loc)
+        s = statistics.median(s_list) if s_list else 1.0
+        t = tm_a - s * (R @ tl_a)
 
         P_local = _read_points3d(pts3)
         cam_tri, obs = _read_feature_points(feat)
@@ -524,8 +606,7 @@ def Build_Global_BA_Data(cam_pose_csv_list, merged_pose):
         obs = obs[keep]
         cam_tri = [cam_tri[i] for i in keep]
 
-        Ph = np.hstack([P_local, np.ones((len(P_local), 1))]).T
-        Pg = (T @ Ph)[:3, :].T
+        Pg = s * (R @ P_local.T).T + t
         for i in range(len(Pg)):
             X_list.append(Pg[i])
             cam_tri_all.append(cam_tri[i])
@@ -543,6 +624,9 @@ def Run_BundleAdjustment(
     f0=None,
     delta=0.0001,
     max_iter=200,
+    shared_intrinsic=False,
+    pose_lambda=0.0,
+    pose_w_reg=1.0,
     verbose=True,
 ):
     """グローバルリングバンドル調整を実行する。"""
@@ -583,7 +667,14 @@ def Run_BundleAdjustment(
         )
     print(f"f0 = {f0:.4f}")
 
-    ba = BundleAdjustment(f0, delta=delta, max_iter=max_iter)
+    ba = BundleAdjustment(
+        f0,
+        delta=delta,
+        max_iter=max_iter,
+        shared_intrinsic=shared_intrinsic,
+        pose_lambda=pose_lambda,
+        pose_w_reg=pose_w_reg,
+    )
     ba.setParams(X_global, cam_t, cam_R, alpha_v, kappa_v, x_v, y_v, cam_ids)
     loop = ba.bundleAdjustment(verbose=verbose)
 

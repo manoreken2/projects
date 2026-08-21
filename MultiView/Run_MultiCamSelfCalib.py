@@ -48,8 +48,11 @@ def SelectF0_FromFeatureSpread(feature_point_list_csv):
 
 
 class MultiCamSelfCalib:
-    def __init__(self, f0):
+    def __init__(self, f0, shared_intrinsic=False):
         self.f0 = f0
+        # shared_intrinsic: 同じ物理カメラで撮影した全画像の内部パラメータは
+        # 同一という拘束を課し、ユークリッドアップグレードのKkを全カメラ共通化する。
+        self.shared_intrinsic = shared_intrinsic
 
     def calc_reproj_err(self, fp_list, P_list, X_list):
         """
@@ -487,7 +490,61 @@ class MultiCamSelfCalib:
 
         return better_Kk_list, Jk_list
 
-    def Euclidean_upgrade(self, camFocalLen_list, J_threshold):
+    def _improve_shared_Kk(self, Omega, Kk_list, Qk_list):
+        """
+        全カメラで共通のKk(単一の焦点距離f)を推定する。
+
+        各カメラの絶対二次曲線拘束から個別の焦点距離候補fkを求め、
+        それらをロバストに統合(中央値)した単一fを全カメラに適用する。
+        これにより、カメラごとのKkが個別に発散するのを防ぐ。
+        """
+        nCams = len(Kk_list)
+        f0 = self.f0
+
+        f_new = []
+        Jk_list = []
+        for k in range(nCams):
+            Kk = Kk_list[k]
+            Qk = Qk_list[k]
+            QkOQkT = Qk @ Omega @ Qk.T
+            ck11 = QkOQkT[0, 0]
+            ck22 = QkOQkT[1, 1]
+            ck33 = QkOQkT[2, 2]
+            ck12 = QkOQkT[0, 1]
+            ck13 = QkOQkT[0, 2]
+            ck23 = QkOQkT[1, 2]
+            ck31 = QkOQkT[2, 0]
+
+            # p.213 eq.13.53
+            Fk = ((ck11 + ck22) / ck33) - ((ck13 / ck33) ** 2) - ((ck23 / ck33) ** 2)
+            if ck33 <= 0 or Fk <= 0:
+                f_new.append(np.nan)
+                Jk_list.append(sys.float_info.max)
+                continue
+
+            # p.213 eq.13.54 (光軸点の修正はスキップ du0k=dv0k=0)
+            dfk = np.sqrt(0.5 * (((ck11 + ck22) / ck33) - 0.0 - 0.0))
+            f_new.append(Kk[0, 0] * dfk)
+
+            # p.215 eq.13.60
+            Jk_list.append(
+                ((ck11 / ck33 - 1.0) ** 2)
+                + ((ck22 / ck33 - 1.0) ** 2)
+                + 2.0 * (ck12**2 + ck23**2 + ck31**2) / (ck33**2)
+            )
+
+        valid = [f for f in f_new if np.isfinite(f)]
+        if valid:
+            f_shared = float(np.median(valid))
+        else:
+            f_shared = Kk_list[0][0, 0]
+
+        shared_Kk = np.array(
+            [[f_shared, 0, 0], [0, f_shared, 0], [0, 0, f0]]
+        )
+        return [shared_Kk.copy() for _ in range(nCams)], Jk_list
+
+    def Euclidean_upgrade(self, camFocalLen_list, J_threshold, shared_intrinsic=False):
         """
         p.215 手順13.6
         """
@@ -496,18 +553,37 @@ class MultiCamSelfCalib:
 
         prev_Jmed = Jmed
 
-        while True:
-            Omega, H, Qk_list = self.calc_Omega(Kk_list)
+        # 最良(最小Jmed)の解を追跡する。
+        # Jkが振動してオーバーシュートした場合、悪い解を返すのを防ぐ。
+        best_Jmed = sys.float_info.max
+        best_H = None
+        best_Kk_list = None
+        best_Jk_list = None
 
-            Kk_list, Jk_list = self.improve_Kk_list(Omega, Kk_list, Qk_list)
+        while True:
+            # Jk_list は calc_Omega で用いた Kk_list(improve前)に対応するため、
+            # 最良解は improve 前の Kk_list と H のペアで保持する。
+            Kk_list_pre = Kk_list
+            Omega, H, Qk_list = self.calc_Omega(Kk_list_pre)
+
+            if shared_intrinsic:
+                Kk_list, Jk_list = self._improve_shared_Kk(Omega, Kk_list_pre, Qk_list)
+            else:
+                Kk_list, Jk_list = self.improve_Kk_list(Omega, Kk_list_pre, Qk_list)
 
             # p.215 eq.13.61
             Jmed = statistics.median(Jk_list)
             print(f"Euclidean_upgrade Jmed={Jmed}")
+            if Jmed < best_Jmed:
+                best_Jmed = Jmed
+                best_H = H
+                best_Kk_list = Kk_list_pre
+                best_Jk_list = Jk_list
+
             if Jmed < J_threshold or Jmed >= prev_Jmed:
                 # 終了条件達成。
-                converged = Jmed < J_threshold
-                return H, Kk_list, Jk_list, converged
+                converged = best_Jmed < J_threshold
+                return best_H, best_Kk_list, best_Jk_list, converged
 
             prev_Jmed = Jmed
 
@@ -633,6 +709,7 @@ def Run_MultiCamSelfCalib(
     f0=-1,
     cam_id_list=None,
     method="dual",
+    shared_intrinsic=False,
 ):
     if f0 < 0:
         f0_auto = SelectF0_FromFeatureSpread(in_feature_point_list_path)
@@ -646,7 +723,7 @@ def Run_MultiCamSelfCalib(
 
     nCams = fp_list[0].CameraCount()
 
-    sc = MultiCamSelfCalib(f0)
+    sc = MultiCamSelfCalib(f0, shared_intrinsic=shared_intrinsic)
     if method == "primary":
         P_list, X_list = sc.PrimaryMethodFaster(fp_list, reproj_err_threshold)
     elif method == "dual":
@@ -658,7 +735,7 @@ def Run_MultiCamSelfCalib(
 
     # Kk : cam intrinsic mat
     H, Kk_list, Jk_list, converged = sc.Euclidean_upgrade(
-        default_camFocalLen_list, J_threshold
+        default_camFocalLen_list, J_threshold, shared_intrinsic
     )
     print(f"Kk_list=\n{Kk_list}")
     print(f"per-camera upgrade cost Jk={np.round(np.asarray(Jk_list, dtype=float), 4)}")
@@ -777,6 +854,12 @@ if __name__ == "__main__":
         help="output 3d points PLY file",
         default="tmp/result_points_0000_0001_0002.ply",
     )
+    parser.add_argument(
+        "--shared_intrinsic",
+        action="store_true",
+        help="constrain all cameras to share one common intrinsic K "
+        "(same physical camera assumption)",
+    )
     args = parser.parse_args()
 
     br = Run_MultiCamSelfCalib(
@@ -790,6 +873,7 @@ if __name__ == "__main__":
         args.f0,
         [args.cam1_id, args.cam2_id, args.cam3_id],
         args.method,
+        args.shared_intrinsic,
     )
     if br == True:
         rv = 0

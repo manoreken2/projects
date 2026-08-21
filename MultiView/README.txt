@@ -1,3 +1,7 @@
+# 金谷健一他, 3次元コンピュータービジョン計算ハンドブック, 森北出版
+# のいくつかのアルゴリズムのPython実装。
+# バグっています。
+
 # インストール
 
 miniforge prompt起動
@@ -8,22 +12,25 @@ conda activate multiview
 conda install -y pip opencv scipy pytest
 pip install jupyter numpy matplotlib pandas opencv-python
 
-# jupyter notebook 実行
+# 実行
 
 ## miniforge prompt起動
 
+conda activate multiview
 cd \work\projects\MultiView
-jupyter notebook 
-# a.ipynbをセーブします
 
-# a.ipynbを指定して実行。
-# miniforge prompt起動
+00run.bat
 
-cd \work\projects\MultiView
-jupyter notebook a.ipynb
+# テストデータ説明
 
-Run_TwoCam_Ransac.py : 2つの画像に共通に写っているfeature point の座標の組から generates 3d point list
+Synthetic_OctPrism : 8角柱を、円状に取り囲む24台のカメラで撮影した写真24枚。Blenderで生成した画像。
 
-Run_FeatureMatch.py : 2つの画像からfeature point の座標の組のCSVを作る。
+# プログラム説明
+
+Run_FeatureMatch3.py : 3つの画像からfeature point の座標の組のCSVを作る。
+Run_MultiCamSelfCalib.py : 3つの画像のfeature pointの組のCSVから、3つのカメラの姿勢を推定しCSV出力する。
+Run_MergeMultiCam.py : 複数のカメラの姿勢CSVを集めて、全カメラの姿勢を推定しCSV出力する。
+
+
 
 

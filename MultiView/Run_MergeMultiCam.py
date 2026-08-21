@@ -459,6 +459,19 @@ def main():
         default=None,
         help="output bundle-adjusted 3D points ply (optional)",
     )
+    parser.add_argument(
+        "--shared_intrinsic",
+        action="store_true",
+        help="share one common focal length f across all cameras "
+        "(same physical camera assumption)",
+    )
+    parser.add_argument(
+        "--ba_pose_lambda",
+        type=float,
+        default=0.0,
+        help="pose-anchor regularization weight (pull BA pose toward the "
+        "initial/merged pose). 0 disables",
+    )
     args = parser.parse_args()
 
     if args.cam_pose_csv is None:
@@ -490,6 +503,8 @@ def main():
             out_points3d_csv=args.out_points3d_ba_csv,
             out_points3d_ply=args.out_points3d_ba_ply,
             f0=args.f0,
+            shared_intrinsic=args.shared_intrinsic,
+            pose_lambda=args.ba_pose_lambda,
         )
         if br == True:
             rv = 0
