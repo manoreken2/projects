@@ -351,6 +351,8 @@ def PLY_Export_TwoCam(path: str, t, R):
 
 def Trans_Rot_to_CameraPoseMat(t, R):
     # 回転してから平行移動する。
+    # ローカル座標系の物の座標X=[x,y,z,1].T があった時、
+    # ワールド座標系のtの位置に、Rの向きで置く場合 M @ X
     M = np.array(
         [
             [R[0, 0], R[0, 1], R[0, 2], t[0, 0]],

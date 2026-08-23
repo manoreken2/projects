@@ -539,9 +539,7 @@ class MultiCamSelfCalib:
         else:
             f_shared = Kk_list[0][0, 0]
 
-        shared_Kk = np.array(
-            [[f_shared, 0, 0], [0, f_shared, 0], [0, 0, f0]]
-        )
+        shared_Kk = np.array([[f_shared, 0, 0], [0, f_shared, 0], [0, 0, f0]])
         return [shared_Kk.copy() for _ in range(nCams)], Jk_list
 
     def Euclidean_upgrade(self, camFocalLen_list, J_threshold, shared_intrinsic=False):
@@ -617,9 +615,7 @@ class MultiCamSelfCalib:
             # Xak : 第kカメラ座標系から見た点aの座標。
             # p.217 eq.13.71
             Xa = X3d_list[a]
-
             Xa_tk = Xa - tk
-
             Xak = RkT @ Xa_tk
             sgn_sum += np.sign(Xak[2, 0])
 
@@ -777,7 +773,7 @@ if __name__ == "__main__":
         "--in_feature_point_list_csv",
         type=str,
         help="input csv file",
-        default="tmp/0000_0001_0002.csv",
+        default="tmp/featurePoints2d_0000_0001_0002.csv",
     )
 
     parser.add_argument(
