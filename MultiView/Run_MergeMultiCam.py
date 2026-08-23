@@ -7,7 +7,6 @@ import numpy as np
 
 from Common import (
     CSV_Write_CamPose_list,
-    PLY_Export_MultiCam,
     CSV_Write_Point3d_list,
     Read_CamPose_CSV,
     inv_rigid,
@@ -17,6 +16,8 @@ from Common import (
     apply_similarity_to_pose,
     Build_RangeCamPose_Files,
 )
+
+from PLYUtils import PLY_Export_MultiCam
 
 from Run_BundleAdjustment import Run_BundleAdjustment
 
