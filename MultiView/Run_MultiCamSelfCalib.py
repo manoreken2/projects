@@ -6,6 +6,7 @@ import cv2 as cv
 import os
 import sys
 import statistics
+from PLYUtils import PLY_Export_MultiCam, PLY_Export_PointList
 
 
 def SelectF0_FromFeatureSpread(feature_point_list_csv):
@@ -753,6 +754,11 @@ def Run_MultiCamSelfCalib(
     # Jk: 大きい(=絶対二次曲線の拘束が破れている)カメラほど低い信頼度。
     # confidence :大きいほど信頼度が高い。
     confidence_list = 1.0 / (1.0 + np.asarray(Jk_list, dtype=float))
+
+    # カメラのポーズを、カメラ0が単位上列になるよう変換。
+    cam0inv = np.linalg.inv(Trans_Rot_to_CameraPoseMat(tk_list[0], Rk_list[0]))
+    tk_list, Rk_list = CamTkRkTransform(tk_list, Rk_list, cam0inv)
+    X3d_list = Point3dListTransform(X3d_list, cam0inv)
 
     CSV_Write_CamPose_list(
         result_campose_csv, tk_list, Rk_list, cam_id_list, Jk_list, confidence_list

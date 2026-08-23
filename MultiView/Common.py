@@ -27,17 +27,26 @@ class Point2dPair:
         return self.N
 
 
-# 3次元座標の回転行列作成。
 def RotX(x):
+    """
+    x軸周りxラジアンの回転。
+    右手座標系、4x1の3次元同次縦ベクトルXを右から掛ける用。
+    M @ X
+    """
     c = math.cos(x)
     s = math.sin(x)
 
-    # 行優先: 要素は以下の表現の通りに並ぶ。
+    # 要素は以下の表現の通りに並んだ行列。
     m = np.array([[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]])
     return m
 
 
 def RotY(y):
+    """
+    y軸周りyラジアンの回転。
+    右手座標系、4x1の3次元同次縦ベクトルXを右から掛ける用。
+    M @ X
+    """
     c = math.cos(y)
     s = math.sin(y)
     m = np.array([[c, 0, s, 0], [0, 1, 0, 0], [-s, 0, c, 0], [0, 0, 0, 1]])
@@ -45,6 +54,11 @@ def RotY(y):
 
 
 def RotZ(z):
+    """
+    z軸周りzラジアンの回転。
+    右手座標系、4x1の3次元同次縦ベクトルXを右から掛ける用。
+    M @ X
+    """
     c = math.cos(z)
     s = math.sin(z)
     m = np.array([[c, -s, 0, 0], [s, c, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
@@ -77,132 +91,6 @@ def Proj(fovX, fovY, zNear, zFar):
     return m
 
 
-# Z-向きのカメラのメッシュ vertex listとtriangle list。
-def Generate_CameraMeshZM(scale=0.1):
-    sz = scale * 1.5
-    sx = scale
-    sy = scale * 9.0 / 16.0
-    p = np.zeros((5, 3))
-    p[0] = np.array((0, 0, 0))
-    p[1] = np.array((sx, sy, -sz))
-    p[2] = np.array((sx, -sy, -sz))
-    p[3] = np.array((-sx, -sy, -sz))
-    p[4] = np.array((-sx, sy, -sz))
-
-    # print(p)
-
-    t = np.zeros((6, 3), dtype=np.int32)
-    t[0] = np.array((2, 1, 0), dtype=np.int32)
-    t[1] = np.array((3, 2, 0), dtype=np.int32)
-    t[2] = np.array((4, 3, 0), dtype=np.int32)
-    t[3] = np.array((1, 4, 0), dtype=np.int32)
-    t[4] = np.array((2, 3, 1), dtype=np.int32)
-    t[5] = np.array((4, 1, 3), dtype=np.int32)
-
-    # print(t)
-    return p, t
-
-
-# Z+向きのカメラのメッシュ vertex listとtriangle list。
-def Generate_CameraMeshZP(scale=0.1):
-    # Z-向きのメッシュを作った後Y軸で180度回転する。
-    p, t = Generate_CameraMeshZM(scale)
-    p = Transform_PointList(p, RotY(math.pi))
-    return p, t
-
-
-# メッシュをPLYで保存。
-def ExportMesh_Ply(path: str, p, v):
-    ps = p.shape
-    vs = v.shape
-
-    with open(path, "w", newline="\n") as f:
-        f.write("ply\n")
-        f.write("format ascii 1.0\n")
-
-        f.write(f"element vertex {ps[0]}\n")
-        f.write("property float x\n")
-        f.write("property float y\n")
-        f.write("property float z\n")
-
-        f.write(f"element face {vs[0]}\n")
-        f.write("property list uchar uint vertex_indices\n")
-        f.write("end_header\n")
-
-        for i in range(ps[0]):
-            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]}\n")
-
-        for i in range(vs[0]):
-            f.write(f"3 {int(v[i,0])} {int(v[i,1])} {int(v[i,2])}\n")
-
-
-# 3次元点群をPLYで保存。
-def PLY_Export_PointNdArray(path: str, p: np.ndarray):
-    print(f"PLY__Export_PointList {path}")
-
-    with open(path, "w", newline="\n") as f:
-        f.write("ply\n")
-        f.write("format ascii 1.0\n")
-
-        ps = p.shape
-        f.write(f"element vertex {ps[0]}\n")
-        f.write("property float x\n")
-        f.write("property float y\n")
-        f.write("property float z\n")
-        f.write("end_header\n")
-
-        for i in range(ps[0]):
-            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]}\n")
-
-
-def PLY_Export_PointList(path: str, P_list: list):
-    print(f"PLY__Export_PointList {path}")
-
-    with open(path, "w", newline="\n") as f:
-        f.write("ply\n")
-        f.write("format ascii 1.0\n")
-
-        nPoints = len(P_list)
-        f.write(f"element vertex {nPoints}\n")
-        f.write("property float x\n")
-        f.write("property float y\n")
-        f.write("property float z\n")
-        f.write("end_header\n")
-
-        for i in range(nPoints):
-            p = P_list[i].flatten()
-            f.write(f"{p[0]} {p[1]} {p[2]}\n")
-
-
-# 色付き3次元点群をPLYで保存。
-def ExportColoredPoints_Ply(path: str, p, c_list):
-    ps = p.shape
-
-    with open(path, "w", newline="\n") as f:
-        f.write("ply\n")
-        f.write("format ascii 1.0\n")
-
-        f.write(f"element vertex {ps[0]}\n")
-        f.write("property float x\n")
-        f.write("property float y\n")
-        f.write("property float z\n")
-        f.write("property int r\n")
-        f.write("property int g\n")
-        f.write("property int b\n")
-        f.write("end_header\n")
-
-        for i in range(ps[0]):
-            c = c_list[i]
-            r = 0
-            g = 0
-            b = 255
-            if c == 0:
-                r = 1
-                g = 0
-                b = 0
-            f.write(f"{p[i,0]} {p[i,1]} {p[i,2]} {r} {g} {b}\n")
-
-
 # 4x4行列Mに3次元座標p各点の縦ベクトルを右から掛ける。
 # 変換後の3次元座標が戻ります。
 def Transform_PointList(p, M):
@@ -230,24 +118,6 @@ def Project_PointList(p, M):
             r.append(np.hstack(v)[0:3])
 
     return np.array(r)
-
-
-def MergeMesh(p0, v0, p1, v1):
-    p0s = p0.shape
-    p1s = p1.shape
-
-    v0s = v0.shape
-    v1s = v1.shape
-
-    # v1の頂点番号をずらします。
-    v1a = np.zeros(v1.shape, dtype=np.int32)
-    for i in range(v1s[0]):
-        v1a[i, :] = v1[i, :] + p0s[0]
-
-    p = np.append(p0, p1).reshape(p0s[0] + p1s[0], p0s[1])
-    v = np.append(v0, v1a).reshape(v0s[0] + v1s[0], v0s[1])
-
-    return p, v
 
 
 def cross_operator(t):
@@ -303,52 +173,6 @@ def Trans_Rot_to_TransformMat(t, R):
     return cam0_to_cam1
 
 
-# 2つのカメラの関係図のPLYファイルを出力。
-# カメラはOpenGL様式：Z-向き。
-# カメラ姿勢M0, M1
-def GeneratePLY_TwoCamPoseZM(path: str, M0, M1):
-    p, v = Generate_CameraMeshZM()
-
-    p0 = Transform_PointList(p, M0)
-    p1 = Transform_PointList(p, M1)
-
-    pW, vW = MergeMesh(p0, v, p1, v)
-    ExportMesh_Ply(path, pW, vW)
-
-
-# 2つのカメラの関係図のPLYファイルを出力。
-# カメラはZ+向き。
-# カメラ姿勢M0, M1
-def GeneratePLY_TwoCamPoseZP(path: str, M0, M1):
-    p, v = Generate_CameraMeshZP()
-
-    p0 = Transform_PointList(p, M0)
-    p1 = Transform_PointList(p, M1)
-
-    pW, vW = MergeMesh(p0, v, p1, v)
-    ExportMesh_Ply(path, pW, vW)
-
-
-def GeneratePLY_MultiCamPoseZP(path: str, M_list):
-    p, v = Generate_CameraMeshZP()
-
-    pW = Transform_PointList(p, M_list[0])
-    vW = v
-    for k in range(1, len(M_list)):
-        M = M_list[k]
-        pk = Transform_PointList(p, M)
-        pW, vW = MergeMesh(pW, vW, pk, v)
-
-    ExportMesh_Ply(path, pW, vW)
-
-
-def PLY_Export_TwoCam(path: str, t, R):
-    E4 = np.eye(4)
-    M = Trans_Rot_to_TransformMat(t, R)
-
-    GeneratePLY_TwoCamPoseZP(path, E4, M)
-
-
 def Trans_Rot_to_CameraPoseMat(t, R):
     # 回転してから平行移動する。
     # ローカル座標系の物の座標X=[x,y,z,1].T があった時、
@@ -364,18 +188,28 @@ def Trans_Rot_to_CameraPoseMat(t, R):
     return M
 
 
-def PLY_Export_MultiCam(path: str, t_list, R_list):
-    M_list = []
+def CamTkRkTransform(t_list, R_list, Mat):
+    rv_t_list = []
+    rv_R_list = []
     for k in range(len(t_list)):
         t = t_list[k]
         R = R_list[k]
+        M2 = Mat @ Trans_Rot_to_CameraPoseMat(t, R)
+        t2 = M2[0:3, 3:4]
+        R2 = M2[0:3, 0:3]
+        rv_t_list.append(t2)
+        rv_R_list.append(R2)
+    return rv_t_list, rv_R_list
 
-        # M = Trans_Rot_to_TransformMat(t, R)
-        M = Trans_Rot_to_CameraPoseMat(t, R)
 
-        M_list.append(M)
-
-    GeneratePLY_MultiCamPoseZP(path, M_list)
+def Point3dListTransform(X3d_list, Mat):
+    rv_X3d_list = []
+    for k in range(len(X3d_list)):
+        x3d = np.vstack(X3d_list[k].flatten())
+        x4d = np.concatenate((x3d, np.array([[1.0]])), axis=0)
+        x4d2 = Mat @ x4d
+        rv_X3d_list.append(x4d2[0:3, 0:1])
+    return rv_X3d_list
 
 
 # 楕円用。
