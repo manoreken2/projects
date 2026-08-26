@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "PY=C:\miniforge3\envs\multiview\python.exe"
+set "PY=python.exe"
 set "CAM_NUM=24"
 set "IMG_DIR=Synthetic_OctPrism"
 set "OUT_DIR=tmp"
@@ -36,12 +36,17 @@ for /L %%i in (0,1,23) do (
         --result_cam_pose_ply "%OUT_DIR%\camPose_!n1!_!n2!_!n3!.ply" ^
         --result_points3d_csv "%OUT_DIR%\points3d_!n1!_!n2!_!n3!.csv" ^
         --result_points3d_ply "%OUT_DIR%\points3d_!n1!_!n2!_!n3!.ply" ^
-        --lowes_ratio 0.7 --ransac_threshold 35 --f0 800 ^
+        --lowes_ratio 0.7 --ransac_threshold 35 ^
+        --shared_intrinsic ^
         --reproj_err_converge 0.001 --j_threshold 1.0
+
     if errorlevel 1 (
         echo ERROR: triplet !n1!_!n2!_!n3! failed
         exit /b 1
     )
+
+REM    --focal_length 2667 ^
+
 )
 
 REM ---------------------------------------------------------------
@@ -65,6 +70,8 @@ if errorlevel 1 (
     echo ERROR: Run_MergeMultiCam failed
     exit /b 1
 )
+
+REM    --focal_length 2667 ^
 
 echo Done.
 exit /b 0

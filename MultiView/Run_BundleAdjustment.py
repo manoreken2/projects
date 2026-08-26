@@ -33,7 +33,7 @@ class BundleAdjustment:
 
     観測座標は画像中心原点のピクセル座標(x+→, y+↓)をそのまま用いる
     (参照C++の width/height による軸交換変換はバイパス)。
-    u,v は principal point=(0,0) のため常に0のまま更新しない。
+    principal point (u,v) は自由パラメータとして最適化する(初期値 0)。
     """
 
     def __init__(
@@ -45,12 +45,16 @@ class BundleAdjustment:
         shared_intrinsic=False,
         pose_lambda=0.0,
         pose_w_reg=1.0,
+        fixed_focal=None,
     ):
         self.f0 = float(f0)
         self.delta = delta
         self.max_iter = max_iter
         self.max_inner = max_inner
         self.shared_intrinsic = shared_intrinsic
+        # fixed_focal: 既知の焦点距離 fx=fy (px)。None以外なら焦点距離を
+        # 最適化せずこの値に固定する(f0の正規化とは独立)。
+        self.fixed_focal = fixed_focal
         # 姿勢アンカー正則化: 目的関数に
         #   lambda * ( ||t_k - t_ref_k||^2 + pose_w_reg * ||log(R_k R_ref_k^T)||^2 )
         # を加え、BAを初期(merged)姿勢からの精緻化として動作させる。
@@ -92,7 +96,11 @@ class BundleAdjustment:
         self.R_ref = self.R.copy()
 
         # カメラ内部パラメータ初期値(全カメラ共通、principal point=中心=0)。
-        self.f = np.full(self.M, self.f0)
+        # f0 は座標正規化(K[2,2])、f は焦点距離(K[0,0]=K[1,1])で独立。
+        if self.fixed_focal is not None:
+            self.f = np.full(self.M, float(self.fixed_focal))
+        else:
+            self.f = np.full(self.M, self.f0)
         self.u = np.zeros(self.M)
         self.v = np.zeros(self.M)
         self.cameraMat = np.zeros((self.M, 3, 4))
@@ -105,7 +113,7 @@ class BundleAdjustment:
         self.colmap = np.full((self.M, 9), -1, dtype=int)
         a = self.gauge_axis
         idx = 0
-        if self.shared_intrinsic:
+        if self.shared_intrinsic and self.fixed_focal is None:
             self.colmap[:, 0] = idx  # 共有焦点距離 f の列
             idx += 1
         for kappa in range(self.M):
@@ -114,6 +122,8 @@ class BundleAdjustment:
                     kappa == 1 and param == 3 + a
                 ):
                     continue
+                if self.fixed_focal is not None and param == 0:
+                    continue  # 既知の焦点距離: 焦点距離を最適化しない(固定)
                 if self.shared_intrinsic and param == 0:
                     continue  # 共有f列へは既に割り当て済み
                 self.colmap[kappa, param] = idx
@@ -123,7 +133,7 @@ class BundleAdjustment:
             self.colmap[k][self.colmap[k] >= 0].tolist() for k in range(self.M)
         ]
         self.free_mask = self.colmap >= 0
-        self.denom = 2 * self.V - (3 * self.N + 9 * self.M - 7)
+        self.denom = 2 * self.V - (3 * self.N + self.M9_7)
         self.c = 0.0001
 
         # 各点が見えるカメラ(疎可視性)。
@@ -394,8 +404,12 @@ class BundleAdjustment:
         fT = self.f.copy()
         tT = self.t.copy()
         RT = self.R.copy()
+        uT = self.u.copy()
+        vT = self.v.copy()
         for kappa in range(self.M):
             fT[kappa] += self.getdeltaXiF(kappa, 0)
+            uT[kappa] += self.getdeltaXiF(kappa, 1)
+            vT[kappa] += self.getdeltaXiF(kappa, 2)
             dlt = np.array(
                 [
                     self.getdeltaXiF(kappa, 3),
@@ -417,6 +431,8 @@ class BundleAdjustment:
         K[:, 0, 0] = fT
         K[:, 1, 1] = fT
         K[:, 2, 2] = self.f0
+        K[:, 0, 2] = uT
+        K[:, 1, 2] = vT
         Rtt = np.transpose(RT, (0, 2, 1))
         It = np.zeros((self.M, 3, 4))
         It[:, :3, :3] = np.eye(3)
@@ -434,6 +450,8 @@ class BundleAdjustment:
         self.X = self.X + self.deltaXiP
         for kappa in range(self.M):
             self.f[kappa] += self.getdeltaXiF(kappa, 0)
+            self.u[kappa] += self.getdeltaXiF(kappa, 1)
+            self.v[kappa] += self.getdeltaXiF(kappa, 2)
             dlt = np.array(
                 [
                     self.getdeltaXiF(kappa, 3),
@@ -627,6 +645,7 @@ def Run_BundleAdjustment(
     shared_intrinsic=False,
     pose_lambda=0.0,
     pose_w_reg=1.0,
+    fixed_focal=None,
     verbose=True,
 ):
     """グローバルリングバンドル調整を実行する。"""
@@ -674,6 +693,7 @@ def Run_BundleAdjustment(
         shared_intrinsic=shared_intrinsic,
         pose_lambda=pose_lambda,
         pose_w_reg=pose_w_reg,
+        fixed_focal=fixed_focal,
     )
     ba.setParams(X_global, cam_t, cam_R, alpha_v, kappa_v, x_v, y_v, cam_ids)
     loop = ba.bundleAdjustment(verbose=verbose)

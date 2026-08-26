@@ -29,6 +29,7 @@ def Run_Estimate3CamPose(
     f0=-1,
     method="dual",
     shared_intrinsic=False,
+    focal_length=None,
 ):
     """
     f0: f0 parameter. if it is negative number, f0 is calculated from feature point spread.
@@ -60,6 +61,7 @@ def Run_Estimate3CamPose(
         [cam1_id, cam2_id, cam3_id],
         method,
         shared_intrinsic,
+        focal_length,
     )
 
     return b
@@ -176,6 +178,13 @@ if __name__ == "__main__":
         help="constrain all cameras to share one common intrinsic K "
         "(same physical camera assumption)",
     )
+    parser.add_argument(
+        "--focal_length",
+        type=float,
+        default=None,
+        help="known camera focal length fx=fy (px). When set, skip focal-length "
+        "self-calibration and fix the intrinsic focal to this value.",
+    )
     args = parser.parse_args()
 
     b = Run_Estimate3CamPose(
@@ -197,6 +206,7 @@ if __name__ == "__main__":
         args.f0,
         args.method,
         args.shared_intrinsic,
+        args.focal_length,
     )
     if b is not True:
         raise SystemExit(1)

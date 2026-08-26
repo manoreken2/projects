@@ -49,11 +49,14 @@ def SelectF0_FromFeatureSpread(feature_point_list_csv):
 
 
 class MultiCamSelfCalib:
-    def __init__(self, f0, shared_intrinsic=False):
+    def __init__(self, f0, shared_intrinsic=False, focal_length=None):
         self.f0 = f0
         # shared_intrinsic: 同じ物理カメラで撮影した全画像の内部パラメータは
         # 同一という拘束を課し、ユークリッドアップグレードのKkを全カメラ共通化する。
         self.shared_intrinsic = shared_intrinsic
+        # focal_length: 既知のカメラ焦点距離 fx=fy (px)。None以外なら、
+        # 自己キャリブレーションによる焦点距離推定をスキップし、この値に固定する。
+        self.focal_length = focal_length
 
     def calc_reproj_err(self, fp_list, P_list, X_list):
         """
@@ -543,10 +546,26 @@ class MultiCamSelfCalib:
         shared_Kk = np.array([[f_shared, 0, 0], [0, f_shared, 0], [0, 0, f0]])
         return [shared_Kk.copy() for _ in range(nCams)], Jk_list
 
-    def Euclidean_upgrade(self, camFocalLen_list, J_threshold, shared_intrinsic=False):
+    def Euclidean_upgrade(
+        self, camFocalLen_list, J_threshold, shared_intrinsic=False, focal_length=None
+    ):
         """
         p.215 手順13.6
         """
+        if focal_length is not None and focal_length > 0:
+            # 既知の焦点距離 fx=fy を使う。自己キャリブレーションによる
+            # 焦点距離の逐次補正をスキップし、Kk をこの値に固定する。
+            Kk_fixed = np.array(
+                [[focal_length, 0, 0], [0, focal_length, 0], [0, 0, self.f0]]
+            )
+            Kk_list = [Kk_fixed.copy() for _ in camFocalLen_list]
+            Omega, H, Qk_list = self.calc_Omega(Kk_list)
+            _, Jk_list = self._improve_shared_Kk(Omega, Kk_list, Qk_list)
+            Jmed = statistics.median(Jk_list)
+            converged = Jmed < J_threshold
+            print(f"Euclidean_upgrade (fixed focal={focal_length}) Jmed={Jmed}")
+            return H, Kk_list, Jk_list, converged
+
         Jmed = sys.float_info.max
         Kk_list = self.build_initial_Kk_list(camFocalLen_list)
 
@@ -707,7 +726,10 @@ def Run_MultiCamSelfCalib(
     cam_id_list=None,
     method="dual",
     shared_intrinsic=False,
+    focal_length=None,
 ):
+    # f0 は座標正規化(K[2,2])であり、焦点距離(K[0,0]=K[1,1])とは独立。
+    # 既知の焦点距離 focal_length は Euclidean_upgrade で Kk[0,0]=Kk[1,1] にのみ使う。
     if f0 < 0:
         f0_auto = SelectF0_FromFeatureSpread(in_feature_point_list_path)
         if f0_auto is None:
@@ -720,7 +742,9 @@ def Run_MultiCamSelfCalib(
 
     nCams = fp_list[0].CameraCount()
 
-    sc = MultiCamSelfCalib(f0, shared_intrinsic=shared_intrinsic)
+    sc = MultiCamSelfCalib(
+        f0, shared_intrinsic=shared_intrinsic, focal_length=focal_length
+    )
     if method == "primary":
         P_list, X_list = sc.PrimaryMethodFaster(fp_list, reproj_err_threshold)
     elif method == "dual":
@@ -732,7 +756,7 @@ def Run_MultiCamSelfCalib(
 
     # Kk : cam intrinsic mat
     H, Kk_list, Jk_list, converged = sc.Euclidean_upgrade(
-        default_camFocalLen_list, J_threshold, shared_intrinsic
+        default_camFocalLen_list, J_threshold, shared_intrinsic, focal_length
     )
     print(f"Kk_list=\n{Kk_list}")
     print(f"per-camera upgrade cost Jk={np.round(np.asarray(Jk_list, dtype=float), 4)}")
@@ -862,6 +886,13 @@ if __name__ == "__main__":
         help="constrain all cameras to share one common intrinsic K "
         "(same physical camera assumption)",
     )
+    parser.add_argument(
+        "--focal_length",
+        type=float,
+        default=None,
+        help="known camera focal length fx=fy (px). When set, skip focal-length "
+        "self-calibration and fix the intrinsic focal to this value.",
+    )
     args = parser.parse_args()
 
     br = Run_MultiCamSelfCalib(
@@ -876,6 +907,7 @@ if __name__ == "__main__":
         [args.cam1_id, args.cam2_id, args.cam3_id],
         args.method,
         args.shared_intrinsic,
+        args.focal_length,
     )
     if br == True:
         rv = 0

@@ -282,8 +282,13 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
 
     折り返しトリプレット(0022_0023_0000, 0023_0000_0001)のうち、参照辺 0->1 と
     閉ループ辺 23->0 を同一スケールで持つファイルから真の閉ループ辺長 L_true を求め、
-    チェーンの辺を滑らかに(線形ランプ)スケール補正してリングを閉じる。
-    回転は保持し、並進(位置)のみ補正する。
+    チェーンの各辺の長さに比例してドリフト補正を配分してリングを閉じる。
+    回転(辺の方向)は保持し、並進(位置)のみ補正する。
+
+    補正は各辺 k のベクトル v_k = p_{k+1}-p_k を g_k = s^(w_k) (w_k は辺長に比例)
+    でスケールし、|Σ g_k v_k| = L_true を満たす s を二分法で求める。これにより
+    不規則な八角形(辺長が 1.0〜5.0 と大きく異なる)でも、正則リング(円形)を仮定した
+    放射方向スケール補正のように形を歪めずに閉ループを閉じる。
     """
     cams = sorted(final.keys())
     if 0 not in cams or 23 not in cams:
@@ -314,31 +319,51 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
         )
         return final
 
-    # 3. 位置を「放射方向」に滑らかにスケール補正する。
-    #    累積スケールドリフトは乗算的(約2倍)で、線形な辺ランプでは閉じられないため、
-    #    各カメラの原点からの位置ベクトルを g_k = 1 + c*(k/23) でスケールする。
-    #    p'_k = g_k * p_k は方向を保ち、回転行列はそのまま保持する。
-    #    閉ループ条件 |p'_23| = L_true から c は一意に決まり、常に解が存在する:
-    #        |(1 + c) * p_23| = L_true  =>  c = L_true / |p_23| - 1
+    # 3. 各辺の長さに比例してドリフト補正を配分する(不規則八角形対応)。
+    #    辺ベクトル v_k = p_{k+1}-p_k は方向が正確で、累積ドリフトにより長さだけが
+    #    歪んでいる。各辺 k を g_k = s^(w_k) (w_k は辺長に比例)でスケールし、
+    #    |Σ g_k v_k| = L_true を満たす s を二分法で求める。位置は原点から辺を順に
+    #    足して再構成する(放射方向スケールは使わない)。
     N = 23  # カメラ総数(0..22がチェーン、23が閉ループ端)
-    r = np.linalg.norm(final[N][:3, 3])
-    if r <= 1e-12:
-        print("loop closure: closing camera at origin; no correction")
+    edge_vec = [final[k + 1][:3, 3] - final[k][:3, 3] for k in range(N)]
+    w = [np.linalg.norm(v) for v in edge_vec]
+    if sum(w) <= 1e-12:
+        print("loop closure: zero total edge length; no correction")
         return final
-    c = L_true / r - 1.0
 
-    # 4. 位置を再構成(回転はfinalのまま、並進のみ放射方向にスケール)。
+    def closing_len(s):
+        return np.linalg.norm(sum(s ** wj * vj for wj, vj in zip(w, edge_vec)))
+
+    if closing_len(1.0) <= L_true:
+        # ドリフトで縮んだ場合(通常は伸びる)。伸ばす必要があるが、
+        # 安全のため補正しない。
+        print("loop closure: chain not oversized; no correction")
+        return final
+
+    lo, hi = 0.0, 1.0
+    for _ in range(100):
+        mid = 0.5 * (lo + hi)
+        if closing_len(mid) > L_true:
+            hi = mid
+        else:
+            lo = mid
+    s = 0.5 * (lo + hi)
+
+    # 4. 補正した辺を順に足して位置を再構成(回転はfinalのまま)。
     new_final = {}
-    for k in range(N + 1):
-        g = 1.0 + c * (k / N)
-        M = final[k].copy()
-        M[:3, 3] = g * final[k][:3, 3]
-        new_final[k] = M
+    p = final[0][:3, 3].copy()
+    new_final[0] = final[0].copy()
+    for k in range(N):
+        p = p + (s ** w[k]) * edge_vec[k]
+        M = final[k + 1].copy()
+        M[:3, 3] = p
+        new_final[k + 1] = M
 
+    corrected_close = np.linalg.norm(new_final[23][:3, 3] - new_final[0][:3, 3])
     print(
-        f"loop closure: closing edge {l_chain:.4f} -> L_true {L_true:.4f} "
-        f"(drift ratio {l_chain / L_true:.4f}); applied radial scale correction "
-        f"(factor range 1.0 -> {1.0 + c:.4f})"
+        f"loop closure: closing edge {l_chain:.4f} -> {corrected_close:.4f} "
+        f"(target L_true {L_true:.4f}, drift ratio {l_chain / L_true:.4f}); "
+        f"edge-proportional scale factor s={s:.4f}"
     )
     return new_final
 
@@ -473,6 +498,13 @@ def main():
         help="pose-anchor regularization weight (pull BA pose toward the "
         "initial/merged pose). 0 disables",
     )
+    parser.add_argument(
+        "--focal_length",
+        type=float,
+        default=None,
+        help="known camera focal length fx=fy (px). When set, fix the focal "
+        "length in bundle adjustment to this value instead of optimizing it.",
+    )
     args = parser.parse_args()
 
     if args.cam_pose_csv is None:
@@ -506,6 +538,7 @@ def main():
             f0=args.f0,
             shared_intrinsic=args.shared_intrinsic,
             pose_lambda=args.ba_pose_lambda,
+            fixed_focal=args.focal_length,
         )
         if br == True:
             rv = 0
