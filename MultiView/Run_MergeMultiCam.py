@@ -2,6 +2,7 @@ import argparse
 import csv
 import os
 import statistics
+import sys
 
 import numpy as np
 
@@ -77,7 +78,7 @@ def estimate_similarity_transform(final, d, overlap_cams, weights=None):
     return s, R, t
 
 
-def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
+def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=(), wrap_poses=()):
     """
     低confidence(信頼度の低い)カメラを含むため信用できない新規カメラ target_cam を、
     隣接トリプレット file_poses[i+1] = (b, c, d) から修復して final に追加する。
@@ -85,9 +86,16 @@ def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
     file_poses[i] = (a, b, c) の新規カメラ c(=target_cam) の姿勢が、このファイル内の
     低信頼度カメラ(新規カメラ自身、またはそれが依存する重複カメラ)により信用できない。
     同じカメラ c が正しく推定されている隣接トリプレットから取り直す。
+    チェーン末尾で隣接トリプレットが無い場合は、折り返しトリプレット wrap_poses
+    (b と c を含むもの)を修復源として使用する。
 
-    前提: 全トリプレットの相対カメラ幾何は同一(正規リング)であり、リングの
-    1ステップ分のベースライン長は等しい。a, b は既に final で正しく確定済み。
+    前提: 隣接トリプレットの回転・辺方向を信用する。
+    ただしスケール s は「リングの1ステップの辺長が等しい(正則リング)」仮定で
+    決めている。不規則リング(辺長が異なる)では近似になる点に注意:
+    修復対象 c を含むファイル i はトリガ条件により c か重複カメラ a,b のいずれか
+    が低信頼度で、ファイル i 内部の辺長比 |b->c|/|a->b| も信用できない。
+    一方ファイル i+1 と final の重複はカメラ b のみで辺長観測が無いため、
+    正則リング仮定以外のスケール情報はこの時点で存在しない(識別不能)。
 
     手順:
       - 隣接トリプレットをカメラ b で final へ回転整列する(R)。
@@ -103,20 +111,29 @@ def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
     if target_cam in final:
         return  # 既に確定済み(修復不要)
 
-    if i + 1 >= len(file_poses):
-        raise ValueError(
-            f"low-confidence camera {target_cam} in {cams} has no next triplet to repair from"
-        )
-
     # 隣接トリプレット (b, c, d) 内のアンカー b と修復対象 c の姿勢を使う。
     a, b = cams[0], cams[1]
     c = target_cam
 
-    d_next = file_poses[i + 1]
-    next_b = d_next.get(b)
-    next_c = d_next.get(c)
-    if next_b is None or next_c is None:
-        raise ValueError(f"next triplet does not contain repair cameras {b}, {c}")
+    # 修復源: 通常の隣接トリプレット、無ければ b,c を含む折り返しトリプレット。
+    candidates = []
+    if i + 1 < len(file_poses):
+        candidates.append(file_poses[i + 1])
+    candidates.extend(wrap_poses)
+
+    d_next = None
+    for cand in candidates:
+        if b in cand and c in cand:
+            d_next = cand
+            break
+    if d_next is None:
+        raise ValueError(
+            f"low-confidence camera {target_cam} in {cams} has no adjacent/wrap "
+            f"triplet containing {b}, {c} to repair from"
+        )
+
+    next_b = d_next[b]
+    next_c = d_next[c]
 
     final_a = final.get(a)
     final_b = final.get(b)
@@ -142,7 +159,8 @@ def repair_low_conf_camera(final, file_poses, i, target_cam, unreliable=()):
     )
 
 
-def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
+def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0, jk_abs_thr=1.0,
+                       wrap_pose_files=None):
     """
     複数のcamPose CSVを、順次チェーン方式で統合し、最小のcamera_idを
     単位行列とした各カメラの相対姿勢を求める。
@@ -151,8 +169,14 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
     基準にスケールを正規化し、以降はスケールを含む相似変換で接続する。
 
     各ファイルの per-camera confidence (Jkベース) を参照し、
-      - 新規カメラが低信頼度なら隣接トリプレットから修復して確定する。
+      - 新規カメラが低信頼度なら隣接トリプレット(末尾では折り返しトリプレット)
+        から修復して確定する。
       - 重複カメラの低信頼度は、相似変換推定でダウンウェイトする。
+
+    低信頼度の判定は相対基準(Jk > rel_thr * 同ファイル中央値)に加え、
+    絶対下限(Jk > jk_abs_thr)も課す。j_threshold(収束判定, 既定1.0)未満の
+    Jkは客観的に良好であり、ファイル内比較だけで修復経路に入ると、
+    全カメラが良好な場合でも外れ値修復(正則リング仮定)が誤配置を起こす。
 
     処理の流れ:
       1. 最初のファイル camPose_0000_0001_0002.csv の最小camera_id(=0)の
@@ -184,6 +208,15 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
         # file_conf[i] = ( {camera_id: confidence}, {camera_id: Jk} )
         file_conf.append((conf_i, jk_i))
 
+    # 折り返しトリプレット(ループクローズ用)を、チェーン末尾の修復源として読む。
+    wrap_poses = []
+    if wrap_pose_files:
+        for path in wrap_pose_files:
+            wd = {}
+            for cam_id, M, _jk, _cf in Read_CamPose_CSV(path):
+                wd[cam_id] = M
+            wrap_poses.append(wd)
+
     # 1. 最初のファイルで最小camera_idを単位行列にする。
     first = file_poses[0]
     first_cams = sorted(first.keys())
@@ -210,10 +243,15 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
         conf_i = file_conf[i][0]
 
         # このファイル内の低信頼度カメラを判定する。
-        # (per-camera Jk が同ファイル内の中央値より rel_thr 倍以上大きいカメラ)
+        # 相対基準(Jk が同ファイル中央値の rel_thr 倍以上)かつ
+        # 絶対下限(Jk > jk_abs_thr)を満たすカメラのみ。
+        # 絶対下限が無いと、全カメラのJkが良好(例: 1e-4台)でも
+        # 中央値との比だけで誤って修復経路に入り誤配置を起こす。
         if jk_i:
             med = statistics.median(list(jk_i.values()))
-            unreliable = {c for c, j in jk_i.items() if j > rel_thr * med}
+            unreliable = {
+                c for c, j in jk_i.items() if j > rel_thr * med and j > jk_abs_thr
+            }
         else:
             unreliable = set()
 
@@ -227,15 +265,24 @@ def ChainMergeMultiCam(cam_pose_csv_list, rel_thr=10.0):
 
         # 新規カメラが低信頼度、もしくは新規カメラが依存する重複カメラ(アンカー)が
         # 低信頼度の場合、このファイルの相対幾何は信用できない。
-        # → 新規カメラを隣接トリプレットから修復して確定し、このファイルの
-        #   劣化した新規カメラ出力は使わない。
+        # → 新規カメラを隣接トリプレット(末尾では折り返し)から修復して確定し、
+        #   このファイルの劣化した新規カメラ出力は使わない。
+        # 修復源が無い場合は、ダウンウェイトした通常相似変換マージにフォールバックする。
         if new_cams and (
             new_cams[0] in unreliable or any(c in unreliable for c in overlap_cams)
         ):
-            repair_low_conf_camera(
-                final, file_poses, i, new_cams[0], unreliable=unreliable
-            )
-            continue
+            try:
+                repair_low_conf_camera(
+                    final,
+                    file_poses,
+                    i,
+                    new_cams[0],
+                    unreliable=unreliable,
+                    wrap_poses=wrap_poses,
+                )
+                continue
+            except ValueError as e:
+                print(f"WARN: repair unavailable ({e}); fall back to similarity merge")
 
         if not overlap_cams:
             raise ValueError(
@@ -280,8 +327,10 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
     推定誤差がリング一周で累積し、閉ループ辺(23->0)の長さが本来の値から
     ずれる(ドリフト)。
 
-    折り返しトリプレット(0022_0023_0000, 0023_0000_0001)のうち、参照辺 0->1 と
-    閉ループ辺 23->0 を同一スケールで持つファイルから真の閉ループ辺長 L_true を求め、
+    リング順序は camera_id の昇順(このパイプラインのカメラ配置)とみなす。
+    折り返しトリプレット(例: 0022_0023_0000, 0023_0000_0001)のうち、参照辺
+    first->second と閉ループ辺 last->first を同一スケールで持つファイルから
+    真の閉ループ辺長 L_true を求め、
     チェーンの各辺の長さに比例してドリフト補正を配分してリングを閉じる。
     回転(辺の方向)は保持し、並進(位置)のみ補正する。
 
@@ -291,19 +340,20 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
     放射方向スケール補正のように形を歪めずに閉ループを閉じる。
     """
     cams = sorted(final.keys())
-    if 0 not in cams or 23 not in cams:
+    if len(cams) < 3:
         return final  # リングでない場合は補正しない
+    first, second, last = cams[0], cams[1], cams[-1]
 
-    # 1. 参照辺 0->1 と閉ループ辺 23->0 を同一スケールで持つ折り返しファイルから
-    #    真の閉ループ辺長 L_true を求める。
+    # 1. 参照辺 first->second と閉ループ辺 last->first を同一スケールで持つ
+    #    折り返しファイルから真の閉ループ辺長 L_true を求める。
     L_true = None
     for path in wrap_pose_files:
         d = {}
         for cam_id, M, _jk, _cf in Read_CamPose_CSV(path):
             d[cam_id] = M
-        if 0 in d and 1 in d and 23 in d:
-            e_ref = np.linalg.norm(d[1][:3, 3] - d[0][:3, 3])
-            e_close = np.linalg.norm(d[23][:3, 3] - d[0][:3, 3])
+        if first in d and second in d and last in d:
+            e_ref = np.linalg.norm(d[second][:3, 3] - d[first][:3, 3])
+            e_close = np.linalg.norm(d[last][:3, 3] - d[first][:3, 3])
             if e_ref > 1e-12:
                 L_true = L_ref * (e_close / e_ref)
                 break
@@ -311,7 +361,7 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
         L_true = L_ref  # フォールバック: 正規リングと仮定
 
     # 2. チェーンの閉ループ辺長(ドリフトした値)。
-    l_chain = np.linalg.norm(final[23][:3, 3] - final[0][:3, 3])
+    l_chain = np.linalg.norm(final[last][:3, 3] - final[first][:3, 3])
 
     if abs(l_chain - L_true) < 1e-9 * L_ref:
         print(
@@ -324,8 +374,8 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
     #    歪んでいる。各辺 k を g_k = s^(w_k) (w_k は辺長に比例)でスケールし、
     #    |Σ g_k v_k| = L_true を満たす s を二分法で求める。位置は原点から辺を順に
     #    足して再構成する(放射方向スケールは使わない)。
-    N = 23  # カメラ総数(0..22がチェーン、23が閉ループ端)
-    edge_vec = [final[k + 1][:3, 3] - final[k][:3, 3] for k in range(N)]
+    N = len(cams) - 1  # チェーン辺数(camera_id 昇順のリング。last が閉ループ端)
+    edge_vec = [final[cams[k + 1]][:3, 3] - final[cams[k]][:3, 3] for k in range(N)]
     w = [np.linalg.norm(v) for v in edge_vec]
     if sum(w) <= 1e-12:
         print("loop closure: zero total edge length; no correction")
@@ -351,15 +401,15 @@ def loop_closure_scale_correction(final, wrap_pose_files, L_ref=1.0):
 
     # 4. 補正した辺を順に足して位置を再構成(回転はfinalのまま)。
     new_final = {}
-    p = final[0][:3, 3].copy()
-    new_final[0] = final[0].copy()
+    p = final[first][:3, 3].copy()
+    new_final[first] = final[first].copy()
     for k in range(N):
         p = p + (s ** w[k]) * edge_vec[k]
-        M = final[k + 1].copy()
+        M = final[cams[k + 1]].copy()
         M[:3, 3] = p
-        new_final[k + 1] = M
+        new_final[cams[k + 1]] = M
 
-    corrected_close = np.linalg.norm(new_final[23][:3, 3] - new_final[0][:3, 3])
+    corrected_close = np.linalg.norm(new_final[last][:3, 3] - new_final[first][:3, 3])
     print(
         f"loop closure: closing edge {l_chain:.4f} -> {corrected_close:.4f} "
         f"(target L_true {L_true:.4f}, drift ratio {l_chain / L_true:.4f}); "
@@ -373,10 +423,15 @@ def Run_MergeMultiCam(
     out_cam_pose_csv,
     out_cam_pose_ply=None,
     loop_closure_csv_list=None,
+    jk_abs_thr=1.0,
 ):
     # 各ファイルの per-camera confidence(Jkベース) に従い、低信頼度カメラを
-    # ダウンウェイト / 隣接トリプレットから修復してマージする。
-    merged = ChainMergeMultiCam(in_cam_pose_csv_list)
+    # ダウンウェイト / 隣接(折り返し)トリプレットから修復してマージする。
+    merged = ChainMergeMultiCam(
+        in_cam_pose_csv_list,
+        jk_abs_thr=jk_abs_thr,
+        wrap_pose_files=loop_closure_csv_list,
+    )
 
     # ループクロージャ: 折り返しトリプレットで累積スケールドリフトを補正する。
     if loop_closure_csv_list:
@@ -451,6 +506,14 @@ def main():
         "correct cumulative scale drift by loop closure (optional).",
     )
     parser.add_argument(
+        "--jk_abs_thr",
+        type=float,
+        default=1.0,
+        help="absolute Jk floor for unreliable-camera detection. Jk below this "
+        "(same scale as --j_threshold of self-calib) is considered good and "
+        "never triggers the repair path regardless of intra-file median ratio.",
+    )
+    parser.add_argument(
         "--bundle_adjustment",
         action="store_true",
         help="run global ring bundle adjustment after merging (optional).",
@@ -519,6 +582,7 @@ def main():
         args.out_cam_pose_csv,
         args.out_cam_pose_ply,
         loop_closure_csv_list=args.loop_closure_csv,
+        jk_abs_thr=args.jk_abs_thr,
     )
     if br == True:
         rv = 0

@@ -530,7 +530,8 @@ def Epipolar_Constraint_Error(
         # print(f"xy0={xy0}")
         # print(f"Fxy1={Fxy1}")
 
-        err = np.vdot(xy0, Fxy1)
+        # 符号付き誤差は平均で打ち消し合い指標にならない。絶対値を用いる。
+        err = abs(np.vdot(xy0, Fxy1))
 
         err_sum += err
         valid_count += 1
@@ -747,7 +748,7 @@ def PointPairList_Shift(pp_list, shift_xy):
 
         xy1 = pp_list.b[i]
         x1 = xy1[0] + sx
-        y1 = xy1[0] + sy
+        y1 = xy1[1] + sy
 
         r0_list.append(np.array([x0, y0]))
         r1_list.append(np.array([x1, y1]))
@@ -873,7 +874,9 @@ def CSV_Write_MatchedPointList3(path: str, xyz_triplet, shift_xy, cam_id_list):
     sy = shift_xy[1]
 
     # 座標系は、x+→, y+↓
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    out_dir = os.path.dirname(path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     with open(path, "w", newline="\n") as f:
         f.write("cam_id_A, xA, yA, cam_id_B, xB, yB, cam_id_C, xC, yC\n")
         for p in xyz_triplet:
@@ -1198,14 +1201,17 @@ def Triangulation(
             rv = np.linalg.lstsq((T.T) @ T, (T.T) @ p, rcond=None)
         xyz = rv[0].flatten()
         xyz_list[i, :] = xyz
-        if 0 < xyz[0]:
+        # 奥行きはZ成分。カメラの前方(Z+)に点があるかの判定は xyz[2] を見る。
+        if 0 < xyz[2]:
             z_sign = z_sign + 1
         else:
             z_sign = z_sign - 1
 
     if z_sign < 0:
+        # 三角測量していない行(未初期化)は反転しない。
         for i in range(N):
-            xyz_list[i, :] = -xyz_list[i, :]
+            if valid_bitmap[i]:
+                xyz_list[i, :] = -xyz_list[i, :]
 
     # reject outliers that is z < 0 カメラの後ろにある点。
     valid_point_count = 0

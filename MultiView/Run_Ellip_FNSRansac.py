@@ -12,7 +12,7 @@ from Common import (
     BuildL_FNS,
 )
 from Ransac import Ransac, RegresserBase
-from RegressorFNSEllip import RegressorFNSEllip
+from RegressorEllipFNS import RegressorEllipFNS
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
     assert N == y_list.shape[0]
 
     reg = Ransac(
-        model=RegressorFNSEllip(MaxIter, ConvEPS, f0),
+        model=RegressorEllipFNS(MaxIter, ConvEPS, f0),
         n=SampleCount,
         t=1.0,
         d=N * 0.8,

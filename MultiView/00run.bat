@@ -52,7 +52,10 @@ REM    --focal_length 2667 ^
 REM ---------------------------------------------------------------
 REM Step 2: Run_MergeMultiCam (chain of 22 + loop closure of 2 wrap triplets).
 REM ---------------------------------------------------------------
-echo [Step2] merge 24 triplets -> %OUT_DIR%\camPose_merged.csv
+REM NOTE: escape > as ^> in echo, otherwise cmd treats it as redirection and
+REM overwrites camPose_merged.csv with this echo text. (Keep this bat ASCII-only:
+REM UTF-8 non-ASCII comments get misparsed under the system code page.)
+echo [Step2] merge 22 chain triplets ^(+2 wrap) -^> %OUT_DIR%\camPose_merged.csv
 "%PY%" Run_MergeMultiCam.py ^
     --dir %OUT_DIR% --prefix camPose --start 0 --cam_num 22 ^
     --out_cam_pose_csv "%OUT_DIR%\camPose_merged.csv" ^

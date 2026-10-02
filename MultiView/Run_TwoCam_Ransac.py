@@ -10,6 +10,7 @@ from Fundamental_to_CamParams import *
 from Ransac_TwoCam import *
 from RegressorTwoCamFNS import RegressorTwoCamFNS
 from RegressorTwoCamLSQ import RegressorTwoCamLSQ
+from PLYUtils import PLY_Export_PointNdArray, PLY_Export_TwoCam
 import numpy as np
 
 
@@ -49,7 +50,22 @@ def Run_TwoCam_Ransac(
     F = ThetaToF(theta)
     print(f"F={F}")
 
-    focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    try:
+        focalLen_Cam0, focalLen_Cam1 = Fundamental_to_FocalLength(F, f0)
+    except ValueError as e:
+        # 金谷5章の「虚焦点(imaginary focal point)」退化。
+        # f0 に対する真の焦点距離が大きい(例: f0=600, f≈2667)と xi の真値が -1 に
+        # 極端に近く((f0/f)^2-1 ≈ -0.95)、対応点ノイズで -1 を跨って推定不能になる。
+        # 2枚のFからの焦点距離推定は狭FOV・短ベースラインでは ill-conditioned(数学的限界)。
+        # 対策: 焦点距離を既知として与える Run_TwoCam_LeastSquare.py、
+        #       もしくは3カメラ自己校正 Run_Estimate3CamPose.py を使うこと。
+        print(f"ERROR: Fundamental_to_FocalLength failed: {e}")
+        print(
+            "  (imaginary focal point: 2-view focal self-calibration is ill-conditioned "
+            "for this geometry. Use known focal length (Run_TwoCam_LeastSquare) "
+            "or the 3-camera pipeline.)"
+        )
+        return False
     print(f"Focal length = {focalLen_Cam0}, {focalLen_Cam1}")
 
     if result_two_cam_focalLengths_csv is not None:
@@ -149,6 +165,12 @@ if __name__ == "__main__":
         default=0.8,
         help="RANSACでインライアーと判定されるべき点の数の比率",
     )
+    parser.add_argument(
+        "--f0",
+        type=float,
+        default=600,
+        help="f0 parameter. feature point spread in px.",
+    )
     args = parser.parse_args()
 
     b = Run_TwoCam_Ransac(
@@ -161,6 +183,7 @@ if __name__ == "__main__":
         args.ite_count,
         args.loss_threshold,
         args.close_points_ratio,
+        args.f0,
     )
 
     if b == True:

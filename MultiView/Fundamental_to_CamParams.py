@@ -96,45 +96,62 @@ def Fundamental_to_Trans_Rot(F, f, fp, f0, pp: Point2dPair, valid_bitmap):
     # 平行移動の方向t (長さはわからないので 1)
     t = MinEigVec(E @ np.transpose(E))
 
-    # tの向きが反対かどうか調べる。
-    s = 0.0
-    for i in range(N):
-        if valid_bitmap[i] == False:
-            continue
-        x0 = pp.a[i, 0]
-        y0 = pp.a[i, 1]
-        x1 = pp.b[i, 0]
-        y1 = pp.b[i, 1]
+    # t の向き・R をシーン基準(両カメラの前方に点がある)で決める。
+    # 注意: F(したがってE)の全体符号は推定により任意なので、旧来の
+    # Σ[t, x, E x'] テストは E に埋め込まれた t の符号と t を揃えるだけで、
+    # シーンに対して逆向きを選ぶことがある(厳密Fでも t→-t になる実測バグ)。
+    # 候補 (±t, ±E) の4組合せについて R を再構成し、三角測量で両カメラ
+    # 前方(Z>0)の点数が最大の組合せを選ぶ(H&Z の4候補判定と同趣旨)。
+    def candidate(tv, Es):
+        txv = a_to_ax(tv)
+        Kv = -txv @ (Es * E)
+        srv = svd(Kv)
+        Dv = np.eye(3)
+        Dv[2, 2] = det(srv.U @ srv.Vh)
+        Rv = srv.U @ Dv @ srv.Vh
+        Rt = Rv.T
+        t1 = -Rt @ tv.reshape(3)  # P1 = [R^T | t1], カメラ1中心 = tv
+        cnt = 0
+        step = max(1, N // 200)
+        for i in range(0, N, step):
+            if valid_bitmap[i] == False:
+                continue
+            x0 = pp.a[i, 0]
+            y0 = pp.a[i, 1]
+            x1 = pp.b[i, 0]
+            y1 = pp.b[i, 1]
+            # P0=[I|0] 規約(正規化座標 x=(x,y,f0))での三角測量
+            A4 = np.array(
+                [
+                    [f0, 0.0, -x0],
+                    [0.0, f0, -y0],
+                    f0 * Rt[0, :] - x1 * Rt[2, :],
+                    f0 * Rt[1, :] - y1 * Rt[2, :],
+                ]
+            )
+            b4 = np.array(
+                [
+                    0.0,
+                    0.0,
+                    -(f0 * t1[0] - x1 * t1[2]),
+                    -(f0 * t1[1] - y1 * t1[2]),
+                ]
+            )
+            X = np.linalg.lstsq(A4, b4, rcond=None)[0]
+            if X[2] <= 0:
+                continue
+            if (Rt @ (X - tv.reshape(3)))[2] > 0:
+                cnt += 1
+        return cnt, Rv
 
-        xa = np.vstack([x0 / f, y0 / f, 1.0])
-        xap = np.vstack([x1 / fp, y1 / fp, 1.0])
-        s += Scalar_triplet(t, xa, E @ xap)
-    if s <= 0:
-        t = -t
-
-    tx = a_to_ax(t)
-    K = -tx @ E
-
-    sr = svd(K)
-
-    # print(sr.S)
-
-    U = sr.U
-    Vh = sr.Vh
-
-    D = np.eye(3)
-    D[2, 2] = det(U @ Vh)
-
-    # print(f"K=\n{K}")
-    # print(f"U=\n{U}")
-    # print(f"D=\n{D}")
-    # print(f"Vh=\n{Vh}")
-
-    R = U @ D @ Vh
-
-    # print(f"DVht=\n{D @ Vh}")
-
-    # print(f"R=\n{R}")
+    best = None
+    for tv in (t, -t):
+        for Es in (1.0, -1.0):
+            cnt, Rv = candidate(tv, Es)
+            if best is None or cnt > best[0]:
+                best = (cnt, tv, Rv)
+    t = best[1]
+    R = best[2]
 
     return t, R
 

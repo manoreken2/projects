@@ -57,7 +57,8 @@ class RegressorTwoCamLSQ(RegressorTwoCamBase):
 
             thetaT_v0_theta = (theta.T @ v0_theta).item()
 
-            J[i] = xi_theta**2 / (thetaT_v0_theta)
+            # 分母が負のとき負のロスになり閾値判定を常に通過してしまう。絶対値を取る。
+            J[i] = abs(xi_theta**2 / (thetaT_v0_theta))
 
         # print(f"J={J}")
 

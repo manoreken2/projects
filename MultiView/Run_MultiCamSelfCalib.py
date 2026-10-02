@@ -462,7 +462,10 @@ class MultiCamSelfCalib:
             Fk = ((ck11 + ck22) / ck33) - ((ck13 / ck33) ** 2) - ((ck23 / ck33) ** 2)
 
             if ck33 <= 0 or Fk <= 0:
-                # Kk修正不要。
+                # Kk修正不要。リスト長を維持するため元のKkを保持する。
+                # (リストが短くなると次反復のcalc_Omegaや
+                #  Extract_Cam_Extrinsicでカメラ番号の対応が崩れ IndexError)
+                better_Kk_list.append(Kk)
                 continue
 
             if False:
@@ -682,7 +685,7 @@ class MultiCamSelfCalib:
             sign_detAk = np.sign(detAk)
             detAk = np.abs(detAk)
             s = detAk ** (1.0 / 3.0)
-            if sign_detAk < 1.0:
+            if sign_detAk < 0.0:
                 s = -s
 
             # p.217 eq.13.67
@@ -712,6 +715,25 @@ class MultiCamSelfCalib:
             tk_list.append(tk)
 
         return Rk_list, tk_list, X3d_list
+
+
+def ScaleCamTrans(tk_list, scale):
+    tr = []
+    for k in range(len(tk_list)):
+        t = tk_list[k]
+        t *= scale
+        tr.append(t)
+    return tr
+
+
+def ScaleX3dList(X3d_list, scale):
+    xr = []
+
+    for i in range(len(X3d_list)):
+        x = X3d_list[i]
+        x *= scale
+        xr.append(x)
+    return xr
 
 
 def Run_MultiCamSelfCalib(
@@ -752,6 +774,13 @@ def Run_MultiCamSelfCalib(
     else:
         raise ValueError(f"unknown method: {method}")
 
+    if P_list is None or X_list is None:
+        print(
+            f"ERROR: perspective self calibration ({method}) did not converge. "
+            f"Aborted: {in_feature_point_list_path}"
+        )
+        return False
+
     default_camFocalLen_list = [f0] * nCams
 
     # Kk : cam intrinsic mat
@@ -783,6 +812,11 @@ def Run_MultiCamSelfCalib(
     cam0inv = np.linalg.inv(Trans_Rot_to_CameraPoseMat(tk_list[0], Rk_list[0]))
     tk_list, Rk_list = CamTkRkTransform(tk_list, Rk_list, cam0inv)
     X3d_list = Point3dListTransform(X3d_list, cam0inv)
+
+    # カメラ0→1の距離を1にする。
+    distance = np.linalg.norm(tk_list[1])
+    tk_list = ScaleCamTrans(tk_list, 1.0 / distance)
+    X3d_list = ScaleX3dList(X3d_list, 1.0 / distance)
 
     CSV_Write_CamPose_list(
         result_campose_csv, tk_list, Rk_list, cam_id_list, Jk_list, confidence_list

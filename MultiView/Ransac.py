@@ -40,6 +40,8 @@ class Ransac:
         N = X.shape[0]
         assert N == Y.shape[0]
 
+        best_inlier_ids = np.array([], dtype=int)
+
         for i in range(self.k):
             ids = rng.permutation(X.shape[0])
 
@@ -64,6 +66,8 @@ class Ransac:
                     print(f"D: i={i}/{self.k} loss {this_loss}, inliers={inlier_ids.size}")
                     self.best_loss = this_loss
                     self.best_model = better_model
+                    # ベストモデルに対応する inlier 集合(サンプリング点含む)を保持する。
+                    best_inlier_ids = inlier_points
                 else:
                     #print(f"D: inliner count is OK {inlier_ids.size}, but error is large {this_loss}")
                     pass
@@ -71,12 +75,13 @@ class Ransac:
                 #print(f"D: not met inliers count condition {inlier_ids.size} < {self.d}. loss={loss_list.mean()}")
                 pass
 
-        self.inlier_ids = inlier_ids
+        # 最終反復の inlier_ids ではなく、ベストモデルの inlier を使う。
+        self.inlier_ids = best_inlier_ids
 
         # c_list[id] == 0 : inlier 
         # c_list[id] == 1 : outlier
         self.c_list=N * [1]
-        for id in inlier_ids:
+        for id in best_inlier_ids:
             self.c_list[id] = 0
 
         return self

@@ -480,6 +480,7 @@ class BundleAdjustment:
             self.calcdError()
             self.calcddError()
             inner = 0
+            step_ok = False
             while True:
                 self.solveEquations()
                 self.calcErrorTilde()
@@ -495,7 +496,14 @@ class BundleAdjustment:
                         print("  BA: inner loop cap reached")
                         break
                 else:
+                    step_ok = True
                     break
+            if not step_ok:
+                # 誤差を減らすステップが見つからなかった。
+                # 誤差増加のステップを適用せず終了する。
+                print("  BA: no decreasing step found; stop")
+                eTilde = e
+                break
             self.renewParams()
             self.calcpqr()
             self.calcError()
@@ -714,9 +722,10 @@ def Run_BundleAdjustment(
     if out_points3d_ply:
         PLY_Export_PointNdArray(out_points3d_ply, np.asarray(X_out))
 
-    rmse = np.sqrt(ba.error / ba.V)
+    # error は正規化座標 (p/r - x/f0)^2 の和。px 単位の RMSE には f0 を掛ける。
+    rmse_px = ba.f0 * np.sqrt(ba.error / ba.V)
     print(
-        f"BA: {loop} iterations, final RMSE = {rmse:.4f} px, "
+        f"BA: {loop} iterations, final RMSE = {rmse_px:.4f} px, "
         f"f0*std = {ba.f0 * np.sqrt(ba.error / ba.denom):.6e}"
     )
     print(

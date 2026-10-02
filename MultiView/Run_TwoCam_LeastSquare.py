@@ -8,13 +8,12 @@ from Common import (
     Epipolar_Constraint_Error,
     FToTheta,
     InlierPointList_from_bitmap,
-    PLY_Export_PointNdArray,
-    PLY_Export_TwoCam,
     ThetaToF,
     Triangulation,
     TwoCam_LeastSquare,
     Reconstruct_F_from,
 )
+from PLYUtils import PLY_Export_PointNdArray, PLY_Export_TwoCam
 from Rank_Correction import Optimal_rank_correction
 from Fundamental_to_CamParams import (
     Fundamental_to_Trans_Rot,
@@ -26,7 +25,9 @@ if __name__ == "__main__":
     DEFAULT_F0 = 600
 
     f0 = DEFAULT_F0
-    focal_len = 2174.0
+    # 既知の焦点距離。Blenderカメラ 50mm/sensor36mm, 1920px => 2667px。
+    # (00run.bat の --focal_length 2667 コメント、および3カメラ自己校正の推定 2663〜2687 と一致)
+    focal_len = 2667.0
 
     pp = CSV_Read_TwoCam_MatchedPointList("tmp/op0001_0002.csv")
     N = pp.get_point_count()

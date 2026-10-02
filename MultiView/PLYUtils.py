@@ -291,7 +291,8 @@ def GeneratePLY_TwoCamPoseZP(path: str, M0, M1):
 
 
 def GeneratePLY_MultiCamPoseZP(path: str, M_list):
-    m0 = Generate_CameraMeshZP()
+    # 1台目も M_list[0] で変換する(単位行列とは限らない)。
+    m0 = Generate_CameraMeshZP().Transform(M_list[0])
 
     for k in range(1, len(M_list)):
         M = M_list[k]

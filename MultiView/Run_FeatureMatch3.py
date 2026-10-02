@@ -28,6 +28,10 @@ def Find_QueryIdx(matches, idx):
 def Ransac_Homography_Mask(src_pts, dst_pts, ransac_threshold):
     # 参考: Run_FeatureMatch.py の SIFT_FLANN2 と同様の外れ値除去
     M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, ransac_threshold)
+    if M is None or mask is None:
+        # ホモグラフィ推定失敗: 全点を外れ値扱い(トリプレットは作られない)
+        print("Ransac_Homography_Mask: findHomography failed")
+        return [0] * len(src_pts)
     return mask.ravel().tolist()
 
 
@@ -99,6 +103,10 @@ def Run_FeatureMatch3(
     print(
         f"triplet count={len(xyz_triplet)} (Lowe's ratio={lowes_ratio}, ransac_threshold={ransac_threshold})"
     )
+
+    if len(xyz_triplet) < 8:
+        print("  skip: not enough 3-cam feature point triplets")
+        return False
 
     # CSVを出力します。
     shift_xy = np.array([-img1_shape[1] * 0.5, -img1_shape[0] * 0.5])

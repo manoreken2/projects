@@ -40,7 +40,9 @@ def Draw_MatchedPoints(
         flags=2,
     )
     img3 = cv.drawMatches(img1, kp1, img2, kp2, good, None, **draw_params)
-    os.makedirs(os.path.dirname(matchedpoints_img_path), exist_ok=True)
+    out_dir = os.path.dirname(matchedpoints_img_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     plt.imsave(matchedpoints_img_path, img3)
 
 
@@ -95,11 +97,18 @@ def SIFT_FLANN2(img1, img2, Lowes_ratio=0.7, ransac_threshold=5.0, save_png=None
 
     good, lratios = Extract_GoodMatches(matches, Lowes_ratio)
 
+    if len(good) < 4:
+        print(f"SIFT_FLANN2: too few matches for findHomography ({len(good)} < 4)")
+        return []
+
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
     M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, ransac_threshold)
     print(f"Homography={M}")
+    if M is None or mask is None:
+        print("SIFT_FLANN2: findHomography failed (no inlier homography)")
+        return []
     matchesMask = mask.ravel().tolist()
 
     # インライア点のホモグラフィ再投影誤差 (pixel) を計算
@@ -122,7 +131,8 @@ def SIFT_FLANN2(img1, img2, Lowes_ratio=0.7, ransac_threshold=5.0, save_png=None
     # 多重マッチの重複除去:
     # 各対応点ペアを信頼度の高い順 (再投影誤差小 / Lowe's ratio 小) に並べ、
     # 同一の画像1側キーポイントと画像2側キーポイントが重複しないように1対1対応のみ残す
-    xy_pair.sort(key=lambda p: p[3])  # 再投影誤差が小さい順
+    # (reproj_errors が無いときの NaN は最後尾に置く)
+    xy_pair.sort(key=lambda p: p[3] if np.isfinite(p[3]) else np.inf)
 
     seen_q = set()
     seen_t = set()
@@ -179,7 +189,9 @@ def Run_FeatureMatch(
 
     # 画像上のマッチ点座標を、(x,y) x右+, y下+で、画面中心を原点として保存。
 
-    os.makedirs(os.path.dirname(result_matchedpoints_csv_path), exist_ok=True)
+    out_dir = os.path.dirname(result_matchedpoints_csv_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     shift_xy = np.array([-img1_Width * 0.5, -img1_Height * 0.5])
     CSV_Write_TwoCam_MatchedPointList(
         result_matchedpoints_csv_path,
