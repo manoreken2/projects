@@ -1,7 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "PY=python.exe"
+REM PY is provided from outside this bat, e.g.:
+REM   set "PY=C:\miniforge3\envs\multiview\python.exe" && 00run.bat
+REM If PY is not defined, fall back to python.exe on PATH.
+if not defined PY set "PY=python.exe"
 set "CAM_NUM=24"
 set "IMG_DIR=Synthetic_OctPrism"
 set "OUT_DIR=tmp"
@@ -48,8 +51,6 @@ for /L %%i in (0,1,23) do (
         echo ERROR: triplet !n1!_!n2!_!n3! failed
         exit /b 1
     )
-
-REM    --focal_length 2667 ^
 
 )
 
