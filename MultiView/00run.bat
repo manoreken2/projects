@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "PY=C:\miniforge3\envs\multiview\python.exe"
+set "PY=python.exe"
 set "CAM_NUM=24"
 set "IMG_DIR=Synthetic_OctPrism"
 set "OUT_DIR=tmp"
