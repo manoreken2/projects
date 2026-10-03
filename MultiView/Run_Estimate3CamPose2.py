@@ -9,6 +9,9 @@ v2 はトリプレットが少ない場合にrobustな別方針を採ります�
    (Run_FeatureMatch -> Ransac_TwoCam -> Fundamental_to_Trans_Rot) を適用し、
    相対姿勢 (t, R) を求める。t は長さ1に正規化されるため、
    ペア(2,3)のカメラ間距離はこの時点では不定。
+   ペア姿勢は *_pose.csv にキャッシュし、同じカメラペアを含む
+   隣接トリプレットで共有する。二重推定ズレ(1〜3deg)が
+   Run_MergeMultiCam のマージ歪み(BA破綻の原因)になるのを防ぐ。
 2. ゲージ固定: カメラ1を原点・単位姿勢、距離(cam1,cam2)=1 とすると、
    カメラ3の向き R13 = R12*R23 は確定し、未知は距離比
    r = d23/d12 のスカラー1個のみ残る。
@@ -136,6 +139,49 @@ def Estimate_TwoCam_Pose(
         f"trans={t.flatten()}\nrot=\n{R}"
     )
     return {"t": t, "R": R, "fl0": fl0, "fl1": fl1, "pp": pp, "valid_bitmap": valid_bitmap}
+
+
+def _pair_pose_path(pair_points_csv):
+    """pairPoints2d_0000_0001.csv -> pairPoints2d_0000_0001_pose.csv"""
+    return os.path.splitext(pair_points_csv)[0] + "_pose.csv"
+
+
+def Save_Pair_Pose(pair_points_csv, t, R, fl0, fl1):
+    """
+    ペア姿勢 (t=カメラ2中心/カメラ1座標系, |t|=1, R=カメラ2向き, 焦点距離) を
+    キャッシュCSVへ保存する。同じカメラペアを含む隣接トリプレットで
+    姿勢を共有し、トリプレット間の二重推定ズレ(1〜3deg)による
+    マージ歪みを防ぐ。
+    """
+    vals = [fl0, fl1] + list(np.asarray(t).flatten()) + list(np.asarray(R).flatten())
+    with open(_pair_pose_path(pair_points_csv), "w", newline="\n") as f:
+        f.write(",".join(f"{v:.10g}" for v in vals) + "\n")
+
+
+def Load_Pair_Pose(pair_points_csv, focal_length):
+    """
+    キャッシュCSVからペア姿勢を読む。無い/壊れている/焦点距離が
+    現在の指定と合わない場合は None(再推定が必要)。
+    """
+    path = _pair_pose_path(pair_points_csv)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            vals = [float(x) for x in f.read().replace(",", " ").split()]
+        if len(vals) != 14:
+            return None
+        fl0, fl1 = vals[0], vals[1]
+        t = np.vstack(np.array(vals[2:5]))
+        R = np.array(vals[5:14]).reshape(3, 3)
+    except Exception:
+        return None
+    if focal_length is not None and focal_length > 0:
+        if abs(fl0 - focal_length) > 1e-6 or abs(fl1 - focal_length) > 1e-6:
+            print(f"Load_Pair_Pose: stale cache (focal mismatch): {path}")
+            return None
+    print(f"Load_Pair_Pose: reuse cached pair pose {path}")
+    return {"t": t, "R": R, "fl0": fl0, "fl1": fl1}
 
 
 def Make_P(fl, R, C, f0):
@@ -342,36 +388,49 @@ def Estimate_distance_ratio(
     loss_threshold,
     close_points_ratio,
     sin_angle_min,
+    force_reestimate=False,
 ):
     """
     ペア2ビュー姿勢推定 + 2ゲージ距離比推定 + 共通コスト選択を1回行う。
+
+    ペア姿勢はキャッシュCSV(_pose.csv)があれば再利用する(隣接トリプレットと
+    同一カメラペアの姿勢を共有し、マージ歪みを防ぐ)。force_reestimate=True
+    の場合はキャッシュを使わず再推定する。
 
     戻り値: 成功時 dict(cost=共通コスト[px], r=距離比d23/d12, gauge='A'/'B',
             t12, R12, t23, R23, fl_cam1, fl_cam2, fl_cam3, R13, u)
             失敗時 None
     """
-    # ---- ペアごとの2ビュー姿勢推定 ----
-    pair12 = Estimate_TwoCam_Pose(
-        result_pair12_points2d_csv,
-        f0,
-        focal_length,
-        regressor,
-        ite_count,
-        loss_threshold,
-        close_points_ratio,
+    # ---- ペアごとの2ビュー姿勢推定(キャッシュ優先) ----
+    pair12 = None if force_reestimate else Load_Pair_Pose(
+        result_pair12_points2d_csv, focal_length
     )
+    if pair12 is None:
+        pair12 = Estimate_TwoCam_Pose(
+            result_pair12_points2d_csv,
+            f0,
+            focal_length,
+            regressor,
+            ite_count,
+            loss_threshold,
+            close_points_ratio,
+        )
     if pair12 is None:
         return None
 
-    pair23 = Estimate_TwoCam_Pose(
-        result_pair23_points2d_csv,
-        f0,
-        focal_length,
-        regressor,
-        ite_count,
-        loss_threshold,
-        close_points_ratio,
+    pair23 = None if force_reestimate else Load_Pair_Pose(
+        result_pair23_points2d_csv, focal_length
     )
+    if pair23 is None:
+        pair23 = Estimate_TwoCam_Pose(
+            result_pair23_points2d_csv,
+            f0,
+            focal_length,
+            regressor,
+            ite_count,
+            loss_threshold,
+            close_points_ratio,
+        )
     if pair23 is None:
         return None
 
@@ -597,6 +656,7 @@ def Run_Estimate3CamPose2(
             loss_threshold,
             cpr,
             sin_angle_min,
+            force_reestimate=(attempt > 0),
         )
         if res is None:
             continue
@@ -640,6 +700,17 @@ def Run_Estimate3CamPose2(
             " --max_attempts を増やす/対応点品質を上げる/焦点距離を既知指定すること。"
         )
         return False
+
+    # 最良組合せのペア姿勢(記号補正後)をキャッシュ保存。
+    # 同じカメラペアを使う隣接トリプレットで姿勢を共有する。
+    Save_Pair_Pose(
+        result_pair12_points2d_csv, best["t12"], best["R12"],
+        best["fl_cam1"], best["fl_cam2"],
+    )
+    Save_Pair_Pose(
+        result_pair23_points2d_csv, best["t23"], best["R23"],
+        best["fl_cam2"], best["fl_cam3"],
+    )
 
     # ---- 5. 最終姿勢の合成(ゲージ: カメラ1=原点・単位姿勢, |t12|=1) ----
     t12, R12, R13, u, r = best["t12"], best["R12"], best["R13"], best["u"], best["r"]
