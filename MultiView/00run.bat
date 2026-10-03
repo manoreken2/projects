@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "PY=python.exe"
+set "PY=C:\miniforge3\envs\multiview\python.exe"
 set "CAM_NUM=24"
 set "IMG_DIR=Synthetic_OctPrism"
 set "OUT_DIR=tmp"
@@ -9,7 +9,8 @@ set "OUT_DIR=tmp"
 if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
 
 REM ---------------------------------------------------------------
-REM Step 1: Run_Estimate3CamPose for 24 triplets (cyclic wrap-around).
+REM Step 1: Run_Estimate3CamPose2 (2-view pairs + dual-gauge scale)
+REM for 24 triplets (cyclic wrap-around).
 REM ---------------------------------------------------------------
 for /L %%i in (0,1,23) do (
     set /a i0=%%i
@@ -26,19 +27,22 @@ for /L %%i in (0,1,23) do (
     set "n3=!num!"
 
     echo [Step1] triplet !n1!_!n2!_!n3!  i0=!i0! i1=!i1! i2=!i2!
-    "%PY%" Run_Estimate3CamPose.py ^
+    "%PY%" Run_Estimate3CamPose2.py ^
         --cam1_id=!i0! --cam2_id=!i1! --cam3_id=!i2! ^
         --img1 "%IMG_DIR%\!n1!.png" ^
         --img2 "%IMG_DIR%\!n2!.png" ^
         --img3 "%IMG_DIR%\!n3!.png" ^
+        --result_pair12_points2d_csv "%OUT_DIR%\pairPoints2d_!n1!_!n2!.csv" ^
+        --result_pair23_points2d_csv "%OUT_DIR%\pairPoints2d_!n2!_!n3!.csv" ^
         --result_feature_points_list_csv "%OUT_DIR%\featurePoints2d_!n1!_!n2!_!n3!.csv" ^
         --result_cam_pose_csv "%OUT_DIR%\camPose_!n1!_!n2!_!n3!.csv" ^
         --result_cam_pose_ply "%OUT_DIR%\camPose_!n1!_!n2!_!n3!.ply" ^
         --result_points3d_csv "%OUT_DIR%\points3d_!n1!_!n2!_!n3!.csv" ^
         --result_points3d_ply "%OUT_DIR%\points3d_!n1!_!n2!_!n3!.ply" ^
         --lowes_ratio 0.7 --ransac_threshold 35 ^
-        --shared_intrinsic ^
-        --reproj_err_converge 0.001 --j_threshold 1.0
+        --focal_length 2667 ^
+        --ite_count 3000 ^
+        --max_attempts 3 --max_reproj_cost 50
 
     if errorlevel 1 (
         echo ERROR: triplet !n1!_!n2!_!n3! failed
