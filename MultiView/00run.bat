@@ -71,14 +71,13 @@ echo [Step2] merge 22 chain triplets ^(+2 wrap) -^> %OUT_DIR%\camPose_merged.csv
     --out_points3d_ba_csv "%OUT_DIR%\points3d_ba.csv" ^
     --out_points3d_ba_ply "%OUT_DIR%\points3d_ba.ply" ^
     --shared_intrinsic ^
-    --ba_pose_lambda 30.0
+    --focal_length 2667 ^
+    --ba_pose_lambda 100.0
 
 if errorlevel 1 (
     echo ERROR: Run_MergeMultiCam failed
     exit /b 1
 )
-
-REM    --focal_length 2667 ^
 
 echo Done.
 exit /b 0
